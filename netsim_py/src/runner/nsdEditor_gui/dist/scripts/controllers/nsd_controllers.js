@@ -93,8 +93,16 @@ define(['underscore',
         };
         
         $scope.initializeOutput = function(nsd) {
-            if (!nsd.plots) {
-                nsd.plots = [];
+            if (!nsd.views) {
+                nsd.views = [
+                    {
+                        name: 'dataTable',
+                        columns: [],
+                        base_tables: [],
+                        table_filter: '',
+                        groupby: []
+                    }
+                ];
             }
         };
 
@@ -154,16 +162,12 @@ define(['underscore',
         };
         
         $scope.tabs = {
-            selected: 1,
             main_selected: parseInt($location.search()['tab']) || 1
         };
         
-        $scope.setSelectedTab = function(index, which_tabs) {
-            $scope.tabs[which_tabs] = index;
-            
-            if (which_tabs === 'main_selected') {
-                $location.search('tab', index);
-            }
+        $scope.setSelectedTab = function(index) {
+            $scope.tabs.main_selected = index;
+            $location.search('tab', index);
         };
         
         $scope.createPlot = function() {
@@ -189,26 +193,26 @@ define(['underscore',
             });
         };
         
+        $scope.view = {
+            selected: {},
+            isSelected: false
+        };
+        
+        $scope.setSelectedView = function(view) {
+            $scope.view.selected = view;
+            $scope.view.isSelected = true;
+        };
+        
         $scope.createView = function() {
+            var self = this;
             ngDialog.open({
                 template: 'templates/create_view.html',
                 className: 'ngdialog-theme-default new-view-dialog',
                 closeByDocument: false,
                 controller: ['$scope', function($scope) {
-                    $scope.base_datasets = [
-                        {
-                            name: 'dataset1'
-                        },
-                        {
-                            name: 'dataset2'
-                        }
-                    ];
+                    $scope.base_datasets = self.nsd.views;
                     
-                    $scope.myData = [
-                        {name: 'node', expression: 'datatable.node', groupby: false},
-                        {name: 'n_index', expression: 'datatable.n_index', groupby: true},
-                        {name: 'data', expression: 'datatable.data', groupby: true}
-                    ];
+                    $scope.myData = [];
                  
                     $scope.gridOptions = { 
                         data: 'myData',
@@ -233,9 +237,27 @@ define(['underscore',
                         ]
                     };
                     
+                    $scope.addField = function() {
+                        $scope.myData.push({name: 'field' + $scope.myData.length, expression: '', groupby: false});
+                    };
+                    
                     $scope.createView = function() {
-                        console.log($scope.view.base_tables);
-                        console.log($scope.myData);
+                        
+                        if ($scope.view) {
+                            $scope.view.columns = [];
+                            $scope.view.groupby = [];
+
+                            _.each($scope.myData, function(obj) {
+                                $scope.view.columns.push({ name: obj.name, expression: obj.expression });
+                                if (obj.groupby === true) {
+                                    $scope.view.groupby.push(obj.name);
+                                }
+                            });
+                        
+                            self.nsd.views.push($scope.view);
+                            $scope.closeThisDialog();
+                        }
+                        
                     };
                     
                     $scope.dismissDialog = function() {
