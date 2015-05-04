@@ -6,10 +6,11 @@ Created on Oct 14, 2014
 
 import os.path
 import json
-from models.nsd import NSD
+from models.nsd import NSD, Network, Mote, MoteType
 from models.mf import Attribute
 from simgen.utils import docstring_template
 from .castaliagen import generate_castalia
+import pdb
 
 
 def transform_value(attr, value):
@@ -42,10 +43,17 @@ def populate_modeled_instance(model, json):
     
     for attr in metamodel.attributes:
         json_field = attr.name  # here we can add a mapping!
+      #  pdb.set_trace()
         if json_field in json:
         
             tval = transform_value(attr, json[json_field])
             setattr(model, attr.name, tval)
+
+
+def extract_jsonfile_arg(data, arg):
+    for key,value in data.items():
+        if key==arg:
+            return value
 
 
 
@@ -65,22 +73,44 @@ class NSDReader:
         # read parameters
         populate_modeled_instance(nsd, nsd_obj)
         self.nsd=nsd
-        """
-        planid=nsd_obj["plan_id"]
-        self.plan=datastore.get_plan(planid)
-        populate_modeled_instance(nsd, self.plan)
-        
-        projectid=nsd_obj["project_id"]
-        self.project=datastore.get_project(projectid)
-        populate_modeled_instance(nsd, self.project)
-        """
+        self.plan= self.read_plan(datastore, self.nsd)
+        self.project= self.read_project(datastore, self.nsd)
+        self.create_network()
+
         return nsd
-     
+
+    #
+    #Reads the corresponding plan json file from CouchDb
+    #    
     def read_plan(self, datastore, nsd):
         planid=nsd.plan_id
         plan=datastore.get_plan(planid)
         populate_modeled_instance(nsd, plan)
         return plan
+
+    #
+    #Reads the corresponding project json file from CouchDb
+    #  
+    def read_project(self, datastore, nsd):
+        projectid=nsd.project_id
+        project=datastore.get_project(projectid)
+        populate_modeled_instance(nsd, project)
+        return project
+
+    #
+    #Extract info from couchdb json files and creates the network model
+    #
+    def create_network(self):
+        self.network=Network(self.nsd)
+        self.defaultMoteType=MoteType()
+        numOfNodes=int(self.nsd.numOfNodes)
+        for i in range (0, numOfNodes):
+            self.create_mote(self.plan['NodePosition'][i])
+
+    def create_mote(self, data):
+        mote=Mote(self.network, self.defaultMoteType)
+        setattr(mote, 'node_id', transform_value(str, data["nodeId"]))
+        setattr(mote, Position, transform_value('Position', data['coordinates'][0], data['coordinates'][1], data['coordinates'][2]))
    
         
         
@@ -99,10 +129,9 @@ class CastaliaGen:
     def generate_nodefile(self):
         self.log.info("Generating `nodefile")
         print("Generating nodefile")
-        with self.node_file("nodefile.txt") as nodefile:
-            nodes = self.extract_nodeinfo(self.plan)
-            for node in nodes:
-                nodefile.write(str(node))
+        with self.open_file("nodefile.txt") as nodefile:
+            nodes = self.extract_nodes(self.plan)
+            nodefile.write(json.dumps(nodes))
     
     def build_model(self):
         """This is the entry point to the code that loads the NSD from the Project Repository.
@@ -111,7 +140,7 @@ class CastaliaGen:
 
         reader = NSDReader()
         self.nsd = reader.read_nsd(self.datastore, self.sim_root['nsdid'], self.simhome)
-        self.plan= reader.read_plan(self.datastore, self.nsd)
+       
         self.log.info("NSD model built")
 
     
@@ -119,7 +148,7 @@ class CastaliaGen:
         self.log.info("NSD validated")
         
     
-    def node_file(self, path):
+    def open_file(self, path):
         return open(os.path.join(self.simhome, path), "a")
         
 
@@ -128,9 +157,18 @@ class CastaliaGen:
         self.generate_nodefile()
 
 
-    def extract_nodeinfo(self, data):
-        nodes=[]
-        for k,v in data.items():
-                if k=="nodeId":
-                    nodes.append=v
-        return nodes
+   
+    
+
+class NetworkMapper:
+
+    def __init__(self, nsd_obj, jsonplan, json_project):
+        self.nsd=nsd_obj
+        self.json_plan=jsonplan
+        self.json_project=json_project
+
+
+    def extract_jsonfile_info(self):
+        data={}
+        data["RF_simulations"]=extract_jsonfile_arg(self.json_plan,"simulations")
+        self.data=json.dumps(data)
