@@ -1,0 +1,51 @@
+<div class="container">
+    <ol class="breadcrumb row">
+        <li><a href="#!/">Home</a></li>
+        <li><a href="#!/vectorl_files">My VectorL Files</a></li>
+        <li class="active">[[vectorl.name]]</li>
+    </ol>
+    <div class="row">
+        <div class="col-md-12">
+            <h3>VectorL Editor</h3>
+        </div>
+    </div>
+    <div class="row top20">
+        <div class="col-md-2">
+            <h5><strong>File name:</strong></h5>
+        </div>
+        <div class="col-md-4">
+            <h5>[[vectorl.name]]</h5>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-md-2">
+            <h5><strong>Project:</strong></h5>
+        </div>
+        <div class="col-md-4">
+            <h5>[[vectorl.project_id]]</h5>
+        </div>
+    </div>
+    <div class="row top10">
+        <div class="col-md-3 pull-right">
+            <a class="btn btn-primary btn-block" ng-click="saveVectorl()">Save</a>
+            <div class="alert alert-success animate-show" ng-show="alerts.save_success">
+                <p>
+                   <a href="" class="close" ng-click="dismiss()">&times;</a>
+                   Your changes were saved successfully!
+                </p>
+            </div>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-md-12">
+            <a class="btn btn-warning btn-sm"><span class="glyphicon glyphicon-ok"></span> Compile</a>
+            <a class="btn btn-success btn-sm"><span class="glyphicon glyphicon-play-circle"></span> Run</a>
+        </div>
+    </div>
+    <div class="row top10 bottom10">
+        <div class="col-md-12">
+            <textarea my-code-editor class="form-control not-resizable" ng-model="vectorl.code">
+            </textarea>
+        </div>
+    </div>
+</div>

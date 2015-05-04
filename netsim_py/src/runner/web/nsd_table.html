@@ -1,0 +1,31 @@
+
+ % rebase("mainpage.html")
+
+ % from runner.api import nsd_dao
+ % from os.path import basename
+
+<div style="height: 400px; overflow:scroll">
+ <table class="datatable">
+     <thead>     	
+	<tr>
+         <th>Project</th>
+         <th>NSD</th>
+         <th>Operations</th>
+	 </tr>
+     </thead>
+     <tbody>
+     % for obj in nsd_dao.findAll():     
+     <tr>
+		<td>{{obj['project_id']}}</td>
+		<td>{{obj['_id']}}</td>
+        <td>
+            <form method="post" action="/admin/run_simulation">
+                <input type="hidden" name="nsdid" value="{{obj['_id']}}"/> 
+                <input type="submit" value="Run sim">
+            </form>
+        </td>
+     </tr>
+     % end
+     </tbody>
+ </table>
+</div>

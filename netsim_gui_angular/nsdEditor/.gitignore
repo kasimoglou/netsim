@@ -1,0 +1,4 @@
+node_modules
+nbproject
+.tmp
+.sass-cache

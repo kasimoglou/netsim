@@ -1,0 +1,7 @@
+For netsim run
+1.Open config.py and change the following
+	1.omnetpp_path
+	2.castalia_path
+	3.gui_file_path
+	4.local_executor_path
+	5.Add the links in folders(Catalia/src, Castalia/Simulations/Parameters) after placing the folders in the right loction (ln -s)

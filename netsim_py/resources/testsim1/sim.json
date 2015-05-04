@@ -1,0 +1,5 @@
+{
+    "name": "test_sim",
+    "generator": "Castalia",
+    "nsdid": "file:nsd.json"
+}

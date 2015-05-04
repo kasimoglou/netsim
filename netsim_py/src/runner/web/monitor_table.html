@@ -1,0 +1,63 @@
+ % rebase("mainpage.html")
+
+ % from runner.monitor import Manager
+ % from runner.config import *
+
+ <table class="datatable">
+     <thead>        
+        <tr>
+            <th>Option</th>
+            <th>Value</th>
+        </tr>
+     </thead>
+     <tbody>
+        <tr><td>Omnet path</td>
+            <td>{{omnetpp_path()}}</td></tr>
+        <tr><td>Castalia path</td>
+            <td>{{castalia_path()}}</td></tr>
+        <tr><td>Database</td>
+            <td>{{postgresql_connection()}}</td></tr>
+        <tr><td>Project repository</td>
+            <td>{{project_repository()}}</td></tr>
+     </tbody>
+ </table>
+
+ <br/>
+
+ <table class="datatable">
+     <thead>     	
+		<tr>
+	        <th>Monitor</th>
+            <th>Threads</th>
+            <th colspan="2">Controls</th>
+		</tr>
+     </thead>
+     <tbody>
+     % for e in Manager.monitor_engines():     
+     <tr>
+         <td>{{e.name}}</td>
+         <td>{{len(e.workers)}}</td>
+         <td style="width:0;"><a  class="a-button">Start</a></td>
+         <td style="width:0;"><a  class="a-button">Shutdown</a></td>
+     </tr>
+     % end
+     </tbody>
+ </table>
+ <br/>
+ <table class="datatable">
+     <thead>        
+        <tr>
+            <th>Executor</th>
+            <th>Home dir</th>
+        </tr>
+     </thead>
+     <tbody>
+     % for e in Manager.executors():     
+     <tr>
+         <td>{{e.name}}</td>
+         <td>{{e.homedir}}</td>
+     </tr>
+     % end
+     </tbody>
+ </table>
+

@@ -1,0 +1,93 @@
+#
+#
+#  Copy this file to ~/.dpcm_netsim and customize it with your paths.
+#
+#
+
+[DEFAULT]
+
+# 
+# The base paths for all the rest
+#
+execdir = /home/vsam/src/dpcm_run
+netsim_py = /home/vsam/git/netsim2/netsim_py
+
+#
+# IMPORTANT: Edit these paths to point to the correct locations for OmNet++ and Castalia!
+# 
+# We assume that Omnet is built and works correctly. However, castalia should not be built
+#
+# Tested with:
+#    Omnet++   4.4
+#   Castalia   3.2
+
+omnetpp_path = %(execdir)s/omnetpp-4.4
+castalia_path = %(execdir)s/Castalia-3.2
+
+#
+# Path where the direct monitor jobs are to be stored
+#
+local_executor_path= %(execdir)s/Simulations
+
+
+#
+#  We require a Postgres database (version >=8.0) that will be used by the monitor.
+#
+#  This is a minimal setup for Postgres. For more details consult the documentation
+#  of psycopg2.
+#
+postgresql_connection: dbname=dpcm
+
+
+#
+# Gui host and port
+#
+gui_bind_addr=localhost
+gui_bind_port=18880
+
+
+#
+# Location of the web templates
+#
+gui_file_path = %(netsim_py)s/src/runner/web
+nsdEdit_file_path = %(netsim_py)s/src/runner/nsdEditor_gui
+
+#
+# Path where resource files are stored
+#
+resource_path= %(netsim_py)s/resources
+
+#
+# The http server to use
+# 
+; For developing
+http_server = wsgiref
+; For deployment
+#http_server = cherrypy
+
+
+#
+# The url to the WSN-DPCM project repository
+#
+project_repository = http://213.172.45.30:5984/
+
+
+# In this section you can customize defaults for the sim_runner server
+[sim_runner]
+
+# In this section you can customize defaults for the sim_runner server
+[unit_test]
+
+; Uncomment the line below to use a local couchdb for testing.
+; Using the setup_local_repo.py program, we can clone the DPCM
+; Repository to the local couchdb
+
+;project_repository = http://127.0.0.1:5984/
+
+
+
+# In this section you can customize defaults for simulation_run
+[simulation_run]
+
+
+

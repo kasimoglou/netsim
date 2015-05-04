@@ -1,0 +1,35 @@
+
+ % rebase("mainpage.html")
+
+ % from runner.monitor import Manager
+ % from os.path import basename
+
+<div style="height: 400px; overflow:scroll">
+ <table class="datatable">
+     <thead>     	
+	<tr>
+         <th>Job Id</th>
+         <th>Path</th>
+         <th>State</th>
+         <th>Status</th>
+         <th>Time started</th>
+		 <th>Runtime</th>
+<!-- 		 <th>Last status</th> -->
+	 </tr>
+     </thead>
+     <tbody>
+     % for job in Manager.jobs():     
+     <tr>
+		<td>{{job.jobid}}</td>
+		<td><a href="file://localhost{{job.fileloc}}" target="_blank">{{basename(job.fileloc)}}</a></td>
+		<td>{{job.state}}</td>
+		<td>{{job.status}}{{("[%s]" % job.last_status) if job.status=='ABORTED' else ""}}  </td>
+		<td>{{job.tscreated.strftime("%y/%m/%d %H:%M:%S")}}</td>
+		<td>{{job.tsinstatus - job.tscreated}}</td>
+<!-- 		<td>{{job.last_status}}</td>		 -->
+     </tr>
+     % end
+     % end
+     </tbody>
+ </table>
+</div>

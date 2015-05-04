@@ -1,0 +1,35 @@
+<div class="container">
+    <ol class="breadcrumb row">
+        <li><a href="#!/">Home</a></li>
+        <li class="active">New Nsd</li>
+    </ol>
+    <div class="row">
+        <div class="col-md-3">
+            <form novalidate class="new-nsd-form">
+                <div class="row">
+                    <div class="form-group">
+                        <label for="name" class="control-label">Name:</label>
+                        <input type="text" ng-model="nsd.name" validator="[required]"
+                                   class="form-control" id="name" placeholder="name your file"/>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="form-group">
+                        <label for="pname" class="control-label">Project:</label>
+                        <select class="form-control" id="pname"
+                                ng-options="project.id as project.id for project in projects"
+                                ng-model="nsd.project_id" validator="[required]">
+                            <option value="">-- select project --</option>
+                        </select>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-md-3 no-left-right-padding">
+            <a class="top10 btn btn-sm btn-primary btn-block"
+               ng-click="createNsd()">Create</a>
+        </div>
+    </div>
+</div>

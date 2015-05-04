@@ -1,0 +1,75 @@
+
+% from runner import AAA
+
+<!DOCTYPE html>
+
+<html>
+<head>
+    <title>WSN-DPCM NetSim Admin</title>
+	% if defined('refresh_page') and refresh_page:
+    <meta http-equiv="refresh" content="3">
+    % end
+    <link rel="stylesheet" type="text/css" href="/admin/mainpage.css"/>
+</head>
+
+<body>
+ <div class="top">
+    <table class="topbar">
+        <tr>
+            <td class="topbar-left"><span class="banner">WSN-DPCM NetSim Execution Monitor</span></td>
+                % if AAA.current_user() is not None:
+                <td class="topbar-right" >
+                    <span class="userbox">{{AAA.current_user()}}</span>
+                </td>
+
+                <td class="topbar-right" >
+                  <a href="/admin/logout" class="a-button">Logout</a>
+                </td>
+                <td class="topbar-right" >
+                    <a href="/admin/shutdown" class="a-button" d >Shutdown</a>
+                </td>
+                % end            
+        </tr>           
+    </table>
+ </div>
+
+    <div class="column span-5">
+        
+        % if AAA.current_user() is not None:
+        <div class="widget">
+           <ul class="wlist">
+               <li><a href="/admin">Monitor</a></li>
+               <li><a href="/admin/jobs.html">Jobs</a></li>
+               <li><a href="/admin/new_job.html">New job</a></li>
+			   <li><a href="/admin/nsd_table.html">Nsd Table</a></li>
+         </ul>
+        </div>
+        % end
+
+        <div class="widget">
+           <ul class="wlist">
+               <li><a href="/nsdEdit/html/index.html" target="_blank">Nsd editor</a></li>
+           </ul>
+        </div>
+    </div>
+ 
+    <div class="main span-20">
+        <table>
+        <tr>
+<!-- 	        <td><a class="a-button" href="shutdown">Shutdown</a></td>
+ -->
+          % if defined('thispage'):
+     	    <td><a class="a-button" href="{{thispage}}">Reload</a></td>
+          % end
+        </tr>
+        </table> 
+        <p>
+    	{{!base}}
+        </p>        
+    </div>
+
+<div class="top">
+</div>
+ 
+</body>
+</html>

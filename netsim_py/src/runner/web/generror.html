@@ -1,0 +1,21 @@
+% rebase('mainpage.html')
+
+% from bottle import request, response, HTTP_CODES, DEBUG
+
+
+<h1 class="errorbox">Error: {{e.status}}</h1>
+
+<h2>Details:</h2>
+    <p>The requested URL <a href="{{request.url}}">{{repr(request.url)}}</a>
+       caused an error:</p>
+    <p style="font-size: large;font-weight: bold">{{e.body}}</p>
+%if DEBUG and e.exception:
+  <h2>Exception:</h2>
+  <pre>{{repr(e.exception)}}</pre>
+%end
+%if DEBUG and e.traceback:
+  <h2>Traceback:</h2>
+  <pre>{{e.traceback}}</pre>
+%end
+
+

@@ -1,0 +1,7 @@
+*.pyc
+*.class
+simrunner.log
+.project
+.pydevproject
+__pycache__
+*~

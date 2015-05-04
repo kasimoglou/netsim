@@ -1,0 +1,258 @@
+<div class="container-fluid">
+    <ol class="breadcrumb row">
+        <li><a href="#!/">Home</a></li>
+        <li><a href="#!/nsds">My Nsd Files</a></li>
+        <li class="active">[[nsd.name]]</li>
+    </ol>
+    <div class="row">
+        <div class="row">
+            <div class="col-md-2">
+                <h5><strong>Nsd name:</strong></h5>
+            </div>
+            <div class="col-md-4">
+                <h5>[[nsd.name]]</h5>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-2">
+                <h5><strong>Project:</strong></h5>
+            </div>
+            <div class="col-md-4">
+                <h5>[[nsd.project_id]]</h5>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-3 pull-right">
+                <a class="btn btn-primary btn-block" ng-click="saveNsd()">Save Nsd</a>
+                <div class="alert alert-success animate-show" ng-show="alerts.save_success">
+                    <p>
+                       <a href="" class="close" ng-click="dismiss()">&times;</a>
+                       Your changes were saved successfully!
+                    </p>
+                </div>
+            </div>
+        </div>
+        <div class="row top20">
+            <div class="col-md-12">
+                <div class="tabbable">
+                    <ul class="nav nav-tabs">
+                        <li class="cursor-pointer" ng-class="{'active': tabs.main_selected === 1}">
+                            <a data-toggle="tab" ng-click="setSelectedTab(1, 'main_selected')">Network</a>
+                        </li>
+                        <li class="cursor-pointer" ng-class="{'active': tabs.main_selected === 2}">
+                            <a data-toggle="tab" ng-click="setSelectedTab(2, 'main_selected')">Parameters</a>
+                        </li>
+                        <li class="cursor-pointer" ng-class="{'active': tabs.main_selected === 3}">
+                            <a data-toggle="tab" ng-click="setSelectedTab(3, 'main_selected')">Environment</a>
+                        </li>
+                        <li class="cursor-pointer" ng-class="{'active': tabs.main_selected === 4}">
+                            <a data-toggle="tab" ng-click="setSelectedTab(4, 'main_selected')">Output</a>
+                        </li>
+                    </ul>
+                    <div class="tab-content">
+                        <div class="tab-pane" ng-class="{'active': tabs.main_selected === 1}">
+                            <div class="row top20">
+                                <div class="col-md-12">
+                                    <form novalidate class="new-nsd-form">
+                                        <div class="row">
+                                            <div class="col-md-4">
+                                                <div class="form-group">
+                                                    <label for="planSelect" class="control-label">
+                                                        Please, select a plan:
+                                                    </label>
+                                                    <select class="form-control" id="planSelect"
+                                                            ng-options="plan for plan in plans track by plan"
+                                                            ng-model="nsd.plan_id">
+                                                        <option value="">-- select plan --</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="tab-pane" ng-class="{'active': tabs.main_selected === 2}">
+                            <div class="container">
+                                <div class="row top20">
+                                    <div class="col-md-12">
+                                        <form novalidate class="new-nsd-form">
+                                            <div class="row">
+                                                <div class="col-md-4">
+                                                    <div class="form-group">
+                                                        <label for="simTimeLimit" class="control-label">
+                                                            Simulation Time Limit:
+                                                        </label>
+                                                        <input type="number" ng-model="nsd.parameters.sim_time_limit"
+                                                                   class="form-control" id="simTimeLimit" />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="row">
+                                                <div class="col-md-4">
+                                                    <div class="form-group">
+                                                        <label for="simTimeScale" class="control-label">
+                                                            Simulation Time Scale:
+                                                        </label>
+                                                        <input type="number" ng-model="nsd.parameters.simtime_scale"
+                                                                   class="form-control" id="simTimeScale" />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="row">
+                                                <div class="col-md-4">
+                                                    <div class="form-group">
+                                                        <label for="cpuTimeLimit" class="control-label">
+                                                            Cpu Time Limit:
+                                                        </label>
+                                                        <input type="number" ng-model="nsd.parameters.cpu_time_limit"
+                                                                   class="form-control" id="cpuTimeLimit" />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="tab-pane" ng-class="{'active': tabs.main_selected === 3}">
+                            <div class="row top20">
+                                <div class="col-md-12">
+                                    <label>Select environment model:</label>
+                                    <div class="row">
+                                        <div class="col-md-12">
+                                            <label class="radio-inline">
+                                                <input type="radio" name="radioGroup" id="castaliaRadio"
+                                                       ng-model="temp.env_model" value="castalia"/>
+                                                Choose Castalia module
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-md-12">
+                                            <label class="radio-inline">
+                                                <input type="radio" name="radioGroup" id="vectorlRadio"
+                                                       ng-model="temp.env_model" value="vectorl"/>
+                                                Choose VectorL file
+                                            </label>
+                                            <div class="row top10 left10">
+                                                <div class="col-md-3">
+                                                    <select class="form-control" id="vectorlSelect"
+                                                            ng-disabled="temp.env_model !== 'vectorl'"
+                                                            ng-options="vectorl._id as vectorl.name for vectorl in vectorls"
+                                                            ng-model="temp.environment.vectorl_id">
+                                                        <option value="">-- select VectorL file --</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="tab-pane" ng-class="{'active': tabs.main_selected === 4}">
+                            <div class="row top20">
+                                <div class="col-md-12">
+                                    <div class="tabbable">
+                                        <ul class="nav nav-pills nav-stacked col-md-1">
+                                            <li class="cursor-pointer" ng-class="{'active': tabs.selected === 1}">
+                                                <a data-toggle="tab" ng-click="setSelectedTab(1, 'selected')">Views</a>
+                                            </li>
+                                            <li class="cursor-pointer" ng-class="{'active': tabs.selected === 2}">
+                                                <a data-toggle="tab" ng-click="setSelectedTab(2, 'selected')">Plots</a>
+                                            </li>
+                                        </ul>
+                                        <div class="tab-content col-md-11">
+                                            <div class="tab-pane" ng-class="{'active': tabs.selected === 1}">
+                                                <div class="panel panel-primary">
+                                                    <div class="panel-heading">
+                                                        My Views
+                                                    </div>
+                                                    <div class="panel-body">
+                                                        <div class="row top20">
+                                                            <div class="col-md-12">
+                                                                <a class="btn btn-primary pull-right" ng-click="createView()">Create View</a>
+                                                            </div>
+                                                        </div>
+                                                        <div class="row top20">
+                                                            <div class="col-md-12">
+                                                                <table class="table table-hover">
+                                                                    <thead>
+                                                                        <tr>
+                                                                            <th class="col-md-3 border-bottom">Col1</th>
+                                                                            <th class="col-md-3 border-bottom">Col2</th>
+                                                                            <th class="col-md-3 border-bottom">Col3</th>
+                                                                            <th class="col-md-3 border-bottom"></th>
+                                                                        </tr>
+                                                                    </thead>
+                                                                    <tbody>
+                                                                        <tr class="cursor-pointer">
+                                                                            <td>data</td>
+                                                                            <td>data</td>
+                                                                            <td>data</td>
+                                                                            <td>
+                                                                                <a class="btn listing-delete-btn" >
+                                                                                     <span class="glyphicon glyphicon-remove"></span>
+                                                                                     Delete
+                                                                                 </a>
+                                                                            </td>
+                                                                        </tr>
+                                                                    </tbody>
+                                                                </table>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="tab-pane" ng-class="{'active': tabs.selected === 2}">
+                                                <div class="panel panel-primary">
+                                                    <div class="panel-heading">
+                                                        My Plots
+                                                    </div>
+                                                    <div class="panel-body">
+                                                        <div class="row top20">
+                                                            <div class="col-md-12">
+                                                                <a class="btn btn-primary pull-right" ng-click="createPlot()">Create Plot</a>
+                                                            </div>
+                                                        </div>
+                                                        <div class="row top20">
+                                                            <div class="col-md-12">
+                                                                <table class="table table-hover">
+                                                                    <thead>
+                                                                        <tr>
+                                                                            <th class="col-md-3 border-bottom">Name</th>
+                                                                            <th class="col-md-3 border-bottom">Model type</th>
+                                                                            <th class="col-md-3 border-bottom">Statistic type</th>
+                                                                            <th class="col-md-3 border-bottom"></th>
+                                                                        </tr>
+                                                                    </thead>
+                                                                    <tbody>
+                                                                        <tr class="cursor-pointer" ng-repeat="plot in nsd.plots">
+                                                                            <td>[[plot.name]]</td>
+                                                                            <td>[[plot.model_type]]</td>
+                                                                            <td>[[plot.stat_type]]</td>
+                                                                            <td>
+                                                                                <a class="btn listing-delete-btn" >
+                                                                                     <span class="glyphicon glyphicon-remove"></span>
+                                                                                     Delete
+                                                                                 </a>
+                                                                            </td>
+                                                                        </tr>
+                                                                    </tbody>
+                                                                </table>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

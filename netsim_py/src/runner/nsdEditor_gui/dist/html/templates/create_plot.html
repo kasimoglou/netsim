@@ -1,0 +1,128 @@
+<div class="row">
+    <div class="col-md-12">
+        <form novalidate class="new-nsd-form">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label for="name" class="control-label">Name:</label>
+                        <input type="text" ng-model="plot.name"
+                            class="form-control" id="name" placeholder="name your plot"/>
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label for="model_type" class="control-label">Graph Type:</label>
+                        <select class="form-control" id="model_type"
+                                ng-model="plot.model_type">
+                            <option value="">-- select graph type --</option>
+                            <option value="plot">plot</option>
+                            <option value="parameter">parameter</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label for="title" class="control-label">Title:</label>
+                        <input type="text" ng-model="plot.title"
+                            class="form-control" id="title" placeholder="plot title"/>
+                    </div>
+                </div>
+                <!--div class="col-md-6">
+                    <div class="form-group">
+                        <label for="stat_type" class="control-label">Statistic Type:</label>
+                        <select class="form-control" id="stat_type"
+                                ng-model="plot.stat_type">
+                            <option value="">-- select statistic type --</option>
+                            <option value="node">node</option>
+                            <option value="network">network</option>
+                            <option value="node2node">node2node</option>
+                        </select>
+                    </div>
+                </div-->
+            </div>
+            <div class="row" ng-show="plot.model_type === 'parameter'">
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label for="unit" class="control-label">Unit:</label>
+                        <input type="text" ng-model="plot.unit"
+                            class="form-control" id="unit" placeholder="statistic's unit"/>
+                    </div>
+                </div>
+            </div>
+            <div ng-show="plot.model_type === 'plot'">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="style" class="control-label">Style:</label>
+                            <input type="text" ng-model="plot.style"
+                                class="form-control" id="style" placeholder="plot style eg. linespoints"/>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="legend" class="control-label">Legend:</label>
+                            <input type="text" ng-model="plot.legend"
+                                class="form-control" id="legend" placeholder="plot legend"/>
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="xlabel" class="control-label">x axis label:</label>
+                            <input type="text" ng-model="plot.xlabel"
+                                class="form-control" id="xlabel" placeholder="x axis label"/>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="ylabel" class="control-label">y axis label:</label>
+                            <input type="text" ng-model="plot.ylabel"
+                                class="form-control" id="ylabel" placeholder="y axis label"/>
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="xrange" class="control-label">x axis range:</label>
+                            <input type="text" ng-model="plot.x_range"
+                                class="form-control" id="xrange" placeholder="x axis range"/>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="yrange" class="control-label">y axis range:</label>
+                            <input type="text" ng-model="plot.y_range"
+                                class="form-control" id="yrange" placeholder="y axis range"/>
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="logscale" class="control-label">Log scale:</label>
+                            <input type="text" ng-model="plot.logscale"
+                                class="form-control" id="logscale" placeholder="log scale"/>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="grid" class="control-label">Grid:</label>
+                            <input type="text" ng-model="plot.grid"
+                                class="form-control" id="grid" placeholder="grid"/>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="ng-dialog-buttons row">
+                <div class="col-md-12">
+                    <a class="btn btn-sm btn-success" ng-click="createPlot()">Create</a>
+                    <a class="btn btn-sm btn-default" ng-click="dismissDialog()">Cancel</a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
