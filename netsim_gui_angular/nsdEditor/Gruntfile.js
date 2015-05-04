@@ -80,12 +80,12 @@ module.exports = function(grunt) {
         shell: {
             multiple: {
                 command: [
-                    'rm -r /home/gosling/GIT/netsim2_old/netsim_py/src/runner/nsdEditor_gui/dist/',
-                    'rm -r /home/gosling/GIT/netsim2_old/netsim_py/src/runner/nsdEditor_gui/bower_components/',
-                    'mkdir /home/gosling/GIT/netsim2_old/netsim_py/src/runner/nsdEditor_gui/bower_components/',
-                    'mkdir /home/gosling/GIT/netsim2_old/netsim_py/src/runner/nsdEditor_gui/dist/',
-                    'cp -r dist/* /home/gosling/GIT/netsim2_old/netsim_py/src/runner/nsdEditor_gui/dist',
-                    'cp -r bower_components/* /home/gosling/GIT/netsim2_old/netsim_py/src/runner/nsdEditor_gui/bower_components'
+                    'rm -r /home/gosling/GIT/netsim/netsim_py/src/runner/nsdEditor_gui/dist/',
+                    'rm -r /home/gosling/GIT/netsim/netsim_py/src/runner/nsdEditor_gui/bower_components/',
+                    'mkdir /home/gosling/GIT/netsim/netsim_py/src/runner/nsdEditor_gui/bower_components/',
+                    'mkdir /home/gosling/GIT/netsim/netsim_py/src/runner/nsdEditor_gui/dist/',
+                    'cp -r dist/* /home/gosling/GIT/netsim/netsim_py/src/runner/nsdEditor_gui/dist',
+                    'cp -r bower_components/* /home/gosling/GIT/netsim/netsim_py/src/runner/nsdEditor_gui/bower_components'
                 ].join('&&')
             }
         },
