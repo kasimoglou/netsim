@@ -390,6 +390,7 @@ define(['underscore',
         // to be persisted in the database, user has to click 'Save nsd'
         $scope.deleteView = function(view) {
             var self = this;
+            // Open dialog in order to ask user to confirm view deletion
             ngDialog.openConfirm({
                 template: '<div class="ng-dialog-message">' +
                             '<p>You are about to delete <i><strong>' + view.name +'</strong></i> view.</p>' +
