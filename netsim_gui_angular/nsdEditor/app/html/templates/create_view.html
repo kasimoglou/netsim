@@ -43,7 +43,8 @@
             </div>
             <div class="ng-dialog-buttons row">
                 <div class="col-md-12">
-                    <a class="btn btn-sm btn-success" ng-click="createView()">Create</a>
+                    <a class="btn btn-sm btn-success" ng-click="createView()" ng-show="!mode.update">Create</a>
+                    <a class="btn btn-sm btn-success" ng-click="updateView()" ng-show="mode.update">Update</a>
                     <a class="btn btn-sm btn-default" ng-click="dismissDialog()">Cancel</a>
                 </div>
             </div>

@@ -10,13 +10,15 @@ define(['underscore',
     // New nsd form Controller
     nsdControllers.controller('newNsdFormController',
         ['$scope', '$location', '$validator', 'API', function($scope, $location, $validator, API) {
-
+                
         $scope.nsd = {
             name: '',
             project_id: ''
         };
         $scope.projects = [];
 
+        // This method calls `projectRead` api call and fetches all
+        // projects created by user.
         $scope.fetchProjects = function() {
             API.projectsRead()
                     .success(function(response) {
@@ -28,6 +30,10 @@ define(['underscore',
                     });
         };
 
+        // This method calls `createNsd` api call and creates a new
+        // nsd file in the database. On success, the newly created object
+        // is returned and we redirect user to nsd edit screen.
+        // 
         $scope.createNsd = function() {
             $validator.validate($scope, 'nsd').success(function() {
                 API.nsdCreate($scope.nsd)
@@ -49,6 +55,8 @@ define(['underscore',
         ['$scope', '$routeParams', 'API', '$timeout', 'ngDialog', '$location',
         function($scope, $routeParams, API, $timeout, ngDialog, $location) {
 
+        // ### Initializations
+        
         $scope.nsd = {};
         $scope.temp = {};
         $scope.temp.environment = {};
@@ -57,6 +65,9 @@ define(['underscore',
             save_success: false
         };
 
+        // Loads an existing nsd from database.
+        // As soon as the data is fetched, we fill
+        // nsd editor's screens with the existing data (if any)
         $scope.loadNsd = function() {
             API.nsdRead($routeParams.id)
                     .success(function(response) {
@@ -74,6 +85,9 @@ define(['underscore',
             });
         };
 
+        // If nsd file has not any parameters specified
+        // initialize object and set `simtime_scale` to its
+        // default value
         $scope.initializeParameters = function(nsd) {
             if (!nsd.parameters) {
                 nsd.parameters = {};
@@ -92,6 +106,8 @@ define(['underscore',
             }
         };
         
+        // If nsd file has not contain any view,
+        // add the default one (dataTable)
         $scope.initializeOutput = function(nsd) {
             if (!nsd.views) {
                 nsd.views = [
@@ -105,7 +121,20 @@ define(['underscore',
                 ];
             }
         };
+        
+        // Helps us recognize selected tab, so that we can persist
+        // user's state on a refresh for example.
+        $scope.tabs = {
+            main_selected: parseInt($location.search()['tab']) || 1
+        };
+        
+        $scope.setSelectedTab = function(index) {
+            $scope.tabs.main_selected = index;
+            $location.search('tab', index);
+        };
 
+        // ### Network tab related data and methods
+        
         $scope.plans = [];
 
         $scope.loadProjectPlans = function(project_id) {
@@ -118,7 +147,8 @@ define(['underscore',
                         alert('Error fetching project\'s plans.');
             });
         };
-
+        
+        // ### Environment related data and methods
         $scope.vectorls = [];
 
         $scope.loadProjectVectorlFiles = function(project_id) {
@@ -131,45 +161,8 @@ define(['underscore',
                         alert('Error fetching project\'s plans.');
             });
         };
-
-        var success_alert_timeout = null;
-        $scope.saveNsd = function() {
-            // Save changes made to Environment tab
-            if ($scope.temp.env_model === 'castalia') {
-                $scope.nsd.environment = {
-                    type: 'castalia'
-                };
-            } else if ($scope.temp.env_model === 'vectorl') {
-                $scope.nsd.environment = {
-                    type: 'vectorl',
-                    vectrol_id: $scope.temp.environment.vectorl_id
-                };
-            }
-            
-            API.nsdUpdate($routeParams.id, $scope.nsd)
-                    .success(function() {
-                        $scope.alerts.save_success = true;
-                        success_alert_timeout = $timeout($scope.dismiss, 10000);
-            })
-                    .error(function() {
-                        console.log('Error updating nsd.');
-                        alert('Error updating nsd.');
-            });
-        };
-
-        $scope.dismiss = function() {
-            $scope.alerts.save_success = false;
-        };
         
-        $scope.tabs = {
-            main_selected: parseInt($location.search()['tab']) || 1
-        };
-        
-        $scope.setSelectedTab = function(index) {
-            $scope.tabs.main_selected = index;
-            $location.search('tab', index);
-        };
-        
+        // ### Output tab related data and methods
         $scope.createPlot = function() {
             var self = this;
             ngDialog.open({
@@ -203,17 +196,34 @@ define(['underscore',
             $scope.view.isSelected = true;
         };
         
+        // This function is called when `create new view` button is clicked
+        // and opens a new create_view dialog.
         $scope.createView = function() {
             var self = this;
             ngDialog.open({
                 template: 'templates/create_view.html',
                 className: 'ngdialog-theme-default new-view-dialog',
                 closeByDocument: false,
+                // This controller controls create_view template
                 controller: ['$scope', function($scope) {
+                        
+                    // Boolean value used to customize 
+                    // buttons in the template
+                    // (If `$scope.mode.update` is true user has opened
+                    // this view in order to update it so we have to replace
+                    // create button with an update button)
+                    //
+                    $scope.mode = {
+                        update: false
+                    };
+                    
+                    // Base datasets are all the previously created views
                     $scope.base_datasets = self.nsd.views;
                     
+                    // In `myData` all selected fields are going to be stored
                     $scope.myData = [];
                  
+                    // Configuration for ng-Grid
                     $scope.gridOptions = { 
                         data: 'myData',
                         enableCellSelection: true,
@@ -237,16 +247,26 @@ define(['underscore',
                         ]
                     };
                     
+                    // This method is called whenever 'Add field' button is clicked
+                    // in Create view screen. It adds a new editable row to fields
+                    // table.
+                    //
                     $scope.addField = function() {
                         $scope.myData.push({name: 'field' + $scope.myData.length, expression: '', groupby: false});
                     };
                     
+                    // Called when dialog's create button is clicked and
+                    // adds the newly configured view to nsd's existing views.
+                    // Note that this change is not persisted at the db until
+                    // user clicks `Save nsd`.
                     $scope.createView = function() {
                         
                         if ($scope.view) {
                             $scope.view.columns = [];
                             $scope.view.groupby = [];
-
+                            
+                            // transform `myData` table model to `columns` and `groupby`
+                            // models accepted by nsd.
                             _.each($scope.myData, function(obj) {
                                 $scope.view.columns.push({ name: obj.name, expression: obj.expression });
                                 if (obj.groupby === true) {
@@ -260,11 +280,153 @@ define(['underscore',
                         
                     };
                     
+                    // Called when dialog's cancel button is clicked - just dismisses the dialog
                     $scope.dismissDialog = function() {
                         $scope.closeThisDialog();
                     };
                 }]
             });
+        };
+        
+        // Called when user clicks `Edit` button in a row in my views table.
+        // Opens `create_view` template, initializes it with selected `view`
+        // data and lets user update it.
+        $scope.updateView = function(view) {
+            var self = this;
+            ngDialog.open({
+                template: 'templates/create_view.html',
+                className: 'ngdialog-theme-default new-view-dialog',
+                closeByDocument: false,
+                controller: ['$scope', function($scope) {
+                    $scope.mode = {
+                        update: true
+                    };
+                    
+                    // Initialize view with the selected one 
+                    $scope.view = _.clone(view);
+                    
+                    $scope.base_datasets = [];
+                    
+                    // In `myData` all selected fields are going to be stored
+                    $scope.myData = [];
+                 
+                    // Configuration for ng-Grid
+                    $scope.gridOptions = { 
+                        data: 'myData',
+                        enableCellSelection: true,
+                        enableRowSelection: false,
+                        columnDefs: [
+                            {
+                                field: 'name', 
+                                displayName: 'Name', 
+                                enableCellEdit: true
+                            }, 
+                            {
+                                field:'expression', 
+                                displayName:'Expression', 
+                                enableCellEdit: true
+                            },
+                            {
+                                field:'groupby', 
+                                displayName:'Group By', 
+                                cellTemplate: 'templates/ng-grid_checkbox.html'
+                            }
+                        ]
+                    };
+                    
+                    // This method is called whenever 'Add field' button is clicked
+                    // in Create view screen. It adds a new editable row to fields
+                    // table.
+                    //
+                    $scope.addField = function() {
+                        $scope.myData.push({name: 'field' + $scope.myData.length, expression: '', groupby: false});
+                    };
+                    
+                    $scope.initializeGridData = function() {
+                        $scope.myData = $scope.view.columns;
+                        
+                        _.each($scope.myData, function(obj) {
+                            if (_.contains($scope.view.groupby, obj.name)) {
+                                obj.groupby = true;
+                            } else {
+                                obj.groupby = false;
+                            }
+                        });
+                    };
+                    
+                    // When updating a view, base_datasets
+                    // include all views of the selected 
+                    // nsd file *except* the one that is currently
+                    // edited
+                    $scope.initializeBaseDatasets = function() {
+                        $scope.base_datasets = _.reject(self.nsd.views, function(obj) {
+                            return obj.name === $scope.view.name;
+                        });
+                    };
+                    
+                    $scope.initializeGridData();
+                    $scope.initializeBaseDatasets();
+                    
+                    $scope.updateView = function() {
+                        view.name = $scope.view.name;
+                        view.table_filter = $scope.view.table_filter;
+                        view.base_tables = $scope.view.base_tables;
+                        
+                        $scope.view.columns = [];
+                        $scope.view.groupby = [];
+
+                        // transform `myData` table model to `columns` and `groupby`
+                        // models accepted by nsd.
+                        _.each($scope.myData, function(obj) {
+                            $scope.view.columns.push({ name: obj.name, expression: obj.expression });
+                            if (obj.groupby === true) {
+                                $scope.view.groupby.push(obj.name);
+                            }
+                        });
+                        
+                        view.columns = $scope.view.columns;
+                        view.groupby = $scope.view.groupby;
+                        
+                        $scope.closeThisDialog();
+                    };
+                    
+                    // Called when dialog's cancel button is clicked - just dismisses the dialog
+                    $scope.dismissDialog = function() {
+                        $scope.closeThisDialog();
+                    };
+                }]
+            });
+        };
+        
+        // ### Save Nsd related data and functions
+        
+        var success_alert_timeout = null;
+        $scope.saveNsd = function() {
+            // Save changes made to Environment tab
+            if ($scope.temp.env_model === 'castalia') {
+                $scope.nsd.environment = {
+                    type: 'castalia'
+                };
+            } else if ($scope.temp.env_model === 'vectorl') {
+                $scope.nsd.environment = {
+                    type: 'vectorl',
+                    vectrol_id: $scope.temp.environment.vectorl_id
+                };
+            }
+            
+            API.nsdUpdate($routeParams.id, $scope.nsd)
+                    .success(function() {
+                        $scope.alerts.save_success = true;
+                        success_alert_timeout = $timeout($scope.dismiss, 10000);
+            })
+                    .error(function() {
+                        console.log('Error updating nsd.');
+                        alert('Error updating nsd.');
+            });
+        };
+
+        $scope.dismiss = function() {
+            $scope.alerts.save_success = false;
         };
 
         $scope.$on('$destroy', function() {

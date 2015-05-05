@@ -152,7 +152,7 @@
                         </div>
                         <div class="tab-pane" ng-class="{'active': tabs.main_selected === 4}">
                             <div class="row top20">
-                                <div class="col-md-12">
+                                <div class="col-md-7">
                                     <div class="panel panel-primary">
                                         <div class="panel-heading">
                                             My Views
@@ -164,12 +164,14 @@
                                                 </div>
                                             </div>
                                             <div class="row top20">
-                                                <div class="col-md-6">
+                                                <div class="col-md-12">
                                                     <table class="table table-hover">
                                                         <thead>
                                                             <tr>
-                                                                <th class="col-md-6 border-bottom">Name</th>
-                                                                <th class="col-md-6 border-bottom"></th>
+                                                                <th class="col-md-5 border-bottom">Name</th>
+                                                                <th class="col-md-5 border-bottom"></th>
+                                                                <th class="col-md-1 border-bottom"></th>
+                                                                <th class="col-md-1 border-bottom"></th>
                                                             </tr>
                                                         </thead>
                                                         <tbody>
@@ -177,7 +179,61 @@
                                                                 ng-repeat="view in nsd.views" ng-click="setSelectedView(view)">
                                                                 <td>[[view.name]]</td>
                                                                 <td>
+                                                                    <a class="btn listing-edit-btn" ng-show="view.name !== 'dataTable'">
+                                                                        <span class="glyphicon glyphicon-plus"></span>
+                                                                        New Plot
+                                                                    </a>
+                                                                </td>
+                                                                <td>
+                                                                    <a class="btn listing-edit-btn" ng-show="view.name !== 'dataTable'"
+                                                                       ng-click="updateView(view); $event.stopPropagation()">
+                                                                        <span class="glyphicon glyphicon-edit"></span>
+                                                                        Edit
+                                                                     </a>
+                                                                </td>
+                                                                <td>
                                                                     <a class="btn listing-delete-btn" ng-show="view.name !== 'dataTable'">
+                                                                        <span class="glyphicon glyphicon-remove"></span>
+                                                                        Delete
+                                                                     </a>
+                                                                </td>
+                                                            </tr>
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-5" ng-show="view.isSelected">
+                                    <div class="panel panel-primary">
+                                        <div class="panel-heading">
+                                            Plots of [[view.selected.name]]  
+                                        </div>
+                                        <div class="panel-body">
+                                            <div class="row top20">
+                                                <div class="col-md-12">
+                                                    <table class="table table-hover">
+                                                        <thead>
+                                                            <tr>
+                                                                <th class="col-md-3 border-bottom">Name</th>
+                                                                <th class="col-md-3 border-bottom">type</th>
+                                                                <th class="col-md-2 border-bottom"></th>
+                                                                <th class="col-md-2 border-bottom"></th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            <tr class="cursor-pointer" ng-repeat="plot in nsd.plots">
+                                                                <td>[[plot.name]]</td>
+                                                                <td>[[plot.model_type]]</td>
+                                                                <td>
+                                                                    <a class="btn listing-edit-btn" >
+                                                                         <span class="glyphicon glyphicon-edit"></span>
+                                                                         Edit
+                                                                     </a>
+                                                                </td>
+                                                                <td>
+                                                                    <a class="btn listing-delete-btn" >
                                                                          <span class="glyphicon glyphicon-remove"></span>
                                                                          Delete
                                                                      </a>
@@ -185,42 +241,6 @@
                                                             </tr>
                                                         </tbody>
                                                     </table>
-                                                </div>
-                                                <div class="col-md-6" ng-show="view.isSelected">
-                                                    <div class="panel panel-primary">
-                                                        <div class="panel-heading">
-                                                            Plots of [[view.selected.name]]  
-                                                        </div>
-                                                        <div class="panel-body">
-                                                            <div class="row top20">
-                                                                <div class="col-md-12">
-                                                                    <table class="table table-hover">
-                                                                        <thead>
-                                                                            <tr>
-                                                                                <th class="col-md-3 border-bottom">Name</th>
-                                                                                <th class="col-md-3 border-bottom">Model type</th>
-                                                                                <th class="col-md-3 border-bottom">Statistic type</th>
-                                                                                <th class="col-md-3 border-bottom"></th>
-                                                                            </tr>
-                                                                        </thead>
-                                                                        <tbody>
-                                                                            <tr class="cursor-pointer" ng-repeat="plot in nsd.plots">
-                                                                                <td>[[plot.name]]</td>
-                                                                                <td>[[plot.model_type]]</td>
-                                                                                <td>[[plot.stat_type]]</td>
-                                                                                <td>
-                                                                                    <a class="btn listing-delete-btn" >
-                                                                                         <span class="glyphicon glyphicon-remove"></span>
-                                                                                         Delete
-                                                                                     </a>
-                                                                                </td>
-                                                                            </tr>
-                                                                        </tbody>
-                                                                    </table>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    </div>
                                                 </div>
                                             </div>
                                         </div>

@@ -8364,7 +8364,7 @@ input:focus {
 }
 
 /* line 83, ../../app/styles/main.scss */
-.listing-delete-btn {
+.listing-delete-btn, .listing-edit-btn {
   padding-top: 0;
 }
 
