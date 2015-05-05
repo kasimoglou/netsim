@@ -128,6 +128,7 @@ define(['underscore',
             main_selected: parseInt($location.search()['tab']) || 1
         };
         
+        // Activates tab with `index` and updates `tab` query param accordingly
         $scope.setSelectedTab = function(index) {
             $scope.tabs.main_selected = index;
             $location.search('tab', index);
@@ -136,7 +137,9 @@ define(['underscore',
         // ### Network tab related data and methods
         
         $scope.plans = [];
-
+        
+        // This method calls `projectPlansRead` api call and
+        // fetches the plans created for project with id `project_id`
         $scope.loadProjectPlans = function(project_id) {
             API.projectPlansRead(project_id)
                     .success(function(response) {
@@ -150,7 +153,9 @@ define(['underscore',
         
         // ### Environment related data and methods
         $scope.vectorls = [];
-
+        
+        // This method calls `projectVectorLFilesRead` api call and
+        // fetches the vectorl files created for project with id `project_id`
         $scope.loadProjectVectorlFiles = function(project_id) {
             API.projectVectorLFilesRead(project_id)
                     .success(function(response) {
@@ -163,29 +168,10 @@ define(['underscore',
         };
         
         // ### Output tab related data and methods
-        $scope.createPlot = function() {
-            var self = this;
-            ngDialog.open({
-                template: 'templates/create_plot.html',
-                className: 'ngdialog-theme-default new-plot-dialog',
-                closeByDocument: false,
-                controller: ['$scope', function($scope) {
-                        
-                    $scope.createPlot = function() {
-                        if ($scope.plot) {
-                            self.nsd.plots.push($scope.plot);
-                        }
-                        
-                        $scope.closeThisDialog();
-                    };
-                    
-                    $scope.dismissDialog = function() {
-                        $scope.closeThisDialog();
-                    };
-                }]
-            });
-        };
         
+        // Used in order to determine whether we have to show
+        // plots div or not (plots div is shown when user has clicked
+        // on a row in the views table)
         $scope.view = {
             selected: {},
             isSelected: false
@@ -342,6 +328,8 @@ define(['underscore',
                         $scope.myData.push({name: 'field' + $scope.myData.length, expression: '', groupby: false});
                     };
                     
+                    // Form `myData` object from `columns` and `groupby`
+                    // objects
                     $scope.initializeGridData = function() {
                         $scope.myData = $scope.view.columns;
                         
@@ -391,6 +379,58 @@ define(['underscore',
                     };
                     
                     // Called when dialog's cancel button is clicked - just dismisses the dialog
+                    $scope.dismissDialog = function() {
+                        $scope.closeThisDialog();
+                    };
+                }]
+            });
+        };
+        
+        // Deletes `view` from nsd file. Note that in order that change
+        // to be persisted in the database, user has to click 'Save nsd'
+        $scope.deleteView = function(view) {
+            var self = this;
+            // Open dialog in order to ask user to confirm view deletion
+            ngDialog.openConfirm({
+                template: '<div class="ng-dialog-message">' +
+                            '<p>You are about to delete <i><strong>' + view.name +'</strong></i> view.</p>' +
+                            '<p>Are you sure?</p>' +
+                        '</div>' +
+                        '<div class="ng-dialog-buttons row">' +
+                            '<a class="btn btn-sm btn-success listing-delete-dialog-btn" ng-click="deleteView()">Yes</a>' +
+                            '<a class="btn btn-sm btn-default" ng-click="dismissDialog()">Cancel</a>' +
+                        '</div>',
+                plain: true,
+                className: 'ngdialog-theme-default',
+                controller: ['$scope', function($scope) {
+                    $scope.deleteView = function() {
+                        self.nsd.views = _.without(self.nsd.views, view);
+                        $scope.closeThisDialog();
+                    };
+                    
+                    $scope.dismissDialog = function() {
+                        $scope.closeThisDialog();
+                    };
+                }]
+            });
+        };
+        
+        $scope.createPlot = function() {
+            var self = this;
+            ngDialog.open({
+                template: 'templates/create_plot.html',
+                className: 'ngdialog-theme-default new-plot-dialog',
+                closeByDocument: false,
+                controller: ['$scope', function($scope) {
+                        
+                    $scope.createPlot = function() {
+                        if ($scope.plot) {
+                            self.nsd.plots.push($scope.plot);
+                        }
+                        
+                        $scope.closeThisDialog();
+                    };
+                    
                     $scope.dismissDialog = function() {
                         $scope.closeThisDialog();
                     };

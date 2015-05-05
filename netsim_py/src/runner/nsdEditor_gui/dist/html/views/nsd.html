@@ -192,7 +192,8 @@
                                                                      </a>
                                                                 </td>
                                                                 <td>
-                                                                    <a class="btn listing-delete-btn" ng-show="view.name !== 'dataTable'">
+                                                                    <a class="btn listing-delete-btn" ng-show="view.name !== 'dataTable'"
+                                                                       ng-click="deleteView(view); $event.stopPropagation()">
                                                                         <span class="glyphicon glyphicon-remove"></span>
                                                                         Delete
                                                                      </a>
@@ -205,7 +206,7 @@
                                         </div>
                                     </div>
                                 </div>
-                                <div class="col-md-5" ng-show="view.isSelected">
+                                <div class="col-md-5" ng-show="view.isSelected && view.plots">
                                     <div class="panel panel-primary">
                                         <div class="panel-heading">
                                             Plots of [[view.selected.name]]  
