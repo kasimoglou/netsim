@@ -1,9 +1,4 @@
 // # Require.JS Configuration
-//
-// In order to use this config file also in the `karma` Angular
-// test runner, we check `window.__karma__` to see if Require.JS
-// is being configured for a *Karma* unit test run. If so, we
-// modify the `baseUrl` to match the one used by *Karma*.
 
 require.config({
     baseUrl: '',
