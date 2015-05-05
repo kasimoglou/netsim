@@ -53,6 +53,12 @@ class Entity(Named):
 	def add_foreign_key(self, name, refent):
 		fk = ForeignKey(name,refent)
 		self.fields.add(fk)
+		return fk
+
+	def add_field(self, name):
+		field = Field(name)
+		self.fields.add(field)
+		return field
 
 
 @model
@@ -103,13 +109,15 @@ PLAN = Entity('plan', DB_PT)
 
 NSD = ApiEntity('nsd', DB_SIM)
 NSD.add_foreign_key('project_id', PROJECT)
+NSD.add_field('plan_id')
+NSD.add_field('name')
 
 VECTORL = ApiEntity('vectorl', DB_SIM)
 VECTORL.add_foreign_key('project_id', PROJECT)
+VECTORL.add_field('name')
 
 SIM = Entity('simoutput', DB_SIM)
 SIM.add_foreign_key('nsdid', NSD)
-
 
 DATABASES = [ DB_PT, DB_SIM ]
 ENTITIES = [ PROJECT, PLAN, NSD, VECTORL, SIM ]
