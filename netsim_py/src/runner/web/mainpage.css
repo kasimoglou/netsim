@@ -32,11 +32,11 @@ ul.wlist li {
     padding-left: 2px;
     margin-left: 0px;
     font-family: monospace;
-    font-size: larger;
 }
 ul.wlist li a {
 	padding: 2px 5px 2px 5px;
 	text-decoration: none;
+    font-size: x-large;
 }
 ul.wlist li a:visited {
 }
@@ -45,7 +45,10 @@ ul.wlist li a:hover {
     font-weight: bold;
     cursor: pointer;
 }
-
+ul.wlist li.selected {
+    background-color: #aaaaff;
+    color: white;
+}
 
 .topbar {
     width:100%;
@@ -122,6 +125,35 @@ table,td {
     padding: 2px 12px 2px 12px;
 }
 
+.attrtable {
+    border: 1px solid black;
+    border-collapse: collapse;
+}
+
+.attrtable th, .attrtable td {
+    padding: 4px;
+}
+
+.attrtable th {
+    text-align: right;
+}
+
+.attrtable td.sep {
+    width: 40px;
+    border-right: solid 1px black;
+    border-collapse: collapse;
+}
+
 .errorbox {
     background-color: pink;    
+}
+
+table.viewer td {
+    vertical-align: top;    
+}
+
+td.viewer {
+    min-width: 600px;
+    border: 1px solid black;
+    padding: 5px;
 }

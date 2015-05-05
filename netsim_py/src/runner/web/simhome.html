@@ -1,0 +1,56 @@
+
+<!-- Description of a job and its home directory -->
+
+ % rebase("mainpage.html")
+
+<!-- job attributes -->
+
+<table class="attrtable" style="bold">
+	<tr>
+		<th>Executor:</th><td>{{xtor}}</td>
+		<td class="sep"></td>
+		<th>State:</th><td>{{job.state}}</td>
+	</tr>
+	<tr>
+		<th>Name:</th><td>{{name}}</td>
+		<td class="sep"></td>
+		<th>Status:</th><td>{{job_status}}</td>
+	</tr>
+	<tr>
+		<th>Created:</th><td>{{job_created}}</td>
+		<td class="sep"></td>
+		<th>Runtime:</th><td>{{job_runtime}}</td>
+	</tr>
+</table>
+
+<!-- homedir file viewer -->
+
+<table class="viewer">
+	<tr>
+		<td>
+			<ul class="wlist">
+				% for f in files:
+				% if f==selected_file:
+				 <li class="selected">
+				 % else:
+				 <li>
+				 % end
+					<a href="{{myurl(f)}}">{{f}}</a>
+				</li>
+				% end
+			</ul>
+		</td>
+		<td class="viewer">
+			% if viewer_type is None:
+			<h2 style="color:gray">Select a file to view</h2>
+			% elif viewer_type=='text':
+			<pre>{{viewer_content}}</pre>
+			% elif viewer_type=='image':
+			<img src="/admin/simfile/{{xtor}}/{{name}}/{{selected_file}}">
+			% else:
+			<h2>Binary type</h2>
+			<a href="/admin/simfile/{{xtor}}/{{name}}/{{selected_file}}">Click to download</a>
+			% end
+		</td>
+	</tr>
+</table>

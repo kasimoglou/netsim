@@ -114,6 +114,74 @@ def submit_job_url():
 	return locals()
 
 
+@app.get("/simfile/<xtor>/<name>/<fname>")
+@AAA.logged_in
+def get_simfile(xtor, name, fname):
+	try:
+		executor = Manager.executor(xtor)
+		fileloc = os.path.join(executor.homedir, name)
+		return static_file(fname, root=fileloc)		
+	except:
+		logging.info("Cannot find simulation", exc_info=True)
+		abort(400, "Cannot find simulation.")
+
+
+@app.get("/simhomes/<xtor>/<name>")
+@view("simhome.html")
+@AAA.logged_in
+def view_simhome(xtor, name):
+	# check that the sim exists
+	selected_file = request.query.selected
+
+	try:
+		executor = Manager.executor(xtor)
+		fileloc = os.path.join(executor.homedir, name)
+		job = Manager.get_job_by_fileloc(fileloc)
+		if job is None:
+			raise KeyError("No such job:", xtor, name)
+	except:
+		logging.info("Cannot find simulation", exc_info=True)
+		abort(400, "Cannot find simulation.")
+
+	job_status = job.status+(("[%s]" % job.last_status) 
+		if job.status=='ABORTED' else "")
+	job_created = job.tscreated.strftime("%y/%m/%d %H:%M:%S")
+	job_runtime = str(job.tsinstatus - job.tscreated)
+
+	basic_url = "/admin/simhomes/%s/%s" % (xtor, name)
+
+	def myurl(sel=selected_file):
+		if sel is None:
+			return basic_url
+		else:
+			return "%s?selected=%s" % (basic_url, sel)
+
+	# create homedir file list
+	files = []
+	viewer_type = None
+	for f in os.listdir(fileloc):
+		fpath = os.path.join(fileloc, f)
+		if os.path.isfile(fpath):
+			files.append(f)
+		if f==selected_file:
+			if any(f.endswith(s) 
+				for s in ('.txt', '.ini')):
+				viewer_type='text'
+				with open(fpath, 'r') as fs:
+					viewer_content=fs.read()
+			elif any(f.endswith(s) 
+				for s in ('.jpg', '.png')):
+				viewer_type='image'
+			else:
+				viewer_type='binary'
+	files.sort()
+
+	# return view
+	refresh_page = job.state!='PASSIVE'
+	thispage = myurl()
+	return locals()
+
+
 @app.route('/')
 @view("monitor_table.html")
 @AAA.logged_in
@@ -127,6 +195,8 @@ def index_html():
 def get_css():
 	return static_file("mainpage.css", root=gui_file_path())
 
+'''
+# These are not useful !
 @app.route("/download_nsd.html")
 @view("download_nsd.html")
 @AAA.logged_in
@@ -135,7 +205,6 @@ def show_job_form():
 	thispage = "/admin/download_nsd.html"
 	return locals()
 
-
 @app.route("/nsd_simulations.html")
 @view("nsd_simulations.html")
 @AAA.logged_in
@@ -143,6 +212,7 @@ def show_nsd_simulations():
 	refresh_page = False
 	thispage = "/admin/nsd_simulations.html"
 	return locals()
+'''
 
 
 @app.post("/run_simulation")
@@ -169,7 +239,7 @@ def submit_nsd():
 @app.route("/nsd_table.html")
 @view("nsd_table.html")
 @AAA.logged_in
-def show_job_form():
+def show_nsd_table():
 	refresh_page = True
 	thispage = "/admin/nsd_table.html"
 	return locals()
