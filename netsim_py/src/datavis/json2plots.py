@@ -1,4 +1,11 @@
-from models.nsdplot import PlotModel, DATA_TABLE, DerivedTable, Column, ColumnExpr
+import ast
+from models.nsdplot import PlotModel, DATA_TABLE, DerivedTable, Table,  Column, ColumnExpr, ColumnRef, \
+    ConstantExpr, Operator, \
+    AVG, COUNT, FIRST, LAST, MAX, MIN, SUM, \
+    EQ, NOTEQ, LESS, LESS_EQ, GREATER, GREATER_EQ, \
+    LAND, LOR, \
+    PLUS, MINUS, DIV, MULT
+import re
 
 
 def gen_plotmodel(rel, d):
@@ -33,8 +40,12 @@ def gen_columns(d):
     generate a list of Column objects from  d (d should be a list of dictionaries each representing a Column)
     returns the list of Column objects
     """
-    # TODO: actual parsing of expression
-    return [Column(c["name"]) for c in d]
+    cols = []
+    for c in d:
+        expr = str_2_expr(c["expression"])
+        temp_c = ColumnExpr(c["name"], expr)
+        cols.append(temp_c)
+    return cols
 
 
 def get_col_by_name(name, cols):
@@ -77,7 +88,7 @@ def gen_derived_table(d):
         d["name"],
         cols,
         d["base_tables"],  # keep this as list of strings for now, later translate to DerivedTable
-        None,  # TODO: parsing
+        str_2_expr(d["table_filter"]),
         col_str_2_col_obj(d["groupby"], cols)
     )
     return dt
@@ -149,3 +160,97 @@ def views_plots_decoder(views):
         dt.base_tables = table_str_2_table_obj(dt.base_tables, derived_tables)
 
     return derived_tables, plot_models
+
+
+class ExprGenNodeVisitor(ast.NodeVisitor):
+
+    def visit_Module(self, node):
+        return self.visit(node.body[0])
+
+    def visit_Expr(self, node):
+        return self.visit(node.value)
+
+    def visit_BinOp(self, node):
+        a = self.visit(node.left)
+        op_name = type(node.op).__name__
+        op = self.get_func_by_name(op_name)
+        b = self.visit(node.right)
+        return Operator(op, [a, b])
+
+    def visit_BoolOp(self, node):
+        op_name = type(node.op).__name__
+        op = self.get_func_by_name(op_name)
+        return Operator(op, list(map(lambda x: self.visit(x), node.values)))
+
+    def visit_Compare(self, node):
+        a = self.visit(node.left)
+        op_name = type(node.ops[0]).__name__
+        op = self.get_func_by_name(op_name)
+        b = self.visit(node.comparators[0])
+        return Operator(op, [a, b])
+
+    def visit_Call(self, node):
+        func_name = self.visit(node.func).column.name
+        func = self.get_func_by_name(func_name)
+        arg = self.visit(node.args[0])
+        return Operator(func, [arg])
+
+    def visit_Attribute(self, node):
+        p = self.visit(node.value).column.name
+        col_name = node.attr
+        c = Column(col_name, Table(p, []))
+        c.table = Table(p, [])
+        return ColumnRef(c)
+
+    def visit_Name(self, node):
+        name = str(node.id)
+        return ColumnRef(Column(name))
+
+    def visit_Num(self, node):
+        num = str(node.n)
+        return ConstantExpr(num)
+
+    def visit_Str(self, node):
+        s = str(node.s)
+        return ConstantExpr(s)
+
+    @staticmethod
+    def get_func_by_name(name):
+        funcs = [AVG, COUNT, FIRST, LAST, MAX, MIN, SUM, LAND, LOR]
+        for f in funcs:
+            if name.lower() == f.name.lower():
+                return f
+        if name == "Eq":
+            return EQ
+        elif name == "NotEq":
+            return NOTEQ
+        elif name == "Lt":
+            return LESS
+        elif name == "LtE":
+            return LESS_EQ
+        elif name == "Gt":
+            return GREATER
+        elif name == "GtE":
+            return GREATER_EQ
+        elif name == "Add":
+            return PLUS
+        elif name == "Sub":
+            return MINUS
+        elif name == "Mult":
+            return MULT
+        elif name == "Div":
+            return DIV
+
+        raise Exception("func \"%s\" unknown" % name)
+
+
+def str_2_expr(expr_str):
+    """
+    Parses the expression given in expr_str to an actual Expression object
+    returns the generated Expression
+    """
+    nv = ExprGenNodeVisitor()
+    eq_regex = re.compile(r"(?<![=><])=(?![=><])")  # regular expression to find a single =
+    expr_str = eq_regex.sub("==", expr_str)  # replaces = with ==
+    node = ast.parse(expr_str)
+    return nv.visit(node)

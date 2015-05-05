@@ -1,6 +1,7 @@
 from models.nsdplot import PlotModel, DATA_TABLE, DerivedTable, Column, Operator, EQ, ColumnRef, ConstantExpr, ColumnExpr, \
     SUM
 import json
+from datavis.model2plots import expression2sql
 
 
 class PlotsEncoder(json.JSONEncoder):
@@ -36,7 +37,7 @@ class PlotsEncoder(json.JSONEncoder):
                     } for c in obj.columns
                 ],
                 "base_tables": [t.name for t in obj.base_tables],
-                "table_filter": "",
+                "table_filter": expression2sql(obj.table_filter),
                 "groupby": [c.table.name+"."+c.name for c in obj.groupby]
             }
         else:

@@ -103,4 +103,4 @@ def test_views_plots_decoder():
         pm_j = json.dumps(pm, cls=PlotsEncoder, indent=2)
         print(pm_j)
 
-    #assert 0  # just to see the prints
+    # assert 0  # just to see the prints
