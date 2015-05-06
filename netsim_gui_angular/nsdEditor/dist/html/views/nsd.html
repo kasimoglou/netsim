@@ -175,11 +175,12 @@
                                                             </tr>
                                                         </thead>
                                                         <tbody>
-                                                            <tr ng-class="{'cursor-pointer': view.name !== 'dataTable'}" 
+                                                            <tr class="cursor-pointer" ng-class="{'selected-view-row': view === selected_view.view }" 
                                                                 ng-repeat="view in nsd.views" ng-click="setSelectedView(view)">
                                                                 <td>[[view.name]]</td>
                                                                 <td>
-                                                                    <a class="btn listing-edit-btn" ng-show="view.name !== 'dataTable'">
+                                                                    <a class="btn listing-edit-btn"
+                                                                       ng-click="createPlot(view); $event.stopPropagation()">
                                                                         <span class="glyphicon glyphicon-plus"></span>
                                                                         New Plot
                                                                     </a>
@@ -206,10 +207,10 @@
                                         </div>
                                     </div>
                                 </div>
-                                <div class="col-md-5" ng-show="view.isSelected && view.plots">
+                                <div class="col-md-5">
                                     <div class="panel panel-primary">
                                         <div class="panel-heading">
-                                            Plots of [[view.selected.name]]  
+                                            Plots of [[selected_view.view.name]]  
                                         </div>
                                         <div class="panel-body">
                                             <div class="row top20">
@@ -224,17 +225,19 @@
                                                             </tr>
                                                         </thead>
                                                         <tbody>
-                                                            <tr class="cursor-pointer" ng-repeat="plot in nsd.plots">
+                                                            <tr ng-repeat="plot in selected_view.view.plots">
                                                                 <td>[[plot.name]]</td>
                                                                 <td>[[plot.model_type]]</td>
                                                                 <td>
-                                                                    <a class="btn listing-edit-btn" >
+                                                                    <a class="btn listing-edit-btn" 
+                                                                       ng-click="updatePlot(plot)">
                                                                          <span class="glyphicon glyphicon-edit"></span>
                                                                          Edit
                                                                      </a>
                                                                 </td>
                                                                 <td>
-                                                                    <a class="btn listing-delete-btn" >
+                                                                    <a class="btn listing-delete-btn" 
+                                                                       ng-click="deletePlot(selected_view.view, plot)">
                                                                          <span class="glyphicon glyphicon-remove"></span>
                                                                          Delete
                                                                      </a>

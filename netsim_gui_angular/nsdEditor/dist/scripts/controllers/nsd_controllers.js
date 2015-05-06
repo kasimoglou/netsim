@@ -120,6 +120,7 @@ define(['underscore',
                     }
                 ];
             }
+            $scope.selected_view.view = nsd.views[0];
         };
         
         // Helps us recognize selected tab, so that we can persist
@@ -169,17 +170,13 @@ define(['underscore',
         
         // ### Output tab related data and methods
         
-        // Used in order to determine whether we have to show
-        // plots div or not (plots div is shown when user has clicked
-        // on a row in the views table)
-        $scope.view = {
-            selected: {},
-            isSelected: false
+        // Used in order to determine which view's plots to show
+        $scope.selected_view = {
+            view: {}
         };
         
         $scope.setSelectedView = function(view) {
-            $scope.view.selected = view;
-            $scope.view.isSelected = true;
+            $scope.selected_view.view = view;
         };
         
         // This function is called when `create new view` button is clicked
@@ -415,19 +412,91 @@ define(['underscore',
             });
         };
         
-        $scope.createPlot = function() {
-            var self = this;
+        $scope.createPlot = function(view) {
             ngDialog.open({
                 template: 'templates/create_plot.html',
                 className: 'ngdialog-theme-default new-plot-dialog',
                 closeByDocument: false,
                 controller: ['$scope', function($scope) {
+                    $scope.mode = {
+                        update: false
+                    };
+                    
+                    if (!view.plots) {
+                        view.plots = [];
+                    }    
                         
                     $scope.createPlot = function() {
                         if ($scope.plot) {
-                            self.nsd.plots.push($scope.plot);
+                            view.plots.push($scope.plot);
                         }
                         
+                        $scope.closeThisDialog();
+                    };
+                    
+                    $scope.dismissDialog = function() {
+                        $scope.closeThisDialog();
+                    };
+                }]
+            });
+        };
+        
+        // Called when user clicks `Edit` button in a row in plots table.
+        // Opens `create_plot` template, initializes it with selected `plot`
+        // data and lets user update it.
+        $scope.updatePlot = function(plot) {
+            ngDialog.open({
+                template: 'templates/create_plot.html',
+                className: 'ngdialog-theme-default new-view-dialog',
+                closeByDocument: false,
+                controller: ['$scope', function($scope) {
+                    $scope.mode = {
+                        update: true
+                    };
+                    
+                    // Initialize plot with the selected one 
+                    $scope.plot = _.clone(plot);
+                   
+                    
+                    $scope.updatePlot = function() {
+                        // note that we can't just `plot = $scope.plot`
+                        // `plot` is a passed-by-value reference to an object
+                        // if I change this value (plot = $scope.plot) that
+                        // will not be reflected outside this function.
+                        // But if I change attributes of the referenced objects
+                        // those changes will be reflected to the original object
+                        for (var attr in $scope.plot) {
+                            plot[attr] = $scope.plot[attr];
+                        }
+                        $scope.closeThisDialog();
+                    };
+                    
+                    // Called when dialog's cancel button is clicked - just dismisses the dialog
+                    $scope.dismissDialog = function() {
+                        $scope.closeThisDialog();
+                    };
+                }]
+            });
+        };
+        
+        // Deletes `plot` from a view of an nsd file. Note that in order that change
+        // to be persisted in the database, user has to click 'Save nsd'
+        $scope.deletePlot = function(view, plot) {
+            // Open dialog in order to ask user to confirm view deletion
+            ngDialog.openConfirm({
+                template: '<div class="ng-dialog-message">' +
+                            '<p>You are about to delete <i><strong>' + plot.name +'</strong></i> plot.</p>' +
+                            '<p>Are you sure?</p>' +
+                        '</div>' +
+                        '<div class="ng-dialog-buttons row">' +
+                            '<a class="btn btn-sm btn-success listing-delete-dialog-btn" ng-click="deletePlot()">Yes</a>' +
+                            '<a class="btn btn-sm btn-default" ng-click="dismissDialog()">Cancel</a>' +
+                        '</div>',
+                plain: true,
+                className: 'ngdialog-theme-default',
+                controller: ['$scope', function($scope) {
+                    $scope.deletePlot = function() {
+                        view.plots = _.without(view.plots, plot);
                         $scope.closeThisDialog();
                     };
                     

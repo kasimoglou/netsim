@@ -88,6 +88,10 @@ $icon-font-path: "../bower_components/bootstrap-sass-official/assets/fonts/boots
     margin: 10px;
 }
 
+.selected-view-row {
+    background-color: #D4D7DB;
+}
+
 // Animations
 .animate-show {
   opacity: 1;
