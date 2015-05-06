@@ -1,0 +1,275 @@
+Created by PLY version 3.6 (http://www.dabeaz.com/ply)
+
+Unused terminals:
+
+    EMIT
+    MOD
+    RSHIFT
+    DIVIDE
+    RBRACE
+    TIMES
+    AND
+    ASSIGN
+    ON
+    LET
+    LNOT
+    CONDOP
+    COLON
+    LE
+    LOR
+    BOOL
+    NE
+    LPAREN
+    ELLIPSIS
+    AFTER
+    INT
+    GE
+    TYPEID
+    LT
+    EQUALS
+    FCONST
+    XOR
+    NOT
+    GT
+    OR
+    EQ
+    VAR
+    CONST
+    PLUS
+    RPAREN
+    ICONST
+    MINUS
+    RBRACKET
+    LBRACE
+    FUNC
+    TRUE
+    LAND
+    LBRACKET
+    PERIOD
+    REAL
+    LSHIFT
+    FALSE
+    EVENT
+
+Grammar
+
+Rule 0     S' -> model
+Rule 1     model -> newmodel
+Rule 2     newmodel -> <empty>
+Rule 3     model -> model import_clause
+Rule 4     model -> model from_clause
+Rule 5     import_clause -> IMPORT ID SEMI
+Rule 6     from_clause -> FROM ID IMPORT idlist SEMI
+Rule 7     idlist -> ID
+Rule 8     idlist -> idlist COMMA ID
+
+Terminals, with rules where they appear
+
+AFTER                : 
+AND                  : 
+ASSIGN               : 
+BOOL                 : 
+COLON                : 
+COMMA                : 8
+CONDOP               : 
+CONST                : 
+DIVIDE               : 
+ELLIPSIS             : 
+EMIT                 : 
+EQ                   : 
+EQUALS               : 
+EVENT                : 
+FALSE                : 
+FCONST               : 
+FROM                 : 6
+FUNC                 : 
+GE                   : 
+GT                   : 
+ICONST               : 
+ID                   : 5 6 7 8
+IMPORT               : 5 6
+INT                  : 
+LAND                 : 
+LBRACE               : 
+LBRACKET             : 
+LE                   : 
+LET                  : 
+LNOT                 : 
+LOR                  : 
+LPAREN               : 
+LSHIFT               : 
+LT                   : 
+MINUS                : 
+MOD                  : 
+NE                   : 
+NOT                  : 
+ON                   : 
+OR                   : 
+PERIOD               : 
+PLUS                 : 
+RBRACE               : 
+RBRACKET             : 
+REAL                 : 
+RPAREN               : 
+RSHIFT               : 
+SEMI                 : 5 6
+TIMES                : 
+TRUE                 : 
+TYPEID               : 
+VAR                  : 
+XOR                  : 
+error                : 
+
+Nonterminals, with rules where they appear
+
+from_clause          : 4
+idlist               : 6 8
+import_clause        : 3
+model                : 3 4 0
+newmodel             : 1
+
+Parsing method: LALR
+
+state 0
+
+    (0) S' -> . model
+    (1) model -> . newmodel
+    (3) model -> . model import_clause
+    (4) model -> . model from_clause
+    (2) newmodel -> .
+
+    IMPORT          reduce using rule 2 (newmodel -> .)
+    FROM            reduce using rule 2 (newmodel -> .)
+    $end            reduce using rule 2 (newmodel -> .)
+
+    newmodel                       shift and go to state 1
+    model                          shift and go to state 2
+
+state 1
+
+    (1) model -> newmodel .
+
+    IMPORT          reduce using rule 1 (model -> newmodel .)
+    FROM            reduce using rule 1 (model -> newmodel .)
+    $end            reduce using rule 1 (model -> newmodel .)
+
+
+state 2
+
+    (0) S' -> model .
+    (3) model -> model . import_clause
+    (4) model -> model . from_clause
+    (5) import_clause -> . IMPORT ID SEMI
+    (6) from_clause -> . FROM ID IMPORT idlist SEMI
+
+    IMPORT          shift and go to state 3
+    FROM            shift and go to state 5
+
+    from_clause                    shift and go to state 4
+    import_clause                  shift and go to state 6
+
+state 3
+
+    (5) import_clause -> IMPORT . ID SEMI
+
+    ID              shift and go to state 7
+
+
+state 4
+
+    (4) model -> model from_clause .
+
+    IMPORT          reduce using rule 4 (model -> model from_clause .)
+    FROM            reduce using rule 4 (model -> model from_clause .)
+    $end            reduce using rule 4 (model -> model from_clause .)
+
+
+state 5
+
+    (6) from_clause -> FROM . ID IMPORT idlist SEMI
+
+    ID              shift and go to state 8
+
+
+state 6
+
+    (3) model -> model import_clause .
+
+    IMPORT          reduce using rule 3 (model -> model import_clause .)
+    FROM            reduce using rule 3 (model -> model import_clause .)
+    $end            reduce using rule 3 (model -> model import_clause .)
+
+
+state 7
+
+    (5) import_clause -> IMPORT ID . SEMI
+
+    SEMI            shift and go to state 9
+
+
+state 8
+
+    (6) from_clause -> FROM ID . IMPORT idlist SEMI
+
+    IMPORT          shift and go to state 10
+
+
+state 9
+
+    (5) import_clause -> IMPORT ID SEMI .
+
+    IMPORT          reduce using rule 5 (import_clause -> IMPORT ID SEMI .)
+    FROM            reduce using rule 5 (import_clause -> IMPORT ID SEMI .)
+    $end            reduce using rule 5 (import_clause -> IMPORT ID SEMI .)
+
+
+state 10
+
+    (6) from_clause -> FROM ID IMPORT . idlist SEMI
+    (7) idlist -> . ID
+    (8) idlist -> . idlist COMMA ID
+
+    ID              shift and go to state 11
+
+    idlist                         shift and go to state 12
+
+state 11
+
+    (7) idlist -> ID .
+
+    SEMI            reduce using rule 7 (idlist -> ID .)
+    COMMA           reduce using rule 7 (idlist -> ID .)
+
+
+state 12
+
+    (6) from_clause -> FROM ID IMPORT idlist . SEMI
+    (8) idlist -> idlist . COMMA ID
+
+    SEMI            shift and go to state 13
+    COMMA           shift and go to state 14
+
+
+state 13
+
+    (6) from_clause -> FROM ID IMPORT idlist SEMI .
+
+    IMPORT          reduce using rule 6 (from_clause -> FROM ID IMPORT idlist SEMI .)
+    FROM            reduce using rule 6 (from_clause -> FROM ID IMPORT idlist SEMI .)
+    $end            reduce using rule 6 (from_clause -> FROM ID IMPORT idlist SEMI .)
+
+
+state 14
+
+    (8) idlist -> idlist COMMA . ID
+
+    ID              shift and go to state 15
+
+
+state 15
+
+    (8) idlist -> idlist COMMA ID .
+
+    SEMI            reduce using rule 8 (idlist -> idlist COMMA ID .)
+    COMMA           reduce using rule 8 (idlist -> idlist COMMA ID .)
+
