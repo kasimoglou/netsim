@@ -93,7 +93,8 @@ def test_views_plots_decoder():
         }
     ]
 
-    dts, pms = views_plots_decoder(Views)
+    decoder = ViewsPlotsDecoder()
+    dts, pms = decoder.decode(Views)
 
     for dt in dts:
         dt_j = json.dumps(dt, cls=PlotsEncoder, indent=2)

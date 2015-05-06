@@ -8373,65 +8373,70 @@ input:focus {
   margin: 10px;
 }
 
-/* line 92, ../../app/styles/main.scss */
+/* line 91, ../../app/styles/main.scss */
+.selected-view-row {
+  background-color: #D4D7DB;
+}
+
+/* line 96, ../../app/styles/main.scss */
 .animate-show {
   opacity: 1;
   padding: 10px;
 }
 
-/* line 97, ../../app/styles/main.scss */
+/* line 101, ../../app/styles/main.scss */
 .animate-show.ng-hide-add.ng-hide-add-active,
 .animate-show.ng-hide-remove.ng-hide-remove-active {
   -webkit-transition: all linear 0.5s;
   transition: all linear 0.5s;
 }
 
-/* line 103, ../../app/styles/main.scss */
+/* line 107, ../../app/styles/main.scss */
 .animate-show.ng-hide {
   line-height: 0;
   opacity: 0;
   padding: 0 10px;
 }
 
-/* line 109, ../../app/styles/main.scss */
+/* line 113, ../../app/styles/main.scss */
 .tab-content-custom {
   background-color: aliceblue;
   min-height: 400px;
 }
 
-/* line 114, ../../app/styles/main.scss */
+/* line 118, ../../app/styles/main.scss */
 .border-bottom {
   border-bottom: 1px solid black !important;
 }
 
-/* line 118, ../../app/styles/main.scss */
+/* line 122, ../../app/styles/main.scss */
 .new-plot-dialog .ngdialog-content, .new-view-dialog .ngdialog-content {
   min-width: 800px;
 }
 
-/* line 123, ../../app/styles/main.scss */
+/* line 127, ../../app/styles/main.scss */
 multiselect.full-width .btn-group,
 multiselect.full-width .btn-group .dropdown-menu {
   width: 100%;
 }
 
-/* line 128, ../../app/styles/main.scss */
+/* line 132, ../../app/styles/main.scss */
 multiselect.full-width .btn-group .btn {
   width: 100%;
   display: block;
 }
 
-/* line 133, ../../app/styles/main.scss */
+/* line 137, ../../app/styles/main.scss */
 multiselect.hide-filter .dropdown-menu li input[ng-model="searchText.label"] {
   display: none;
 }
 
-/* line 137, ../../app/styles/main.scss */
+/* line 141, ../../app/styles/main.scss */
 multiselect.hide-check-buttons .dropdown-menu li[ng-show="multiple"] {
   display: none;
 }
 
-/* line 142, ../../app/styles/main.scss */
+/* line 146, ../../app/styles/main.scss */
 .gridStyle {
   border: 1px solid #d4d4d4;
   width: 100%;
@@ -8439,7 +8444,7 @@ multiselect.hide-check-buttons .dropdown-menu li[ng-show="multiple"] {
   margin: 10px 0;
 }
 
-/* line 149, ../../app/styles/main.scss */
+/* line 153, ../../app/styles/main.scss */
 .ngGrid input[type="checkbox"] {
   margin-top: 10px;
   margin-left: 30px;
