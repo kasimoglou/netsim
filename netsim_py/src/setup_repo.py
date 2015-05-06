@@ -9,6 +9,7 @@ Create and use a copy of the DPCM repository to a local couchdb server.
 import argparse, sys
 from runner.config import cfg, configure
 from runner.dpcmrepo import ProjectRepository
+from models.project_repo import MODELS
 
 LOCAL="http://127.0.0.1:5984/"
 REMOTE="http://213.172.45.30:5984/"
@@ -42,6 +43,56 @@ def prepare(server):
 	server.create_models(MODELS)
 
 
+
+
+def view_model(server, model):
+	# read the model
+	entity = model.entity
+	fields = [f.name for f in entity.fields]
+	fields.sort()
+
+	allView = [v for v in model.views if v.name=='all'][0]
+
+	# read in the data
+	db = server.database(entity.database.name)
+	query = db.query(allView.resource)
+
+	data = [] 							# data array
+	fsize = [len(f) for f in fields]    # field width
+	for obj in query:
+		row = [str(obj['value'].get(f,None)) for f in fields]
+		data.append(row)
+		# update field sizes
+		rsize = [len(s) for s in row]
+		fsize = [max(x) for x in zip(fsize,rsize)]
+
+
+	fpat = ['%%%ds' % w for w in fsize]
+	def print_row(X):
+		P = [pat % x for pat, x in zip(fpat, X)]
+		print(*P,sep="|")
+
+	# display header
+	lsize = sum(fsize)+len(fsize)
+	print('='*lsize)
+	print("Entity: ", entity.name)
+	print('-'*lsize)
+	# print header
+	print_row(fields)
+	print('-'*lsize)
+	for row in data:
+		print_row(row)		
+	print('='*lsize)
+	print()
+	print()
+
+
+def view(server):
+	print('Examining project repository at',REMOTE)
+	for model in MODELS:
+		view_model(server, model)
+
+
 def main():
 
 	global LOCAL, REMOTE
@@ -64,7 +115,7 @@ def main():
 	       some view definitions and other design docs into the remote server.
 	''')
 	parser.add_argument("operation",  help="Select the operation.",
-						choices=['pull','clone', 'prepare'])
+						choices=['pull','clone', 'prepare','view'])
 
 	parser.add_argument("--remote", '-r',
 	                    help="The url to the remote couchdb installation of the DPCM repository.\
@@ -90,6 +141,9 @@ def main():
 	elif args.operation=='prepare':
 		server = ProjectRepository(args.remote)
 		prepare(server)
+	elif args.operation=='view':
+		server = ProjectRepository(args.remote)
+		view(server)
 	else:
 		print('An invalid operation was chosen!')
 		sys.exit(1)
