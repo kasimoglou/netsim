@@ -63,15 +63,61 @@ BADMF1 = MF2 + [
 	""")
 ]
 
-@pytest.fixture(params=[BADMF1])
+BADMF2 = MF2 + [
+('bad', """
+	import foo1 = foo;
+	import foo1 = foo;
+	""")
+]
+
+
+BADMF3 = MF2 + [
+('bad1',"""
+	import foo1 = foo;
+	import foo1 = foo;
+	"""),
+('bad', """
+	import foo1 = foo;
+	import bad1;
+	""")
+]
+
+
+
+@pytest.fixture(params=[BADMF1, BADMF2, BADMF3,
+	[('bad', "@lexerror")],
+	[('bad', ";")],
+	[('bad', "garba g e  inthetext")],
+	[('bad', "import foo")]
+	])
 def import_errors(request):
 	return request.param
 
 def test_parse_import_error(import_errors):
 	with Validation(outfile=io.StringIO()) as val:
 		tmf = TestModelFactory(import_errors, val)
-		tmf.get_model('bad')
+		model = tmf.get_model('bad')
 
 	assert not val.passed()
 	print('\n',tmf.validation.outfile.getvalue())
+
+
+@pytest.fixture(params=[
+	('evt', "event foo();"),
+	('evt', "event foo(int a);"),
+	('evt', "event foo(real x);"),
+	('evt', "event foo(bool p);"),
+	('evt', "event foo(bool a, bool b, real x );")
+	])
+def event_decl(request):
+	return request.param
+
+def test_event_decl(event_decl):
+	with Validation(outfile=io.StringIO()) as val:
+		tmf = TestModelFactory(sources=[event_decl], validation=val)
+		model = tmf.get_model('evt')
+	print(tmf.validation.outfile.getvalue())
+	assert tmf.validation.passed()
+
+
 
