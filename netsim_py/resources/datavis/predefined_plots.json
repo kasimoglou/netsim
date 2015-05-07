@@ -1,0 +1,45 @@
+[
+    {
+        "name": "dataTable",
+        "plots": [
+            {
+                "model_type": "plot",
+                "stat_type": "network",
+                "unit": "",
+                "x": ["node"],
+                "y": ["data"],
+                "select": {"name": "\"RX pkt breakdown\""},
+                "title": "RX pkt breakdown",
+                "axes": ["label"],
+                "style": "histogram",
+                "legend": "DEFAULT",
+                "xlabel": "Node",
+                "ylabel": "Packets",
+                "x_range": null,
+                "y_range": "[0:]",
+                "logscale": "",
+                "grid": "",
+                "key": ""
+            },
+            {
+                "model_type": "plot",
+                "stat_type": "network",
+                "unit": "",
+                "x": ["node"],
+                "y": ["data"],
+                "select": {"name": "\"TunableMAC packet breakdown\""},
+                "title": "TunableMAC packet breakdown",
+                "axes": ["label"],
+                "style": "histogram",
+                "legend": "DEFAULT",
+                "xlabel": "Node",
+                "ylabel": "Packets",
+                "x_range": null,
+                "y_range": "[0:]",
+                "logscale": "",
+                "grid": "",
+                "key": ""
+            }
+        ]
+    }
+]

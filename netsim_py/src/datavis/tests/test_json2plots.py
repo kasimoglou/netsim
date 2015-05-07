@@ -1,6 +1,10 @@
 from datavis.json2plots import *
 from datavis.predefined_plots import PlotsEncoder
 from datavis.database import Relation
+from datavis.json2plots import ViewsPlotsDecoder
+import os
+from runner.config import cfg
+from datavis.model2plots import create_simulation_results
 import json
 
 
@@ -118,3 +122,25 @@ def test_selector_parser():
     print(where_clause)
 
     # assert 0  # just to see the prints
+
+
+def test_plot_creation_through_nsd_read(tmp_dir):
+    curdir = os.getcwd()
+    # change dir so that the generated plots will go into that dir
+    os.chdir(tmp_dir)
+
+    if not os.path.exists("./test_plot_creation_through_nsd_read"):
+        os.mkdir("./test_plot_creation_through_nsd_read")
+
+    os.chdir("./test_plot_creation_through_nsd_read")
+
+
+    vpd = ViewsPlotsDecoder()
+    filename = os.path.join(cfg.resource_path, "datavis/predefined_plots.json")
+    with open(filename, "r") as f:
+        json_str = f.read()
+        derived_tables, plot_models = vpd.decode(json.loads(json_str))
+        create_simulation_results("asdf", plot_models, os.path.join(cfg.resource_path, "datavis/castalia_output2.txt"))
+
+    # restore the working directory to its previous value
+    os.chdir(curdir)

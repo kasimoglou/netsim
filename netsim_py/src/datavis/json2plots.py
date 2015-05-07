@@ -14,8 +14,9 @@ class ViewsPlotsDecoder:
     Decodes views and plots in json format to DerivedTable and PlotModel respectively
     use the decode function
     """
-    derived_tables = []
-    plot_models = []
+    def __init__(self):
+        self.derived_tables = []
+        self.plot_models = []
 
     @staticmethod
     def gen_plotmodel(rel, d):
