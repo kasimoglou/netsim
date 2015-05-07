@@ -1,5 +1,6 @@
 from datavis.json2plots import *
 from datavis.predefined_plots import PlotsEncoder
+from datavis.database import Relation
 import json
 
 
@@ -28,7 +29,7 @@ def test_views_plots_decoder():
                     "unit": "",
                     "x": ["node"],
                     "y": ["data"],
-                    "select": "name = \"Consumed Energy\"",
+                    "select": {"name": "\"Consumed Energy\""},
                     "title": "Consumed Energy",
                     "axes": [],
                     "style": "histogram",
@@ -73,7 +74,7 @@ def test_views_plots_decoder():
                     "unit": "?",
                     "x": ["node", "n_index"],
                     "y": ["data"],
-                    "select": "",  # all
+                    "select": {},  # all
                     "title": "packets received per node",
 
                     # Not applicable to parameter type, remove/keep makes no difference
@@ -103,5 +104,17 @@ def test_views_plots_decoder():
     for pm in pms:
         pm_j = json.dumps(pm, cls=PlotsEncoder, indent=2)
         print(pm_j)
+
+    # assert 0  # just to see the prints
+
+
+def test_selector_parser():
+
+    sp = SelectorParser()
+    sel_str = {"a": "1", "b": "greater_than(5)|less_equal(3)", "name": "\"Consumed Energy\""}
+    selector = sp.parse(sel_str)
+    r = Relation("dummy", [])
+    where_clause = r.sql_where_clause(selector)
+    print(where_clause)
 
     # assert 0  # just to see the prints
