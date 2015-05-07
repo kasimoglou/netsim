@@ -218,7 +218,7 @@
                                                     <table class="table table-hover">
                                                         <thead>
                                                             <tr>
-                                                                <th class="col-md-3 border-bottom">Name</th>
+                                                                <th class="col-md-3 border-bottom">Title</th>
                                                                 <th class="col-md-3 border-bottom">type</th>
                                                                 <th class="col-md-2 border-bottom"></th>
                                                                 <th class="col-md-2 border-bottom"></th>
@@ -226,11 +226,11 @@
                                                         </thead>
                                                         <tbody>
                                                             <tr ng-repeat="plot in selected_view.view.plots">
-                                                                <td>[[plot.name]]</td>
+                                                                <td>[[plot.title]]</td>
                                                                 <td>[[plot.model_type]]</td>
                                                                 <td>
                                                                     <a class="btn listing-edit-btn" 
-                                                                       ng-click="updatePlot(plot)">
+                                                                       ng-click="updatePlot(selected_view.view, plot)">
                                                                          <span class="glyphicon glyphicon-edit"></span>
                                                                          Edit
                                                                      </a>
