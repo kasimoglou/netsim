@@ -289,6 +289,11 @@ def p_func_decl(p):
     p[0] = ('func', p[3], p[2], p[5], p[7], p.lineno(1) )
 
 
+def p_body(p):
+    "body : LBRACE RBRACE "
+    pass
+
+
 # Add to model
 
 def p_model_event_decl(p):
