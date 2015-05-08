@@ -106,14 +106,33 @@ define(['underscore',
             }
         };
         
-        // If nsd file has not contain any view,
+        // If nsd file does not contain any view,
         // add the default one (dataTable)
         $scope.initializeOutput = function(nsd) {
             if (!nsd.views) {
                 nsd.views = [
                     {
                         name: 'dataTable',
-                        columns: [],
+                        columns: [
+                            {
+                                name: 'node'
+                            },
+                            {
+                                name: 'name'
+                            },
+                            {
+                                name: 'module'
+                            },
+                            {
+                                name: 'label'
+                            },
+                            {
+                                name: 'n_index'
+                            },
+                            {
+                                name: 'data'
+                            }
+                        ],
                         base_tables: [],
                         table_filter: '',
                         groupby: []
@@ -238,6 +257,16 @@ define(['underscore',
                         $scope.myData.push({name: 'field' + $scope.myData.length, expression: '', groupby: false});
                     };
                     
+                    $scope.available_fields = [];
+                    $scope.updateAvailableFields = function() {
+                        $scope.available_fields = [];
+                    
+                        _.each($scope.view.base_tables, function(view_name) {
+                            var view = _.findWhere($scope.base_datasets, { name: view_name});
+                            $scope.available_fields.push(view);
+                        });
+                    };
+                    
                     // Called when dialog's create button is clicked and
                     // adds the newly configured view to nsd's existing views.
                     // Note that this change is not persisted at the db until
@@ -325,6 +354,16 @@ define(['underscore',
                         $scope.myData.push({name: 'field' + $scope.myData.length, expression: '', groupby: false});
                     };
                     
+                    $scope.available_fields = [];
+                    $scope.updateAvailableFields = function() {
+                        $scope.available_fields = [];
+                    
+                        _.each($scope.view.base_tables, function(view_name) {
+                            var view = _.findWhere($scope.base_datasets, { name: view_name});
+                            $scope.available_fields.push(view);
+                        });
+                    };
+                    
                     // Form `myData` object from `columns` and `groupby`
                     // objects
                     $scope.initializeGridData = function() {
@@ -347,6 +386,7 @@ define(['underscore',
                         $scope.base_datasets = _.reject(self.nsd.views, function(obj) {
                             return obj.name === $scope.view.name;
                         });
+                        $scope.updateAvailableFields();
                     };
                     
                     $scope.initializeGridData();
@@ -556,7 +596,6 @@ define(['underscore',
                             plot.y = 'data';
                             _.extend(plot, $scope.parameter);
                         }
-                        console.log(plot);
                     };
                     
                     $scope.updatePlot = function() {
