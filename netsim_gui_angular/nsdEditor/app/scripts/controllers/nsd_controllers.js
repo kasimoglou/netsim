@@ -422,12 +422,50 @@ define(['underscore',
                         update: false
                     };
                     
-                    if (!view.plots) {
-                        view.plots = [];
-                    }    
+                    $scope.view = _.clone(view);
+                    $scope.temp = {};
+                    
+                    // Once user clicks `crete` in plot dialog
+                    // depending on his selection on `graph type` field
+                    $scope.adjustPlot = function (graph_type) {
+                        $scope.plot.rel = view.name;
+                        if (graph_type === 'plot') {
+                            $scope.plot.model_type = 'plot';
+                            $scope.plot.stat_type = 'network';
+                            _.extend($scope.plot, $scope.temp_plot);
+                        } else if (graph_type === 'node parameter') {
+                            $scope.plot.model_type = 'parameter';
+                            $scope.plot.stat_type = 'node';
+                            $scope.plot.x = 'node';
+                            $scope.plot.y = 'data';
+                            _.extend($scope.plot, $scope.parameter);
+                        } else if (graph_type === 'network parameter') {
+                            $scope.plot.model_type = 'parameter';
+                            $scope.plot.stat_type = 'network';
+                            $scope.plot.y = 'data';
+                            _.extend($scope.plot, $scope.parameter);
+                        } else if (graph_type === 'node2node parameter') {
+                            $scope.plot.model_type = 'parameter';
+                            $scope.plot.stat_type = 'node2node';
+                            $scope.plot.x = ['node', 'n_index'];
+                            $scope.plot.y = 'data';
+                            _.extend($scope.plot, $scope.parameter);
+                        }
+                        
+                    };
                         
                     $scope.createPlot = function() {
+                        // If user has clicked `Graph Type` button and has selected a value
+                        if ($scope.temp.graph_type) {
+                            $scope.adjustPlot($scope.temp.graph_type);
+                        }
+                            
                         if ($scope.plot) {
+                            
+                            if (!view.plots) {
+                                view.plots = [];
+                            }
+                    
                             view.plots.push($scope.plot);
                         }
                         
@@ -444,7 +482,7 @@ define(['underscore',
         // Called when user clicks `Edit` button in a row in plots table.
         // Opens `create_plot` template, initializes it with selected `plot`
         // data and lets user update it.
-        $scope.updatePlot = function(plot) {
+        $scope.updatePlot = function(view, plot) {
             ngDialog.open({
                 template: 'templates/create_plot.html',
                 className: 'ngdialog-theme-default new-view-dialog',
@@ -454,9 +492,71 @@ define(['underscore',
                         update: true
                     };
                     
-                    // Initialize plot with the selected one 
-                    $scope.plot = _.clone(plot);
+                    $scope.view = _.clone(view);
+                    $scope.plot = {};
+                    $scope.temp = {};
+                    $scope.temp_plot = {};
+                    $scope.parameter = {};
                    
+                    // Reads a plot and fills local model (`temp_plot`, `parameter`, etc)
+                    // with data
+                    $scope.readPlot = function (plot) {
+                        // Plot - parameter common attributes
+                        $scope.plot.title = plot.title;
+                        $scope.plot.select = plot.select;
+                        
+                        // adjust graph type
+                        if (plot.model_type === 'plot') {
+                            $scope.temp.graph_type = 'plot';
+                            var plot_fields = _.omit(plot, ['model_type', 'stat_type', 'title', 'select']);
+                            _.extend($scope.temp_plot, plot_fields);
+                        } else if (plot.model_type === 'parameter') {
+                            if (plot.stat_type === 'network') {
+                                $scope.temp.graph_type = 'network parameter';
+                            } else if (plot.stat_type === 'node') {
+                                $scope.temp.graph_type = 'node parameter';
+                            } else {
+                                $scope.temp.graph_type = 'node2node parameter';
+                            }
+                            
+                            $scope.parameter.unit = plot.unit;
+                        }
+                    };
+                    $scope.readPlot(plot);
+                    
+                    // Once user clicks `crete` in plot dialog
+                    // depending on his selection on `graph type` field
+                    $scope.adjustPlot = function (graph_type) {
+                        for (var attr in plot) {
+                            delete plot[attr];
+                        }
+                        // Plot - parameter common attributes
+                        plot.title = $scope.plot.title;
+                        plot.select = $scope.plot.select;
+                        
+                        if (graph_type === 'plot') {
+                            plot.model_type = 'plot';
+                            plot.stat_type = 'network';
+                            _.extend(plot, $scope.temp_plot);
+                        } else if (graph_type === 'node parameter') {
+                            plot.model_type = 'parameter';
+                            plot.stat_type = 'node';
+                            plot.x = 'node';
+                            plot.y = 'data';
+                            _.extend(plot, $scope.parameter);
+                        } else if (graph_type === 'network parameter') {
+                            plot.model_type = 'parameter';
+                            plot.stat_type = 'network';
+                            plot.y = 'data';
+                            _.extend(plot, $scope.parameter);
+                        } else if (graph_type === 'node2node parameter') {
+                            plot.model_type = 'parameter';
+                            plot.stat_type = 'node2node';
+                            plot.x = ['node', 'n_index'];
+                            plot.y = 'data';
+                            _.extend(plot, $scope.parameter);
+                        }
+                    };
                     
                     $scope.updatePlot = function() {
                         // note that we can't just `plot = $scope.plot`
@@ -465,9 +565,11 @@ define(['underscore',
                         // will not be reflected outside this function.
                         // But if I change attributes of the referenced objects
                         // those changes will be reflected to the original object
-                        for (var attr in $scope.plot) {
-                            plot[attr] = $scope.plot[attr];
-                        }
+//                        for (var attr in $scope.plot) {
+//                            plot[attr] = $scope.plot[attr];
+//                        }
+
+                        $scope.adjustPlot($scope.temp.graph_type);
                         $scope.closeThisDialog();
                     };
                     
