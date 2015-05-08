@@ -5,3 +5,4 @@ simrunner.log
 .pydevproject
 __pycache__
 *~
+parser.out

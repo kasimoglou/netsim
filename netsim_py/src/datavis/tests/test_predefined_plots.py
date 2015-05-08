@@ -47,11 +47,7 @@ def test_network_plot(tmp_dir):
 
 def test_stat_breakdown(tmp_dir):
 
-    plot_models = [# Packet Breakdowns (as histograms)
-                   RX_pkt_breakdown_hist,
-                   TunableMAC_packet_breakdown_hist,
-
-                   # Packet Breakdowns
+    plot_models = [# Packet Breakdowns
                    RX_pkt_breakdown,
                    TunableMAC_packet_breakdown]
 

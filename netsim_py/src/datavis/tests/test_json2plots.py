@@ -1,5 +1,10 @@
 from datavis.json2plots import *
 from datavis.predefined_plots import PlotsEncoder
+from datavis.database import Relation
+from datavis.json2plots import ViewsPlotsDecoder
+import os
+from runner.config import cfg
+from datavis.model2plots import create_simulation_results
 import json
 
 
@@ -28,7 +33,7 @@ def test_views_plots_decoder():
                     "unit": "",
                     "x": ["node"],
                     "y": ["data"],
-                    "select": "name = \"Consumed Energy\"",
+                    "select": {"name": "\"Consumed Energy\""},
                     "title": "Consumed Energy",
                     "axes": [],
                     "style": "histogram",
@@ -73,7 +78,7 @@ def test_views_plots_decoder():
                     "unit": "?",
                     "x": ["node", "n_index"],
                     "y": ["data"],
-                    "select": "",  # all
+                    "select": {},  # all
                     "title": "packets received per node",
 
                     # Not applicable to parameter type, remove/keep makes no difference
@@ -93,7 +98,8 @@ def test_views_plots_decoder():
         }
     ]
 
-    dts, pms = views_plots_decoder(Views)
+    decoder = ViewsPlotsDecoder()
+    dts, pms = decoder.decode(Views)
 
     for dt in dts:
         dt_j = json.dumps(dt, cls=PlotsEncoder, indent=2)
@@ -104,3 +110,37 @@ def test_views_plots_decoder():
         print(pm_j)
 
     # assert 0  # just to see the prints
+
+
+def test_selector_parser():
+
+    sp = SelectorParser()
+    sel_str = {"a": "1", "b": "greater_than(5)|less_equal(3)", "name": "\"Consumed Energy\""}
+    selector = sp.parse(sel_str)
+    r = Relation("dummy", [])
+    where_clause = r.sql_where_clause(selector)
+    print(where_clause)
+
+    # assert 0  # just to see the prints
+
+
+def test_plot_creation_through_nsd_read(tmp_dir):
+    curdir = os.getcwd()
+    # change dir so that the generated plots will go into that dir
+    os.chdir(tmp_dir)
+
+    if not os.path.exists("./test_plot_creation_through_nsd_read"):
+        os.mkdir("./test_plot_creation_through_nsd_read")
+
+    os.chdir("./test_plot_creation_through_nsd_read")
+
+
+    vpd = ViewsPlotsDecoder()
+    filename = os.path.join(cfg.resource_path, "datavis/predefined_plots.json")
+    with open(filename, "r") as f:
+        json_str = f.read()
+        derived_tables, plot_models = vpd.decode(json.loads(json_str))
+        create_simulation_results("asdf", plot_models, os.path.join(cfg.resource_path, "datavis/castalia_output2.txt"))
+
+    # restore the working directory to its previous value
+    os.chdir(curdir)

@@ -4,21 +4,14 @@
             <div class="row">
                 <div class="col-md-6">
                     <div class="form-group">
-                        <label for="name" class="control-label">Name:</label>
-                        <input type="text" ng-model="plot.name"
-                            class="form-control" id="name" placeholder="name your plot"/>
-                    </div>
-                </div>
-            </div>
-            <div class="row">
-                <div class="col-md-6">
-                    <div class="form-group">
                         <label for="model_type" class="control-label">Graph Type:</label>
                         <select class="form-control" id="model_type"
-                                ng-model="plot.model_type">
+                                ng-model="temp.graph_type">
                             <option value="">-- select graph type --</option>
                             <option value="plot">plot</option>
-                            <option value="parameter">parameter</option>
+                            <option value="node parameter">node parameter</option>
+                            <option value="network parameter">network parameter</option>
+                            <option value="node2node parameter">node2node parameter</option>
                         </select>
                     </div>
                 </div>
@@ -42,29 +35,58 @@
                     </div>
                 </div-->
             </div>
-            <div class="row" ng-show="plot.model_type === 'parameter'">
+            <div class="row" >
                 <div class="col-md-6">
                     <div class="form-group">
+                        <label for="select" class="control-label">Select:</label>
+                        <input type="text" ng-model="plot.select"
+                            class="form-control" id="select" placeholder="select statement"/>
+                    </div>
+                </div>
+                <div class="col-md-6" ng-show="temp.graph_type === 'node parameter' ||
+                                                temp.graph_type === 'network parameter' ||
+                                                temp.graph_type === 'node2node parameter' ">
+                    <div class="form-group">
                         <label for="unit" class="control-label">Unit:</label>
-                        <input type="text" ng-model="plot.unit"
+                        <input type="text" ng-model="parameter.unit"
                             class="form-control" id="unit" placeholder="statistic's unit"/>
                     </div>
                 </div>
             </div>
-            <div ng-show="plot.model_type === 'plot'">
+            <div ng-show="temp.graph_type === 'plot'">
                 <div class="row">
                     <div class="col-md-6">
                         <div class="form-group">
-                            <label for="style" class="control-label">Style:</label>
-                            <input type="text" ng-model="plot.style"
-                                class="form-control" id="style" placeholder="plot style eg. linespoints"/>
+                            <label class="control-label">Axes:</label>
+                            <multiselect multiple="true" ng-model="temp_plot.axes" 
+                                         class="full-width hide-filter hide-check-buttons"
+                                         options="col.name for col in view.columns"></multiselect>
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="xselect" class="control-label">
+                                x axis:
+                            </label>
+                            <select class="form-control" id="xselect"
+                                    ng-options="col.name as col.name for col in view.columns"
+                                    ng-model="temp_plot.x">
+                                <option value="">-- select x axis --</option>
+                            </select>
                         </div>
                     </div>
                     <div class="col-md-6">
                         <div class="form-group">
-                            <label for="legend" class="control-label">Legend:</label>
-                            <input type="text" ng-model="plot.legend"
-                                class="form-control" id="legend" placeholder="plot legend"/>
+                            <label for="yselect" class="control-label">
+                                y axis:
+                            </label>
+                            <select class="form-control" id="yselect"
+                                    ng-options="col.name as col.name for col in view.columns"
+                                    ng-model="temp_plot.y">
+                                <option value="">-- select y axis --</option>
+                            </select>
                         </div>
                     </div>
                 </div>
@@ -72,14 +94,14 @@
                     <div class="col-md-6">
                         <div class="form-group">
                             <label for="xlabel" class="control-label">x axis label:</label>
-                            <input type="text" ng-model="plot.xlabel"
+                            <input type="text" ng-model="temp_plot.xlabel"
                                 class="form-control" id="xlabel" placeholder="x axis label"/>
                         </div>
                     </div>
                     <div class="col-md-6">
                         <div class="form-group">
                             <label for="ylabel" class="control-label">y axis label:</label>
-                            <input type="text" ng-model="plot.ylabel"
+                            <input type="text" ng-model="temp_plot.ylabel"
                                 class="form-control" id="ylabel" placeholder="y axis label"/>
                         </div>
                     </div>
@@ -88,14 +110,14 @@
                     <div class="col-md-6">
                         <div class="form-group">
                             <label for="xrange" class="control-label">x axis range:</label>
-                            <input type="text" ng-model="plot.x_range"
+                            <input type="text" ng-model="temp_plot.x_range"
                                 class="form-control" id="xrange" placeholder="x axis range"/>
                         </div>
                     </div>
                     <div class="col-md-6">
                         <div class="form-group">
                             <label for="yrange" class="control-label">y axis range:</label>
-                            <input type="text" ng-model="plot.y_range"
+                            <input type="text" ng-model="temp_plot.y_range"
                                 class="form-control" id="yrange" placeholder="y axis range"/>
                         </div>
                     </div>
@@ -104,22 +126,48 @@
                     <div class="col-md-6">
                         <div class="form-group">
                             <label for="logscale" class="control-label">Log scale:</label>
-                            <input type="text" ng-model="plot.logscale"
+                            <input type="text" ng-model="temp_plot.logscale"
                                 class="form-control" id="logscale" placeholder="log scale"/>
                         </div>
                     </div>
                     <div class="col-md-6">
                         <div class="form-group">
                             <label for="grid" class="control-label">Grid:</label>
-                            <input type="text" ng-model="plot.grid"
+                            <input type="text" ng-model="temp_plot.grid"
                                 class="form-control" id="grid" placeholder="grid"/>
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="key" class="control-label">Key:</label>
+                            <input type="text" ng-model="temp_plot.key"
+                                class="form-control" id="key" placeholder="key"/>
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="style" class="control-label">Style:</label>
+                            <input type="text" ng-model="temp_plot.style"
+                                class="form-control" id="style" placeholder="plot style eg. linespoints"/>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="legend" class="control-label">Legend:</label>
+                            <input type="text" ng-model="temp_plot.legend"
+                                class="form-control" id="legend" placeholder="plot legend"/>
                         </div>
                     </div>
                 </div>
             </div>
             <div class="ng-dialog-buttons row">
                 <div class="col-md-12">
-                    <a class="btn btn-sm btn-success" ng-click="createPlot()">Create</a>
+                    <a class="btn btn-sm btn-success" ng-show="!mode.update" ng-click="createPlot()">Create</a>
+                    <a class="btn btn-sm btn-success" ng-show="mode.update" ng-click="updatePlot()">Update</a>
                     <a class="btn btn-sm btn-default" ng-click="dismissDialog()">Cancel</a>
                 </div>
             </div>

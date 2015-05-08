@@ -1,56 +1,172 @@
 import ast
-from models.nsdplot import PlotModel, DATA_TABLE, DerivedTable, Table,  Column, ColumnExpr, ColumnRef, \
+from models.nsdplot import PlotModel, DATA_TABLE, DerivedTable, Table,  Column, ColumnExpr, ColumnRef, Expression, \
     ConstantExpr, Operator, \
     AVG, COUNT, FIRST, LAST, MAX, MIN, SUM, \
     EQ, NOTEQ, LESS, LESS_EQ, GREATER, GREATER_EQ, \
     LAND, LOR, \
     PLUS, MINUS, DIV, MULT
+from datavis.database import less_equal, less_than, greater_than, greater_equal, not_equal
 import re
 
 
-def gen_plotmodel(rel, d):
+class ViewsPlotsDecoder:
     """
-    generate a PlotModel associated to relation rel from specified dictionary d (the dictionary should represent only one PlotModel)
-    returns the PlotModel
+    Decodes views and plots in json format to DerivedTable and PlotModel respectively
+    use the decode function
     """
-    pm = PlotModel(
-        d["model_type"],
-        d["stat_type"],
-        rel,
-        tuple([rel.col[x] for x in d["x"]]),
-        tuple([rel.col[y] for y in d["y"]]),
-        d["axes"],
-        None,  # TODO: parsing
-        d["title"],
-        d["style"],
-        d["legend"],
-        d["xlabel"],
-        d["ylabel"],
-        d["x_range"],
-        d["y_range"],
-        d["logscale"],
-        d["grid"],
-        d["key"],
-        d["unit"])
-    return pm
+    def __init__(self):
+        self.derived_tables = []
+        self.plot_models = []
+
+    @staticmethod
+    def gen_plotmodel(rel, d):
+        """
+        generate a PlotModel associated to relation rel from specified dictionary d (the dictionary should represent only one PlotModel)
+        returns the PlotModel
+        """
+        pm = PlotModel(
+            d["model_type"],
+            d["stat_type"],
+            rel,
+            tuple([rel.col[x] for x in d["x"]]),
+            tuple([rel.col[y] for y in d["y"]]),
+            d["axes"],
+            SelectorParser().parse(d["select"]),
+            d["title"],
+            d["style"],
+            d["legend"],
+            d["xlabel"],
+            d["ylabel"],
+            d["x_range"],
+            d["y_range"],
+            d["logscale"],
+            d["grid"],
+            d["key"],
+            d["unit"])
+        return pm
+
+    def gen_columns(self, d):
+        """
+        generate a list of Column objects from  d (d should be a list of dictionaries each representing a Column)
+        returns the list of Column objects
+        """
+        cols = []
+        for c in d:
+            expr = self.str_2_expr(c["expression"], gen_types(columns=cols))
+            temp_c = ColumnExpr(c["name"], expr)
+            cols.append(temp_c)
+        return cols
+
+    def gen_plots(self, rel, d_plot_list):
+        """
+        generate PlotModels from d_plot_list which is a list of dictionaries representing the plots
+        then add the generated PlotModels to plot_models (a list of PlotModels)
+        rel is the relation these plots are connected with
+        """
+        for p in d_plot_list:
+            pm = self.gen_plotmodel(rel, p)
+            self.plot_models.append(pm)
+
+    def gen_derived_table(self, d):
+        """
+        generate a DerivedTable from specified dictionary d (the dictionary should represent only one derived table)
+        then add the generated DerivedTable to derived_tables (a list of DerivedTable)
+        returns the DerivedTable
+        """
+        cols = self.gen_columns(d["columns"])
+        base_tables = [self.get_table_by_name(name) for name in d["base_tables"]]
+        dt = DerivedTable(
+            d["name"],
+            cols,
+            base_tables,
+            self.str_2_expr(d["table_filter"], gen_types(cols, base_tables)),
+            col_str2col_obj(d["groupby"], cols)
+        )
+        self.derived_tables.append(dt)
+        return dt
+
+    def decode(self, views):
+        """
+        Decodes views and plots in json format to DerivedTable and PlotModel respectively
+        returns a tuple of lists (list_DerivedTalbe, list_plotModel)
+        """
+        for v in views:
+            if v["name"] == "dataTable":
+                rel = DATA_TABLE
+            else:
+                rel = self.gen_derived_table(v)
+            self.gen_plots(rel, v["plots"])
+        # for dt in self.derived_tables:
+        #     dt.base_tables = table_str_2_table_obj(dt.base_tables, self.derived_tables)
+
+        return self.derived_tables, self.plot_models
+
+    @staticmethod
+    def str_2_expr(expr_str, types):
+        """
+        Parses the expression given in expr_str to an actual Expression object
+        returns the generated Expression
+        """
+        nv = ExprGenNodeVisitor(types)
+        eq_regex = re.compile(r"(?<![=><])=(?![=><])")  # regular expression to find a single =
+        expr_str = eq_regex.sub("==", expr_str)  # replaces = with ==
+        node = ast.parse(expr_str)
+        return nv.visit(node)
+
+    def get_table_by_name(self, name):
+        """
+        returns the Table with specified name
+        """
+        assert isinstance(name, str)
+
+        if name == "dataTable":
+            return DATA_TABLE
+        else:
+            for c in self.derived_tables:
+                if c.name == name:
+                    return c
+        raise Exception("Table name: \"%s\" does not exist" % name)
 
 
-def gen_columns(d):
+def gen_types(columns=None, tables=None):
     """
-    generate a list of Column objects from  d (d should be a list of dictionaries each representing a Column)
-    returns the list of Column objects
+    returns a dictionary containing all functions, columns and tables in the form:
+    {
+        "SUM": "function,
+        "AVG": "funtion",
+        "data": "column",
+        "dataTable": "table"
+        ....
+        etc
+    }
+    functions are hardcoded, columns and table names are taken from arguments columns and tables
     """
-    cols = []
-    for c in d:
-        expr = str_2_expr(c["expression"])
-        temp_c = ColumnExpr(c["name"], expr)
-        cols.append(temp_c)
-    return cols
+    types = {
+        "AVG": "function",
+        "COUNT": "function",
+        "FIRST": "function",
+        "LAST": "function",
+        "MAX": "function",
+        "MIN": "function",
+        "SUM": "function",
+        "dataTable": "table"
+    }
+
+    if columns:
+        for c in columns:
+            types[c.name] = "column"
+    if tables:
+        for t in tables:
+            types[t.name] = "table"
+            for c in t.columns:
+                types[c.name] = "column"
+
+    return types
 
 
 def get_col_by_name(name, cols):
     """
-    returns the Column with specified name (cols is a list of columns)
+    returns the Column with specified name (cols is a list of columns where we search for name)
     None for not found
     """
     assert isinstance(name, str)
@@ -62,7 +178,7 @@ def get_col_by_name(name, cols):
     return None
 
 
-def col_str_2_col_obj(col_str, col_obj):
+def col_str2col_obj(col_str, col_obj):
     """
     returns a list of Column objects, defined by the list of column names
     col_str: the list of column names that we want to transform in Column objects
@@ -78,91 +194,10 @@ def col_str_2_col_obj(col_str, col_obj):
     return cols
 
 
-def gen_derived_table(d):
-    """
-    generate a DerivedTable from specified dictionary d (the dictionary should represent only one derived table)
-    returns the DerivedTable
-    """
-    cols = gen_columns(d["columns"])
-    dt = DerivedTable(
-        d["name"],
-        cols,
-        d["base_tables"],  # keep this as list of strings for now, later translate to DerivedTable
-        str_2_expr(d["table_filter"]),
-        col_str_2_col_obj(d["groupby"], cols)
-    )
-    return dt
-
-
-def get_table_by_name(name, tables):
-    """
-    returns the Table with specified name (tables is a list of Tables/DerivedTables)
-    None for not found
-    """
-    assert isinstance(name, str)
-    assert isinstance(tables, list)
-
-    for c in tables:
-        if c.name == name:
-            return c
-    return None
-
-
-def table_str_2_table_obj(table_str, table_obj):
-    """
-    returns a list of Table/DerivedTable objects, defined by the list of Table names
-    btable_str: the list of Table names that we want to transform in Table/DerivedTable objects
-    btable_obj: the list of all Table/DerivedTable objects
-    """
-    tables = []
-    for s in table_str:
-        if s == "dataTable":
-            t = DATA_TABLE
-        else:
-            t = get_table_by_name(s, table_obj)
-
-        if t:
-            tables.append(t)
-        else:  # this should never happen
-            raise Exception("Table name: \"%s\" does not exist" % s)
-    return tables
-
-
-def gen_add_plots(rel, d_plot_list, plot_models):
-    """
-    generate PlotModels from d_plot_list which is a list of dictionaries representing the plots
-    then add the generated PlotModels to plot_models (a list of PlotModels)
-    rel is the relation these plots are connected with
-    """
-    for p in d_plot_list:
-        pm = gen_plotmodel(rel, p)
-        plot_models.append(pm)
-
-
-def views_plots_decoder(views):
-    """
-    Decodes views and plots in json format to DerivedTable and PlotModel respectively
-    returns a tuple of lists (list_DerivedTalbe, list_plotModel)
-    """
-    derived_tables = []
-    plot_models = []
-    for v in views:
-        if v["name"] == "dataTable":
-            rel = DATA_TABLE
-            gen_add_plots(rel, v["plots"], plot_models)
-        else:
-            dt = gen_derived_table(v)
-            derived_tables.append(dt)
-            rel = dt
-            gen_add_plots(rel, v["plots"], plot_models)
-
-    for dt in derived_tables:
-        dt.base_tables = table_str_2_table_obj(dt.base_tables, derived_tables)
-
-    return derived_tables, plot_models
-
-
 class ExprGenNodeVisitor(ast.NodeVisitor):
+    def __init__(self, types):
+        assert isinstance(types, dict)
+        self.types = types
 
     def visit_Module(self, node):
         return self.visit(node.body[0])
@@ -190,13 +225,13 @@ class ExprGenNodeVisitor(ast.NodeVisitor):
         return Operator(op, [a, b])
 
     def visit_Call(self, node):
-        func_name = self.visit(node.func).column.name
+        func_name = self.visit(node.func)
         func = self.get_func_by_name(func_name)
         arg = self.visit(node.args[0])
         return Operator(func, [arg])
 
     def visit_Attribute(self, node):
-        p = self.visit(node.value).column.name
+        p = self.visit(node.value)
         col_name = node.attr
         c = Column(col_name, Table(p, []))
         c.table = Table(p, [])
@@ -204,7 +239,15 @@ class ExprGenNodeVisitor(ast.NodeVisitor):
 
     def visit_Name(self, node):
         name = str(node.id)
-        return ColumnRef(Column(name))
+        if name in self.types:
+            if self.types[name] == "function":
+                return name
+            elif self.types[name] == "column":
+                return ColumnRef(Column(name))
+            elif self.types[name] == "table":
+                return name
+        else:
+            raise Exception("Unknown Name: \"%s\"" % name)
 
     def visit_Num(self, node):
         num = str(node.n)
@@ -244,13 +287,170 @@ class ExprGenNodeVisitor(ast.NodeVisitor):
         raise Exception("func \"%s\" unknown" % name)
 
 
-def str_2_expr(expr_str):
-    """
-    Parses the expression given in expr_str to an actual Expression object
-    returns the generated Expression
-    """
-    nv = ExprGenNodeVisitor()
-    eq_regex = re.compile(r"(?<![=><])=(?![=><])")  # regular expression to find a single =
-    expr_str = eq_regex.sub("==", expr_str)  # replaces = with ==
-    node = ast.parse(expr_str)
-    return nv.visit(node)
+class SelectorParser():
+    allowed_funcs = {
+        "less_equal": less_equal,
+        "less_than": less_than,
+        "greater_than": greater_than,
+        "greater_equal": greater_equal,
+        "not_equal": not_equal
+    }
+
+    def parse(self, selector_dict):
+        assert isinstance(selector_dict, dict)
+        for attr in selector_dict:
+            sel_str = selector_dict[attr]
+            selector_dict[attr] = eval(sel_str, self.allowed_funcs)
+        return selector_dict
+
+
+#
+# VOODOO STUFF   will be deleted soon
+#
+
+# class SelGenNodeVisitor(ast.NodeVisitor):
+#     select = {}
+#
+#     def visit_Module(self, node):
+#         self.visit(node.body[0])
+#         return self.select
+#
+#     def visit_Expr(self, node):
+#         return self.visit(node.value)
+#
+#     def visit_BinOp(self, node):
+#         a = self.visit(node.left)
+#         op = type(node.op).__name__
+#         b = self.visit(node.right)
+#         return "("+a+" "+op+" "+b+")"
+#
+#     def visit_BoolOp(self, node):
+#         group_attr = {}
+#         sel_dict = {}
+#         op_name = type(node.op).__name__
+#         terms = list(map(lambda x: self.visit(x), node.values))
+#         if op_name == "AND":
+#             distinct_attr = []
+#             for i in terms:
+#                 if isinstance(i, list):
+#                     if i[0] not in distinct_attr:
+#                         distinct_attr.append(i[0])
+#                 elif isinstance(i, Selector)
+#             for attr in distinct_attr:
+#                 for i in terms:
+#                     if attr == i[0]:
+#                         if attr in group_attr:
+#                             group_attr[attr].append(i[1])
+#                         else:
+#                             group_attr[attr] = [i[1]]
+#             for attr in group_attr.keys():
+#                 if attr
+#                 sel_dict[attr] = AND(group_attr[attr])
+#
+#         elif op_name == "OR":
+#             return OR(terms)
+#
+#     def visit_Compare(self, node):
+#         comp = []
+#         a = self.visit(node.left)
+#         op_name = type(node.ops[0]).__name__
+#         b = self.visit(node.comparators[0])
+#         if op_name == "Eq":
+#             comp = [a, b]
+#         else:
+#             sel = self.get_selector(op_name, b)
+#             comp = [a, sel]
+#         return comp
+#
+#     def visit_Attribute(self, node):
+#         p = self.visit(node.value)
+#         col_name = node.attr
+#         return p+"."+col_name
+#
+#     def visit_Name(self, node):
+#         name = str(node.id)
+#         return name
+#         # if name in self.types:
+#         #     if self.types[name] == "function":
+#         #         return name
+#         #     elif self.types[name] == "column":
+#         #         return name
+#         #     elif self.types[name] == "table":
+#         #         return name
+#         # else:
+#         #     raise Exception("Unknown Name: \"%s\"" % name)
+#
+#     def visit_Num(self, node):
+#         num = str(node.n)
+#         return num
+#
+#     def visit_Str(self, node):
+#         s = str(node.s)
+#         return s
+#
+    # @staticmethod
+    # def get_selector(func_name, value):
+    #     if func_name == "NotEq":
+    #         return not_equal(value)
+    #     elif func_name == "Lt":
+    #         return less_than(value)
+    #     elif func_name == "LtE":
+    #         return less_equal(value)
+    #     elif func_name == "Gt":
+    #         return greater_than(value)
+    #     elif func_name == "GtE":
+    #         return greater_equal(value)
+#
+#         raise Exception("func \"%s\" unknown" % func_name)
+
+
+# def get_selector(func, value):
+#     if func == NOTEQ:
+#         return not_equal(value)
+#     elif func == LESS:
+#         return less_than(value)
+#     elif func == LESS_EQ:
+#         return less_equal(value)
+#     elif func == GREATER:
+#         return greater_than(value)
+#     elif func == GREATER_EQ:
+#         return greater_equal(value)
+#
+# def expression2selector(expr):
+#     assert isinstance(expr, Expression)
+#
+#     if isinstance(expr, Operator):
+#         if expr.function in [PLUS, MINUS, DIV, MULT]:
+#             op = expr.function.name
+#             a = expression2selector(expr.operands[0])
+#             b = expression2selector(expr.operands[1])
+#             return a+op+b
+#         elif expr.function in [EQ, NOTEQ, LESS, LESS_EQ, GREATER, GREATER_EQ]:
+#             return expr
+#         elif expr.function in [LAND, LOR]:  # assume that attributes in OR are the same
+#             group = {}
+#             for comp_expr in expr.operands:
+#                 attr = expression2selector(comp_expr.operands[0])
+#                 val = expression2selector(comp_expr.operands[1])
+#                 sel = get_selector(comp_expr.function, val)
+#                 if attr not in group:
+#                     group[attr] = [sel]
+#                 else:
+#                     group[attr].append(sel)
+#             dic = {}
+#             for attr in group:
+#                 dic[attr] = AND(*group[attr]) if expr.function == LAND else \
+#                     OR(*group[attr])
+#             return dic
+#
+#     elif isinstance(expr, ColumnExpr):
+#         return expr.name  # column expressions are not supported in selectors, so just return the name
+#     elif isinstance(expr, ConstantExpr):
+#         return expr.value
+#     elif isinstance(expr, ColumnRef):
+#         return expr.column.name
+#
+
+#
+#  END OF VOODOO
+#

@@ -145,7 +145,7 @@ class Validation:
     def fail(self, msg, *args, **kwargs):
         self.failure()
         if msg and self.detail <= self.FAIL: 
-            self.output("FAIL:", msg, args, kwargs)
+            self.output("FAIL:", msg, *args, **kwargs)
 
     def exception(self, etype, evalue, etb):
         self.failure()
@@ -161,7 +161,7 @@ class Validation:
     
     def success(self, msg, *args, **kwargs):
         if msg and self.detail <= self.SUCCESS: 
-            self.output("SUCCESS:", msg, args, kwargs)
+            self.output("SUCCESS:", msg, *args, **kwargs)
 
     def info(self, msg, *args, **kwargs):
         if msg and self.detail <= self.INFO: 
