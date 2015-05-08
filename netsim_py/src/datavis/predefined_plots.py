@@ -206,18 +206,6 @@ class StatBreakdown(PredefinedPlot):
                        xlabel="Node", ylabel=ylabel, y_range=y_range, style="histogram", logscale=logscale)
 
 #
-# Stat Breakdowns as histograms
-#
-RX_pkt_breakdown_hist            = StatBreakdown("RX pkt breakdown",
-                                                 ylabel="Packets",
-                                                 y_range="[0:]")
-
-TunableMAC_packet_breakdown_hist = StatBreakdown("TunableMAC packet breakdown",
-                                                 ylabel="Packets",
-                                                 y_range="[0:]")
-
-
-#
 # Stat Breakdowns
 #
 

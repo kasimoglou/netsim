@@ -130,8 +130,11 @@ def t_error(t):
     #print("Illegal character %s" % repr(t.value[0]))
     #t.lexer.skip(1)
     raise ValueError("Illegal character %s" % repr(t.value[0]))
-    
-lexer = lex.lex()
+
+def get_lexer():
+    return lex.lex()
+
+lexer = get_lexer()
 
 if __name__ == "__main__":
     lex.runmain(lexer)

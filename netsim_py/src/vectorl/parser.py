@@ -3,8 +3,12 @@ from models.mf import *
 from models.validation import Validation
 from models.constraints import is_legal_identifier
 import ply.yacc as yacc
-from vectorl.lexer import tokens, lexer
+from vectorl.lexer import tokens, get_lexer
 
+
+#
+# VectorL model
+#
 
 @model
 class Scope:
@@ -54,7 +58,7 @@ class ModelFactory(Scope):
 
     models = refs()
 
-    base_lexer = lexer
+    base_lexer = get_lexer()
 
     def get_model(self, name):
         '''
@@ -66,10 +70,10 @@ class ModelFactory(Scope):
                 src = self.get_model_source(name)
                 # insert a dummy entry into the symtab, (used to check for cycles)
                 self.bind(name, 'forward')
-                with V.section("Compiling {0}", name):
-                    model = self.__compile(src)
-                if model is None:
-                    V.fail("Compilation of {0} failed", name)
+                with V.section("Compilation of model {0}", name):
+                    model = self.__compile(name, src)
+                if model is None or not V.passed_section():
+                    V.fail("Compilation of model {0} failed", name)
                 else:
                     self.bind(name, model, force=True)
             if model=='forward':
@@ -77,7 +81,7 @@ class ModelFactory(Scope):
                 return None
             return model
 
-    def __compile(self, src):
+    def __compile(self, name, src):
         '''
         Compile the given src object into a new Model object
         and return it.
@@ -85,16 +89,16 @@ class ModelFactory(Scope):
         # Create a new lexer
         lexer = self.base_lexer.clone()
         lexer.factory = self
+        lexer.modelname = name
 
         # parse
         model = parser.parse(src, lexer=lexer)
 
         # validate it
-        model.validate()
+        if model is not None:
+            model.validate()
 
-        # ok
-        if not self.validation.passed():
-            return None
+        # done!
         return model
 
 
@@ -141,7 +145,6 @@ class Model(Scope):
             self.imports.add(model)
         return model
 
-
     def add_import(self, modelname, name):
         model = self.__do_import(modelname)
         self.bind(name, model)
@@ -154,8 +157,47 @@ class Model(Scope):
             obj = model.symtab[name]
             self.bind(name, obj)
 
+    def add_event(self, name, args):
+        e = Event(self)
+        e.args = args
+        self.bind(name, e)
+
     def validate(self):
         pass
+
+@model
+class Declaration:
+    model = ref(inv=Model.declarations)
+    def __init__(self, model):
+        self.model = model
+
+@model
+class Event(Declaration):
+    args = attr(list, nullable=False)
+
+
+
+#
+# Parser
+#
+
+# error handling 
+def comperr(p, line, msg, *args, **kwargs):
+    lexerr(p.lexer, line, msg, *args, **kwargs)
+
+def lexerr(lex, line, msg, *args, **kwargs):
+    V = lex.factory.validation
+    name = lex.modelname
+    errmsg = msg.format(*args, **kwargs)
+    V.failure()
+    V.output("error:", "{0}({1}): {2}", name, line, errmsg)
+
+# Rules
+def p_error(p):
+    if p:
+        comperr(p, p.lineno, "Syntax error near {0} token '{1}'", p.type, p.value)
+    else:
+        raise SyntaxError("Error at end of source")
 
 def p_model(p):
     "model : newmodel"
@@ -170,27 +212,33 @@ def p_newmodel(p):
 def p_model_imports(p):
     """model : model import_clause
              | model from_clause """
-    model = p[0]=p[1]
+    model = p[0] = p[1]
     if p[2][0]=='import':
-        model.add_import(p[2][1],p[2][2])
+        try:
+            model.add_import(p[2][1],p[2][2])
+        except Exception as e:
+            comperr(p, p[2][3], str(e))
     elif p[2][0]=='from':
-        model.add_from(p[2][1], p[2][2])
+        try:
+            model.add_from(p[2][1], p[2][2])
+        except Exception as e:
+            comperr(p, p[2][3], str(e))
     else:
         raise RuntimeError('Error in parser at p_model_imports')
 
 
 def p_import(p):
     'import_clause : IMPORT ID SEMI'
-    p[0] = ('import', p[2], p[2])
+    p[0] = ('import', p[2], p[2], p.lineno(1))
 
 def p_import_as(p):
     'import_clause : IMPORT ID EQUALS ID SEMI'
-    p[0] = ('import', p[4], p[2])
+    p[0] = ('import', p[4], p[2], p.lineno(1))
 
 
 def p_from_import(p):
     'from_clause : FROM ID IMPORT idlist SEMI'
-    p[0] = ('from', p[2], p[4])
+    p[0] = ('from', p[2], p[4], p.lineno(1))
 
 def p_idlist(p):
     """idlist : ID
@@ -200,6 +248,70 @@ def p_idlist(p):
         p[0] = [p[1]]
     else:
         p[0] = p[1]+[p[3]]
+
+
+# Declarations
+
+def p_arglist_empty(p):
+    "arglist : "
+    p[0] = list()
+
+def p_arglist(p):
+    "arglist : argdefs"
+    p[0] = p[1]
+
+def p_argdef(p):
+    "argdef : typename ID"
+    p[0] = (p[1], p[2])
+
+def p_argdefs(p):
+    """argdefs : argdef 
+               | argdefs COMMA argdef"""
+    p[0] = [p[1]] if len(p)==2 else p[1]+[p[3]]
+
+def p_typename(p):
+    """typename : INT 
+                | REAL 
+                | BOOL"""
+    p[0] = p[1]
+
+# events
+
+def p_event_decl(p):
+    "event_decl : EVENT ID  LPAREN arglist RPAREN SEMI"
+    p[0] = ('event', p[2], p[4], p.lineno(1))
+
+
+# functions
+
+def p_func_decl(p):
+    "func_decl : FUNC typename ID LPAREN arglist RPAREN body "
+    p[0] = ('func', p[3], p[2], p[5], p[7], p.lineno(1) )
+
+
+def p_body(p):
+    "body : LBRACE RBRACE "
+    pass
+
+
+# Add to model
+
+def p_model_event_decl(p):
+    """model : model event_decl
+            | model func_decl
+            """
+    model = p[0] = p[1]
+    try:
+        decl = p[2][0]
+        if decl == 'event':
+            _, ename, eargs, eline = p[2]
+            model.add_event(ename, eargs)
+        elif decl=='func':
+            _, ename, erettype, eargs, ebody, eline = p[2]
+            model.add_func(ename, erettype, eargs, ebody)
+    except Exception as e:
+        comperr(p, eline, str(e))
+
 
 
 

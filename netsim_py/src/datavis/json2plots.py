@@ -1,77 +1,12 @@
 import ast
-from models.nsdplot import PlotModel, DATA_TABLE, DerivedTable, Table,  Column, ColumnExpr, ColumnRef, \
+from models.nsdplot import PlotModel, DATA_TABLE, DerivedTable, Table,  Column, ColumnExpr, ColumnRef, Expression, \
     ConstantExpr, Operator, \
     AVG, COUNT, FIRST, LAST, MAX, MIN, SUM, \
     EQ, NOTEQ, LESS, LESS_EQ, GREATER, GREATER_EQ, \
     LAND, LOR, \
     PLUS, MINUS, DIV, MULT
+from datavis.database import less_equal, less_than, greater_than, greater_equal, not_equal
 import re
-
-
-def gen_types(columns=None, tables=None):
-    """
-    returns a dictionary containing all functions, columns and tables in the form:
-    {
-        "SUM": "function,
-        "AVG": "funtion",
-        "data": "column",
-        "dataTable": "table"
-        ....
-        etc
-    }
-    functions are hardcoded, columns and table names are taken from arguments columns and tables
-    """
-    types = {
-        "AVG": "function",
-        "COUNT": "function",
-        "FIRST": "function",
-        "LAST": "function",
-        "MAX": "function",
-        "MIN": "function",
-        "SUM": "function",
-        "dataTable": "table"
-    }
-
-    if columns:
-        for c in columns:
-            types[c.name] = "column"
-    if tables:
-        for t in tables:
-            types[t.name] = "table"
-            for c in t.columns:
-                types[c.name] = "column"
-
-    return types
-
-
-def get_col_by_name(name, cols):
-    """
-    returns the Column with specified name (cols is a list of columns where we search for name)
-    None for not found
-    """
-    assert isinstance(name, str)
-    assert isinstance(cols, list)
-
-    for c in cols:
-        if c.name == name:
-            return c
-    return None
-
-
-def col_str2col_obj(col_str, col_obj):
-    """
-    returns a list of Column objects, defined by the list of column names
-    col_str: the list of column names that we want to transform in Column objects
-    col_obj: the list of all Column objects for one DerivedTable
-    """
-    cols = []
-    for s in col_str:
-        c = get_col_by_name(s, col_obj)
-        if c:
-            cols.append(c)
-        else:  # this should never happen
-            raise Exception("column name: \"%s\" does not exist" % s)
-    return cols
 
 
 class ViewsPlotsDecoder:
@@ -79,8 +14,9 @@ class ViewsPlotsDecoder:
     Decodes views and plots in json format to DerivedTable and PlotModel respectively
     use the decode function
     """
-    derived_tables = []
-    plot_models = []
+    def __init__(self):
+        self.derived_tables = []
+        self.plot_models = []
 
     @staticmethod
     def gen_plotmodel(rel, d):
@@ -95,7 +31,7 @@ class ViewsPlotsDecoder:
             tuple([rel.col[x] for x in d["x"]]),
             tuple([rel.col[y] for y in d["y"]]),
             d["axes"],
-            None,  # TODO: parsing
+            SelectorParser().parse(d["select"]),
             d["title"],
             d["style"],
             d["legend"],
@@ -192,6 +128,72 @@ class ViewsPlotsDecoder:
         raise Exception("Table name: \"%s\" does not exist" % name)
 
 
+def gen_types(columns=None, tables=None):
+    """
+    returns a dictionary containing all functions, columns and tables in the form:
+    {
+        "SUM": "function,
+        "AVG": "funtion",
+        "data": "column",
+        "dataTable": "table"
+        ....
+        etc
+    }
+    functions are hardcoded, columns and table names are taken from arguments columns and tables
+    """
+    types = {
+        "AVG": "function",
+        "COUNT": "function",
+        "FIRST": "function",
+        "LAST": "function",
+        "MAX": "function",
+        "MIN": "function",
+        "SUM": "function",
+        "dataTable": "table"
+    }
+
+    if columns:
+        for c in columns:
+            types[c.name] = "column"
+    if tables:
+        for t in tables:
+            types[t.name] = "table"
+            for c in t.columns:
+                types[c.name] = "column"
+
+    return types
+
+
+def get_col_by_name(name, cols):
+    """
+    returns the Column with specified name (cols is a list of columns where we search for name)
+    None for not found
+    """
+    assert isinstance(name, str)
+    assert isinstance(cols, list)
+
+    for c in cols:
+        if c.name == name:
+            return c
+    return None
+
+
+def col_str2col_obj(col_str, col_obj):
+    """
+    returns a list of Column objects, defined by the list of column names
+    col_str: the list of column names that we want to transform in Column objects
+    col_obj: the list of all Column objects for one DerivedTable
+    """
+    cols = []
+    for s in col_str:
+        c = get_col_by_name(s, col_obj)
+        if c:
+            cols.append(c)
+        else:  # this should never happen
+            raise Exception("column name: \"%s\" does not exist" % s)
+    return cols
+
+
 class ExprGenNodeVisitor(ast.NodeVisitor):
     def __init__(self, types):
         assert isinstance(types, dict)
@@ -283,3 +285,172 @@ class ExprGenNodeVisitor(ast.NodeVisitor):
             return DIV
 
         raise Exception("func \"%s\" unknown" % name)
+
+
+class SelectorParser():
+    allowed_funcs = {
+        "less_equal": less_equal,
+        "less_than": less_than,
+        "greater_than": greater_than,
+        "greater_equal": greater_equal,
+        "not_equal": not_equal
+    }
+
+    def parse(self, selector_dict):
+        assert isinstance(selector_dict, dict)
+        for attr in selector_dict:
+            sel_str = selector_dict[attr]
+            selector_dict[attr] = eval(sel_str, self.allowed_funcs)
+        return selector_dict
+
+
+#
+# VOODOO STUFF   will be deleted soon
+#
+
+# class SelGenNodeVisitor(ast.NodeVisitor):
+#     select = {}
+#
+#     def visit_Module(self, node):
+#         self.visit(node.body[0])
+#         return self.select
+#
+#     def visit_Expr(self, node):
+#         return self.visit(node.value)
+#
+#     def visit_BinOp(self, node):
+#         a = self.visit(node.left)
+#         op = type(node.op).__name__
+#         b = self.visit(node.right)
+#         return "("+a+" "+op+" "+b+")"
+#
+#     def visit_BoolOp(self, node):
+#         group_attr = {}
+#         sel_dict = {}
+#         op_name = type(node.op).__name__
+#         terms = list(map(lambda x: self.visit(x), node.values))
+#         if op_name == "AND":
+#             distinct_attr = []
+#             for i in terms:
+#                 if isinstance(i, list):
+#                     if i[0] not in distinct_attr:
+#                         distinct_attr.append(i[0])
+#                 elif isinstance(i, Selector)
+#             for attr in distinct_attr:
+#                 for i in terms:
+#                     if attr == i[0]:
+#                         if attr in group_attr:
+#                             group_attr[attr].append(i[1])
+#                         else:
+#                             group_attr[attr] = [i[1]]
+#             for attr in group_attr.keys():
+#                 if attr
+#                 sel_dict[attr] = AND(group_attr[attr])
+#
+#         elif op_name == "OR":
+#             return OR(terms)
+#
+#     def visit_Compare(self, node):
+#         comp = []
+#         a = self.visit(node.left)
+#         op_name = type(node.ops[0]).__name__
+#         b = self.visit(node.comparators[0])
+#         if op_name == "Eq":
+#             comp = [a, b]
+#         else:
+#             sel = self.get_selector(op_name, b)
+#             comp = [a, sel]
+#         return comp
+#
+#     def visit_Attribute(self, node):
+#         p = self.visit(node.value)
+#         col_name = node.attr
+#         return p+"."+col_name
+#
+#     def visit_Name(self, node):
+#         name = str(node.id)
+#         return name
+#         # if name in self.types:
+#         #     if self.types[name] == "function":
+#         #         return name
+#         #     elif self.types[name] == "column":
+#         #         return name
+#         #     elif self.types[name] == "table":
+#         #         return name
+#         # else:
+#         #     raise Exception("Unknown Name: \"%s\"" % name)
+#
+#     def visit_Num(self, node):
+#         num = str(node.n)
+#         return num
+#
+#     def visit_Str(self, node):
+#         s = str(node.s)
+#         return s
+#
+    # @staticmethod
+    # def get_selector(func_name, value):
+    #     if func_name == "NotEq":
+    #         return not_equal(value)
+    #     elif func_name == "Lt":
+    #         return less_than(value)
+    #     elif func_name == "LtE":
+    #         return less_equal(value)
+    #     elif func_name == "Gt":
+    #         return greater_than(value)
+    #     elif func_name == "GtE":
+    #         return greater_equal(value)
+#
+#         raise Exception("func \"%s\" unknown" % func_name)
+
+
+# def get_selector(func, value):
+#     if func == NOTEQ:
+#         return not_equal(value)
+#     elif func == LESS:
+#         return less_than(value)
+#     elif func == LESS_EQ:
+#         return less_equal(value)
+#     elif func == GREATER:
+#         return greater_than(value)
+#     elif func == GREATER_EQ:
+#         return greater_equal(value)
+#
+# def expression2selector(expr):
+#     assert isinstance(expr, Expression)
+#
+#     if isinstance(expr, Operator):
+#         if expr.function in [PLUS, MINUS, DIV, MULT]:
+#             op = expr.function.name
+#             a = expression2selector(expr.operands[0])
+#             b = expression2selector(expr.operands[1])
+#             return a+op+b
+#         elif expr.function in [EQ, NOTEQ, LESS, LESS_EQ, GREATER, GREATER_EQ]:
+#             return expr
+#         elif expr.function in [LAND, LOR]:  # assume that attributes in OR are the same
+#             group = {}
+#             for comp_expr in expr.operands:
+#                 attr = expression2selector(comp_expr.operands[0])
+#                 val = expression2selector(comp_expr.operands[1])
+#                 sel = get_selector(comp_expr.function, val)
+#                 if attr not in group:
+#                     group[attr] = [sel]
+#                 else:
+#                     group[attr].append(sel)
+#             dic = {}
+#             for attr in group:
+#                 dic[attr] = AND(*group[attr]) if expr.function == LAND else \
+#                     OR(*group[attr])
+#             return dic
+#
+#     elif isinstance(expr, ColumnExpr):
+#         return expr.name  # column expressions are not supported in selectors, so just return the name
+#     elif isinstance(expr, ConstantExpr):
+#         return expr.value
+#     elif isinstance(expr, ColumnRef):
+#         return expr.column.name
+#
+
+#
+#  END OF VOODOO
+#
