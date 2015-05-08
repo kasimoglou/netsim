@@ -48,6 +48,8 @@ class SensorType:
 
 # This type is used for Node coordinates (corresponds to PLNxxxx coord. triplet)
 Position = namedtuple('Position', ('lat', 'lon', 'alt'))
+RF_Antenna_conf = namedtuple('RF_Antenna_conf', ('antennaTypeId', 'anglePointer', 'TXresistance', 'TXpower', 'TXpolarization'))
+
 
 
 @model
@@ -97,16 +99,27 @@ class Mote:
         self.moteType = moteType
 
     # node id
-    node_id = attr(str, nullable=False)
+    node_id = attr(str, nullable=False, default=None)
 
     # the node type determines the hardware used
     moteType = ref(inv=MoteType.nodes)
 
+    #Mote role (ROOT or MOTE)
+    moteRole = attr(str, nullable=False, default=None)
+
     # position of the node in relative coordinates
     position = attr(Position)
 
+    rf_antenna_conf=attr(RF_Antenna_conf)
+
+    elevation= attr(float, nullable=False, default=None)
+    rx_threshold= attr(float, nullable=False, default=None)
+
+
     # the Network object
     network = ref()
+
+    
 
 
 @model
@@ -173,7 +186,7 @@ class NSD:
     plan_id = attr(str, nullable=False, default=None)
     project_id = attr(str, nullable=False, default=None)
     name = attr(str, nullable=False)
-
+    userId=attr(str,nullable=False)
     #
     # Environment
     #
@@ -186,6 +199,11 @@ class NSD:
 
     network = ref(inv=Network.nsd)
     NodePosition= attr(list)
+    numOfNodes=attr(str,nullable=False)
+    numOfRoots=attr(str,nullable=False)
+    numOfNidNodes=attr(str,nullable=False)
+    EPSG=attr(str,nullable=False)
+    networkId=attr(str,nullable=False)
 
     #
     # Statistics
