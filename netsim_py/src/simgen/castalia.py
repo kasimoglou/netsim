@@ -6,7 +6,7 @@ Created on Oct 14, 2014
 
 import os.path
 import json
-from models.nsd import NSD, Network, Mote, MoteType
+from models.nsd import NSD, Network, Mote, MoteType, Position, RF_Antenna_conf
 from models.mf import Attribute
 from simgen.utils import docstring_template
 from .castaliagen import generate_castalia
@@ -63,7 +63,11 @@ class NSDReader:
     
     Subclassing this class, allows us to treat different "text schemas"  
     """
-    
+    def __init__(self):
+        # array storing NodeDef objects 
+        self.nodeinfo=[]
+
+
     def read_nsd(self, datastore, nsd_id, simhome):
         nsd = NSD()
         
@@ -75,12 +79,12 @@ class NSDReader:
         self.nsd=nsd
         self.plan= self.read_plan(datastore, self.nsd)
         self.project= self.read_project(datastore, self.nsd)
-        self.create_network()
+        self.create_network(datastore)
 
         return nsd
 
     #
-    #Reads the corresponding plan json file from CouchDb
+    #Reads the  plan json file from CouchDb
     #    
     def read_plan(self, datastore, nsd):
         planid=nsd.plan_id
@@ -89,7 +93,7 @@ class NSDReader:
         return plan
 
     #
-    #Reads the corresponding project json file from CouchDb
+    #Read the  project json file from CouchDb
     #  
     def read_project(self, datastore, nsd):
         projectid=nsd.project_id
@@ -98,20 +102,53 @@ class NSDReader:
         return project
 
     #
+    #Read the NODEDEF json object from CouhDb
+    #
+    def read_nodedef(self, datastore, nodedef_id):
+        return datastore.get_nodedef(nodedef_id)
+
+
+    #
     #Extract info from couchdb json files and creates the network model
     #
-    def create_network(self):
+    def create_network(self, datastore):
         self.network=Network(self.nsd)
         self.defaultMoteType=MoteType()
         numOfNodes=int(self.nsd.numOfNodes)
         for i in range (0, numOfNodes):
             self.create_mote(self.plan['NodePosition'][i])
+            #Read the NODEDEF object and store it to the nodeifo list
+            nodedata=self.read_nodedef(datastore, self.plan['NodePosition'][i]['nodeTypeId'])
+            nodedef=NodeDef(self.nsd, nodedata)
+            self.nodeinfo.append(nodedef)
 
     def create_mote(self, data):
-        mote=Mote(self.network, self.defaultMoteType)
-        setattr(mote, 'node_id', transform_value(str, data["nodeId"]))
-        setattr(mote, Position, transform_value('Position', data['coordinates'][0], data['coordinates'][1], data['coordinates'][2]))
-   
+        mote = Mote(self.network, self.defaultMoteType)
+       
+        #Extract arguments from json 
+        metamodel = mote.__model_class__
+        for attr in metamodel.attributes:
+            if(attr.name=='node_id'):
+                tval = transform_value(attr, data["nodeId"])
+                setattr(mote, 'node_id', tval)
+            elif (attr.name=='moteRole'):
+                tval = transform_value(attr, data['nodeType'])
+                setattr(mote, 'moteRole', tval)
+            elif (attr.name=='position'):
+                tval = transform_value(attr,(Position(data['coordinates'][0], data['coordinates'][1], data['coordinates'][2])))
+                setattr(mote, 'position', tval)
+            elif (attr.name=='elevOfGround'):
+                tval = transform_value(attr, float(data['elevOfGround']))
+                setattr(mote, 'elevation', tval) 
+            elif (attr.name=='RXtheshold'):
+                tval = transform_value(attr, float(data['RXtheshold']))
+                setattr(mote, 'rx_threshold', tval)   
+            elif (attr.name=='rf_antenna_conf'):
+                tval = transform_value(attr,(RF_Antenna_conf(data['rfAntennaConf']['antennaTypeId'], data['rfAntennaConf']['anglePointer'], data['rfAntennaConf']['TXresistance'], data['rfAntennaConf']['TXpower'], data['rfAntennaConf']['TXpolarization'])))
+                setattr(mote, 'rf_antenna_conf', tval)
+            
+
+
         
         
 
@@ -159,16 +196,14 @@ class CastaliaGen:
 
    
     
+#
+#Class for storing NODEDEF json dicts
+#
+class NodeDef:
 
-class NetworkMapper:
-
-    def __init__(self, nsd_obj, jsonplan, json_project):
+    def __init__(self, nsd_obj, jsondict):
         self.nsd=nsd_obj
-        self.json_plan=jsonplan
-        self.json_project=json_project
+        self.jsondata=jsondict
 
 
-    def extract_jsonfile_info(self):
-        data={}
-        data["RF_simulations"]=extract_jsonfile_arg(self.json_plan,"simulations")
-        self.data=json.dumps(data)
+    

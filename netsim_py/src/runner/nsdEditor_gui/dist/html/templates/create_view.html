@@ -15,7 +15,8 @@
                     <div class="form-group">
                         <label for="base_datasets" class="control-label">Base datasets:</label>
                         <multiselect multiple="true" ng-model="view.base_tables" class="full-width hide-filter hide-check-buttons"
-                                     options="bd.name for bd in base_datasets"></multiselect>
+                                     options="bd.name for bd in base_datasets"
+                                     ng-change="updateAvailableFields()"></multiselect>
                     </div>
                 </div>
                 <div class="col-md-6">
@@ -27,6 +28,26 @@
                 </div>
             </div>
             <div class="row">
+                <div class="col-md-12">
+                    <label class="control-label">Available Fields:</label>
+                </div>
+            </div>
+            <div class="row">
+                <div class=" col-md-12" ng-show="available_fields.length > 0">
+                    <div class="row" ng-repeat="af in available_fields">
+                        <div class="col-md-3">
+                            <h5><strong>[[af.name]]</strong>: </h5>
+                        </div>
+                        <div class="col-md-9">
+                            <span class="h5 available-field" ng-repeat="field in af.columns">[[field.name]]</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-12" ng-show="available_fields.length === 0">
+                    <h5>You have not selected any dataset</h5>
+                </div>
+            </div>
+            <div class="row top10">
                 <div class="col-md-12">
                     <label class="control-label">Fields:</label>
                 </div>
