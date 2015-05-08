@@ -23,12 +23,13 @@ reserved = (
 
 tokens = reserved + (
     # Literals (identifier, integer constant, float constant, string constant, char const)
-    'ID', 'TYPEID', 'ICONST', 'FCONST', 
+    'ID', 'ICONST', 'FCONST', 
 
     # Operators (+,-,*,/,%,|,&,~,^,<<,>>, ||, &&, !, <, <=, >, >=, ==, !=)
     'PLUS', 'MINUS', 'TIMES', 'DIVIDE', 'MOD',
-    'OR', 'AND', 'NOT', 'XOR', 'LSHIFT', 'RSHIFT',
-    'LOR', 'LAND', 'LNOT',
+    'OR', 'AND',  'XOR', 'LSHIFT', 'RSHIFT',
+    # 'LOR', 'LAND', 'NOT',
+    'LNOT',
     'LT', 'LE', 'GT', 'GE', 'EQ', 'NE',
     
     # Assignment (=, :=)
@@ -63,12 +64,12 @@ t_DIVIDE           = r'/'
 t_MOD              = r'%'
 t_OR               = r'\|'
 t_AND              = r'&'
-t_NOT              = r'~'
+#t_NOT              = r'~'
 t_XOR              = r'\^'
 t_LSHIFT           = r'<<'
 t_RSHIFT           = r'>>'
-t_LOR              = r'\|\|'
-t_LAND             = r'&&'
+#t_LOR              = r'\|\|'
+#t_LAND             = r'&&'
 t_LNOT             = r'!'
 t_LT               = r'<'
 t_GT               = r'>'
