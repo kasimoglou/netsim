@@ -348,7 +348,8 @@ def p_body(p):
 
 def p_declarations(p):
     """ declarations : 
-                     | declarations fexpr_decl """
+                     | declarations fexpr_decl 
+                     """
 
 def p_fexpr_decl(p):
     """ fexpr_decl : LET ID EQUALS expression """
@@ -374,7 +375,7 @@ def p_assignment(p):
 
 # Add to model
 
-def p_model_event_decl(p):
+def p_model_decl(p):
     """model : model event_decl
             | model func_decl
             | model fexpr_decl
@@ -415,20 +416,29 @@ def p_qual_id(p):
 def p_primary_expression_paren(p):
     """ primary_expression :  LPAREN expression RPAREN  """
 
-def p_primary_expression_indexing(p):
-    """ primary_expression : qual_id LPAREN func_args RPAREN """
-
 def p_primary_expression_concat(p):
-    """ primary_expression : LBRACKET expr_list RBRACKET """
+    """ primary_expression : LBRACKET expr_list_opt RBRACKET """
 
 def p_primary_expression_fcall(p):
-    """ primary_expression : qual_id LPAREN expr_list RPAREN """
+    """ primary_expression : qual_id LPAREN expr_list_opt RPAREN """
 
+def p_expr_list_empty(p):
+    """ expr_list_opt : 
+                      | expr_list """
+
+def p_expr_list(p):
+    """ expr_list : expression 
+                  | expr_list COMMA expression """
 
 
 def p_postfix_expression(p):
     """ postfix_expression : primary_expression 
         | postfix_expression LBRACKET index_spec RBRACKET """
+
+def p_index_spec(p):
+    ''
+
+
 
 def p_unary_expression(p):
     """ unary_expression : postfix_expression 
