@@ -10,6 +10,10 @@ define(['angular'], function() {
         $scope.go = function(path) {
             $location.path(path);
         };
+        
+        $scope.getLocationPath = function() {
+            return $location.path();
+        };
     }]);
 
 });

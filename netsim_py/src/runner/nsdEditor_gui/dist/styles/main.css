@@ -8334,114 +8334,134 @@ input:focus {
   margin-top: 20px;
 }
 
-/* line 59, ../../app/styles/main.scss */
+/* line 58, ../../app/styles/main.scss */
+.new-nsd-btn, .new-vectorl-btn {
+  margin-bottom: 15px;
+}
+
+@media (min-width: 992px) {
+  /* line 63, ../../app/styles/main.scss */
+  .relative-positioning {
+    position: relative;
+  }
+
+  /* line 67, ../../app/styles/main.scss */
+  .new-nsd-bottom-align,
+  .new-vectorl-bottom-align {
+    position: absolute;
+    margin-right: 15%;
+    bottom: 0;
+    right: 0;
+  }
+}
+/* line 76, ../../app/styles/main.scss */
 .same-line.form-control {
   display: inline-block;
   width: auto;
 }
 
-/* line 64, ../../app/styles/main.scss */
+/* line 81, ../../app/styles/main.scss */
 .not-resizable {
   resize: none;
 }
 
-/* line 68, ../../app/styles/main.scss */
+/* line 85, ../../app/styles/main.scss */
 .CodeMirror {
   border: 1px solid #eee;
   box-shadow: 0px 0px 10px 0px rgba(0, 0, 0, 0.15);
   height: auto;
 }
 
-/* line 74, ../../app/styles/main.scss */
+/* line 91, ../../app/styles/main.scss */
 .nav-tabs > li.active > a, .nav-tabs > li.active > a:hover, .nav-tabs > li.active > a:focus {
   background-color: #eee;
 }
 
-/* line 78, ../../app/styles/main.scss */
+/* line 95, ../../app/styles/main.scss */
 .no-left-right-padding {
   padding-left: 0;
   padding-right: 0;
 }
 
-/* line 83, ../../app/styles/main.scss */
+/* line 100, ../../app/styles/main.scss */
 .listing-delete-btn, .listing-edit-btn {
   padding-top: 0;
 }
 
-/* line 87, ../../app/styles/main.scss */
+/* line 104, ../../app/styles/main.scss */
 .listing-delete-dialog-btn {
   margin: 10px;
 }
 
-/* line 91, ../../app/styles/main.scss */
+/* line 108, ../../app/styles/main.scss */
 .selected-view-row {
   background-color: #D4D7DB;
 }
 
-/* line 95, ../../app/styles/main.scss */
+/* line 112, ../../app/styles/main.scss */
 .available-field {
   padding: 0 5px;
 }
 
-/* line 100, ../../app/styles/main.scss */
+/* line 117, ../../app/styles/main.scss */
 .animate-show {
   opacity: 1;
   padding: 10px;
 }
 
-/* line 105, ../../app/styles/main.scss */
+/* line 122, ../../app/styles/main.scss */
 .animate-show.ng-hide-add.ng-hide-add-active,
 .animate-show.ng-hide-remove.ng-hide-remove-active {
   -webkit-transition: all linear 0.5s;
   transition: all linear 0.5s;
 }
 
-/* line 111, ../../app/styles/main.scss */
+/* line 128, ../../app/styles/main.scss */
 .animate-show.ng-hide {
   line-height: 0;
   opacity: 0;
   padding: 0 10px;
 }
 
-/* line 117, ../../app/styles/main.scss */
+/* line 134, ../../app/styles/main.scss */
 .tab-content-custom {
   background-color: aliceblue;
   min-height: 400px;
 }
 
-/* line 122, ../../app/styles/main.scss */
+/* line 139, ../../app/styles/main.scss */
 .border-bottom {
   border-bottom: 1px solid black !important;
 }
 
-/* line 126, ../../app/styles/main.scss */
+/* line 143, ../../app/styles/main.scss */
 .new-plot-dialog .ngdialog-content, .new-view-dialog .ngdialog-content {
   min-width: 800px;
 }
 
-/* line 131, ../../app/styles/main.scss */
+/* line 148, ../../app/styles/main.scss */
 multiselect.full-width .btn-group,
 multiselect.full-width .btn-group .dropdown-menu {
   width: 100%;
 }
 
-/* line 136, ../../app/styles/main.scss */
+/* line 153, ../../app/styles/main.scss */
 multiselect.full-width .btn-group .btn {
   width: 100%;
   display: block;
 }
 
-/* line 141, ../../app/styles/main.scss */
+/* line 158, ../../app/styles/main.scss */
 multiselect.hide-filter .dropdown-menu li input[ng-model="searchText.label"] {
   display: none;
 }
 
-/* line 145, ../../app/styles/main.scss */
+/* line 162, ../../app/styles/main.scss */
 multiselect.hide-check-buttons .dropdown-menu li[ng-show="multiple"] {
   display: none;
 }
 
-/* line 150, ../../app/styles/main.scss */
+/* line 167, ../../app/styles/main.scss */
 .gridStyle {
   border: 1px solid #d4d4d4;
   width: 100%;
@@ -8449,7 +8469,7 @@ multiselect.hide-check-buttons .dropdown-menu li[ng-show="multiple"] {
   margin: 10px 0;
 }
 
-/* line 157, ../../app/styles/main.scss */
+/* line 174, ../../app/styles/main.scss */
 .ngGrid input[type="checkbox"] {
   margin-top: 10px;
   margin-left: 30px;

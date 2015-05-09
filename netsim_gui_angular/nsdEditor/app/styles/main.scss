@@ -55,6 +55,23 @@ $icon-font-path: "../bower_components/bootstrap-sass-official/assets/fonts/boots
     margin-top: 20px;
 }
 
+.new-nsd-btn, .new-vectorl-btn {
+    margin-bottom: 15px;
+}
+
+@media (min-width: 992px ) {
+    .relative-positioning {
+        position: relative;
+    }
+
+    .new-nsd-bottom-align,
+    .new-vectorl-bottom-align {
+        position: absolute;
+        margin-right: 15%;
+        bottom: 0;
+        right: 0;
+    }
+}
 
 .same-line.form-control {
     display: inline-block;

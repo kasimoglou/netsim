@@ -45,8 +45,8 @@ define(['angular',
         function($routeProvider) {
             $routeProvider.
                 when('/', {
-                    templateUrl: '../html/views/home.html',
-                    controller: 'homepageController'
+                    templateUrl: '../html/views/nsds.html',
+                    controller: 'nsdListController'
                 }).
                 when('/nsd/:id', {
                     templateUrl: '../html/views/nsd.html',
@@ -56,10 +56,6 @@ define(['angular',
                 when('/new_nsd', {
                     templateUrl: '../html/views/new_nsd_form.html',
                     controller: 'newNsdFormController'
-                }).
-                when('/nsds', {
-                    templateUrl: '../html/views/nsds.html',
-                    controller: 'nsdListController'
                 }).
                 when('/new_vectorl', {
                     templateUrl: '../html/views/new_vectorl_form.html',
