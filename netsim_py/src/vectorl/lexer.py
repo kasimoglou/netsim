@@ -10,7 +10,7 @@ import ply.lex as lex
 # Reserved words
 reserved = (
     # types
-    'INT', 'REAL', 'BOOL',
+    'INT', 'REAL', 'BOOL', 'TIME',
     # boolean constants
     'TRUE', 'FALSE',
     # declarations
@@ -18,7 +18,9 @@ reserved = (
     # directives
     'EMIT', 'AFTER',
     # modules
-    'IMPORT', 'FROM'
+    'IMPORT', 'FROM',
+    # control flow
+    'IF', 'THEN', 'ELSE'
     )
 
 tokens = reserved + (
@@ -44,8 +46,8 @@ tokens = reserved + (
     'LBRACE', 'RBRACE',
     'COMMA', 'PERIOD', 'SEMI', 'COLON',
 
-    # Ellipsis (...)
-    'ELLIPSIS',
+    # Ellipsis (...)  _
+    'ELLIPSIS',  'SUB'
     )
 
 # Completely ignored characters
@@ -77,6 +79,8 @@ t_LE               = r'<='
 t_GE               = r'>='
 t_EQ               = r'=='
 t_NE               = r'!='
+
+t_SUB              = r'_'
 
 # Assignment operators
 
@@ -119,13 +123,9 @@ t_FCONST = r'((\d+)(\.\d+)(e(\+|-)?(\d+))? | (\d+)e(\+|-)?(\d+))'
 
 # Comments
 def t_comment(t):
-    r'/\*(.|\n)*?\*/'
+    r'(/\*(.|\n)*?\*/)|(//.*\n)'
     t.lexer.lineno += t.value.count('\n')
 
-# Preprocessor directive (ignored)
-def t_preprocessor(t):
-    r'\#(.)*?\n'
-    t.lexer.lineno += 1
     
 def t_error(t):
     #print("Illegal character %s" % repr(t.value[0]))

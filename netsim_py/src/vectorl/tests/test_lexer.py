@@ -8,16 +8,16 @@ from vectorl.lexer import lexer
 /* This is a nice comment */
 """,
 """\
-# What a weird comment
-# another weird comment
+// What a weird comment
+// another weird comment
 		""",
 "",
-"""# 
+"""// 
 """,
 "/**/",
 "  \t \n\n\n",
 """
-# empty line follows
+// empty line follows
 
 /*
 
@@ -80,6 +80,26 @@ def test_error_token(error_token):
 	with pytest.raises(ValueError):
 		lexer.token()
 
-	
+@pytest.fixture(params=[
+	(" :=  ::= ",['ASSIGN','COLON','ASSIGN']),
+	(" :=  ::= ",['ASSIGN','COLON','ASSIGN']),
+	(" .. ... ",['PERIOD','PERIOD','ELLIPSIS']),
+	(" === ", ['EQ','EQUALS']),
+	("<==",['LE', 'EQUALS']),
+	(" >= =>", ['GE','EQUALS', 'GT']),
+	("!!=", ['LNOT','NE']),
+
+	# some other tests
+	("spot[pos] := !spot[pos];", 
+		['ID','LBRACKET','ID','RBRACKET','ASSIGN','LNOT','ID','LBRACKET','ID','RBRACKET','SEMI'])
+
+	])
+def multichar_token(request):
+	return request.param
+
+def test_multichar(multichar_token):
+	input, expected = multichar_token
+	lexer.input(input)
+	assert [t.type for t in lexer]==expected
 
 

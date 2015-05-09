@@ -66,8 +66,11 @@ class ModelFactory(Scope):
         '''
         with self.validation as V:
             model = self.lookup(name)
-            if self.lookup(name) is None:
+            if model is None:
+
+                # May throw
                 src = self.get_model_source(name)
+
                 # insert a dummy entry into the symtab, (used to check for cycles)
                 self.bind(name, 'forward')
                 with V.section("Compilation of model {0}", name):
@@ -76,9 +79,9 @@ class ModelFactory(Scope):
                     V.fail("Compilation of model {0} failed", name)
                 else:
                     self.bind(name, model, force=True)
-            if model=='forward':
+            elif model=='forward':
                 V.fail("Cyclical reference for model {0}" % name)
-                return None
+                model = None
             return model
 
     def __compile(self, name, src):
@@ -86,21 +89,37 @@ class ModelFactory(Scope):
         Compile the given src object into a new Model object
         and return it.
         '''
+        ast = self.__parse(name, src)
+        if ast is None:
+            return None
+        model = self.__transform(name, ast)
+
+        # done!
+        return model
+
+    def __parse(self, name, src):
         # Create a new lexer
         lexer = self.base_lexer.clone()
         lexer.factory = self
         lexer.modelname = name
 
         # parse
-        model = parser.parse(src, lexer=lexer)
+        ast = parser.parse(src, lexer=lexer)
+        return ast
 
-        # validate it
-        if model is not None:
-            model.validate()
-
-        # done!
+    def __transform(self, name, ast):
+        '''
+        Return an uninitialized model, with its namespace augmented by imports.
+        Subclasses can augment this model with more information.
+        '''
+        model = Model(self)
+        model.ast = ast
+        for clause in ast:
+            if clause[0] == 'import':
+                model.add_import(clause[1], clause[2])
+            elif clause[0]=='from':
+                model.add_from(clause[1], clause[2])
         return model
-
 
     def get_model_source(self, name):
         '''
@@ -129,7 +148,7 @@ class Model(Scope):
     '''
 
     factory = ref(inv=ModelFactory.models)
-
+    ast = attr(list)
     imports = refs()
     importers = refs(inv=imports)
 
@@ -245,6 +264,8 @@ def lexerr(lex, line, msg, *args, **kwargs):
     V.failure()
     V.output("error:", "{0}({1}): {2}", name, line, errmsg)
 
+
+
 # Rules
 def p_error(p):
     if p:
@@ -252,33 +273,30 @@ def p_error(p):
     else:
         raise SyntaxError("Error at end of source")
 
+# Model declaration
+
 def p_model(p):
     "model : newmodel"
     p[0] = p[1]
 
 def p_newmodel(p):
     "newmodel : "
-    p[0] = Model(p.lexer.factory)
+    p[0] = []
     p.lexer.model = p[0]
 
 
 def p_model_imports(p):
     """model : model import_clause
-             | model from_clause """
-    model = p[0] = p[1]
-    if p[2][0]=='import':
-        try:
-            model.add_import(p[2][1],p[2][2])
-        except Exception as e:
-            comperr(p, p[2][3], str(e))
-    elif p[2][0]=='from':
-        try:
-            model.add_from(p[2][1], p[2][2])
-        except Exception as e:
-            comperr(p, p[2][3], str(e))
-    else:
-        raise RuntimeError('Error in parser at p_model_imports')
+             | model from_clause 
+             | model event_decl 
+             | model func_decl 
+             | model fexpr_decl
+             | model var_decl
+             | model action_decl
+            """
+    p[0] = p[1]+[p[2]]
 
+# importing other models
 
 def p_import(p):
     'import_clause : IMPORT ID SEMI'
@@ -303,7 +321,7 @@ def p_idlist(p):
         p[0] = p[1]+[p[3]]
 
 
-# Declarations
+# Argument declarations (for functions and event types)
 
 def p_arglist_empty(p):
     "arglist : "
@@ -325,10 +343,12 @@ def p_argdefs(p):
 def p_typename(p):
     """typename : INT 
                 | REAL 
-                | BOOL"""
+                | BOOL
+                | TIME """
     p[0] = p[1]
 
-# events
+
+# event type
 
 def p_event_decl(p):
     "event_decl : EVENT ID  LPAREN arglist RPAREN SEMI"
@@ -344,55 +364,71 @@ def p_func_decl(p):
 
 def p_body(p):
     "body : LBRACE declarations RBRACE "
-    pass
+    p[0] = p[2]
+
 
 def p_declarations(p):
     """ declarations : 
-                     | declarations fexpr_decl 
-                     """
+                     | declarations fexpr_decl
+                  """
+    if len(p)==1:
+        p[0] = []
+    else:
+        p[0] = p[1]+[p[2]]
+
+# inline functions
 
 def p_fexpr_decl(p):
-    """ fexpr_decl : LET ID EQUALS expression """
+    """ fexpr_decl : typename ID EQUALS expression SEMI """
+    p[0] = ('fexpr', p[2],p[1],p[4])
 
 def p_cexpr_decl(p):
-    """ fexpr_decl : CONST ID EQUALS expression """
+    """ fexpr_decl : CONST typename ID EQUALS expression SEMI """
+    p[0] = ('const', p[3],p[2],p[5])
+
+# variables
 
 def p_var_decl(p):
-    """ var_decl : VAR ID EQUALS expression """
+    """ var_decl : VAR typename ID EQUALS expression SEMI """
+    p[0] = ('var', p[3], p[2], p[5])
+
+# actions
 
 def p_event_action(p):
-    """ event_action : ON ID action_block """
+    """ action_decl : ON ID LBRACE action_block RBRACE """
+    p[0] = ('action', p[2], p[4])
 
 def p_action_block(p):
     """ action_block : statement
                      | action_block statement """
+    if len(p)==2:
+        p[0] = [p[1]]
+    else:
+        p[0] = p[1] + [p[2]]
+
+# statements (allowed in action blocks)
 
 def p_emit_statement(p):
-    " statement : EMIT ID LPAREN arglist RPAREN AFTER expression "
+    " statement : EMIT ID LPAREN expr_list_opt RPAREN AFTER expression SEMI "
+    p[0] = ('emit', p[2],p[4],p[7])
 
 def p_assignment(p):
-    " statement : ID ASSIGN expression "
+    " statement : expression ASSIGN expression SEMI "
+    p[0] = ('assign', p[1], p[3])
 
-# Add to model
+def p_fexpr_statement(p):
+    " statement : fexpr_decl "
+    p[0] = p[1]
 
-def p_model_decl(p):
-    """model : model event_decl
-            | model func_decl
-            | model fexpr_decl
-            | model var_decl
-            | model event_action
-            """
-    model = p[0] = p[1]
-    try:
-        decl = p[2][0]
-        if decl == 'event':
-            _, ename, eparams, eline = p[2]
-            model.add_event(ename, eparams)
-        elif decl=='func':
-            _, ename, erettype, eargs, ebody, eline = p[2]
-            model.add_func(ename, erettype, eargs, ebody)
-    except Exception as e:
-        comperr(p, eline, str(e))
+def p_if_statement(p):
+    """ statement : IF LPAREN expression RPAREN THEN statement 
+                  | IF LPAREN expression RPAREN THEN statement ELSE statement
+    """
+    assert len(p) in (7,9)
+    if len(p)==7:
+        p[0] = ('if', p[3], p[6], None)
+    else:
+        p[0] = ('if', p[3], p[6], p[8])
 
 
 #
@@ -404,115 +440,225 @@ def p_primary_expression_literal(p):
                             | FCONST 
                             | TRUE 
                             | FALSE  """
-
+    p[0] = ('literal', p[1])
 
 def p_primary_expression_id(p):
     """ primary_expression :  qual_id """
+    p[0] = p[1]
 
 def p_qual_id(p):
     """ qual_id : ID 
                 | ID PERIOD ID """
+    if len(p)==4:
+        p[0] =  ('id', p[1],p[3])
+    else:
+        p[0] = ('id', None, p[1])
 
 def p_primary_expression_paren(p):
     """ primary_expression :  LPAREN expression RPAREN  """
+    p[0] =  p[2]
 
 def p_primary_expression_concat(p):
     """ primary_expression : LBRACKET expr_list_opt RBRACKET """
+    p[0] = ('concat', p[2])
 
 def p_primary_expression_fcall(p):
     """ primary_expression : qual_id LPAREN expr_list_opt RPAREN """
+    p[0] = ('fcall', p[1], p[3])
 
 def p_expr_list_empty(p):
     """ expr_list_opt : 
                       | expr_list """
+    if len(p)==1:
+        p[0] = []
+    else:
+        p[0] = p[1]
 
 def p_expr_list(p):
     """ expr_list : expression 
                   | expr_list COMMA expression """
-
+    if len(p)==2:
+        p[0] = [p[1]]
+    else:
+        p[0] = p[1]+[p[3]]
 
 def p_postfix_expression(p):
     """ postfix_expression : primary_expression 
-        | postfix_expression LBRACKET index_spec RBRACKET """
+                           | postfix_expression LBRACKET index_spec RBRACKET """
+    if len(p)==2:
+        p[0] = p[1]
+    else:
+        p[0] = ('index', p[1], p[3])
 
 def p_index_spec(p):
-    ''
+    """ index_spec : index_seq 
+                   | index_seq COMMA ELLIPSIS 
+                   | ELLIPSIS 
+                   | ELLIPSIS COMMA index_seq """
+    assert len(p) in (2,4)
+    if len(p)==2:
+        if p[1]=='ELLIPSIS':
+            p[0] = ['...']
+        else:
+            p[0] = p[1]
+    else:
+        if p[1]=='ELLIPSIS':
+            p[0] = ['...']+p[3]
+        else:
+            p[0] = p[1]+['...']
 
 
+def p_index_seq(p):
+    """ index_seq : index_op 
+                  | index_seq COMMA index_op """
+    if len(p)==2:
+        p[0] = [p[1]]
+    else:
+        p[0] = p[1]+[p[3]]
+
+def p_index_op_index(p):
+    " index_op : expression "
+    p[0]=('pos', p[1])
+
+def p_index_op_range(p):
+    " index_op : expr_opt COLON expr_opt"
+    p[0] = ('range', p[1],p[3])
+
+def p_expr_opt(p):
+    """ expr_opt : 
+                 | expression """
+    assert len(p) in (1,2)
+    if len(p)==1:
+        p[0] = None
+    else:
+        p[0] = p[1]
+
+def p_index_op_newdim(p):
+    " index_op : SUB "
+    p[0] = '_'
 
 def p_unary_expression(p):
     """ unary_expression : postfix_expression 
         | unary_op cast_expression """
+    if len(p)==2:
+        p[0] = p[1]
+    else:
+        p[0] = ('unary', p[1], p[2])
 
 def p_unary_op(p):
     """ unary_op : PLUS 
                 | MINUS 
                 | LNOT """
+    p[0] = p[1]
 
 def p_cast_expression(p):
     """ cast_expression : unary_expression 
                     | LPAREN typename RPAREN cast_expression """
+    if len(p)==2:
+        p[0] = p[1]
+    else:
+        p[0] = ('cast', p[2], p[4])
 
 def p_mult_expression(p):
     """ mult_expression : cast_expression 
                     | mult_expression mult_op cast_expression """ 
+    if len(p)==2:
+        p[0] = p[1]
+    else:
+        p[0] = ('binary', p[2], p[1], p[3])
+
 
 def p_mult_op(p):
     """ mult_op : TIMES 
                 | DIVIDE 
                 | MOD """
+    p[0] = p[1]
 
 def p_add_expression(p):
     """ add_expression : mult_expression 
                        | add_expression add_op mult_expression """
+    if len(p)==2:
+        p[0] = p[1]
+    else:
+        p[0] = ('binary', p[2], p[1], p[3])
 
 def p_add_op(p):
     """ add_op : PLUS 
                | MINUS """
+    p[0] = p[1]
 
 def p_shift_expression(p):
     """ shift_expression : add_expression 
                          | shift_expression shift_op add_expression """
+    if len(p)==2:
+        p[0] = p[1]
+    else:
+        p[0] = ('binary', p[2], p[1], p[3])
 
 def p_shift_op(p):
     """ shift_op : LSHIFT 
                  | RSHIFT """
+    p[0] = p[1]
 
 def p_rel_expression(p):
     """ rel_expression : shift_expression 
                         | rel_expression rel_op shift_expression """
+    if len(p)==2:
+        p[0] = p[1]
+    else:
+        p[0] = ('binary', p[2], p[1], p[3])
 
 def p_rel_op(p):
     """ rel_op : LT 
                 | GT 
                 | LE 
                 | GE """
+    p[0] = p[1]
 
 def p_eq_expression(p):
     """ eq_expression : rel_expression 
                     | eq_expression eq_op rel_expression """
+    if len(p)==2:
+        p[0] = p[1]
+    else:
+        p[0] = ('binary', p[2], p[1], p[3])
 
 def p_eq_op(p):
     """ eq_op : EQ 
                 | NE """
+    p[0] = p[1]
 
 def p_and_expression(p):
     """ and_expression : eq_expression 
                     | and_expression AND eq_expression """
+    if len(p)==2:
+        p[0] = p[1]
+    else:
+        p[0] = ('binary', p[2], p[1], p[3])
 
 def p_xor_expression(p):
     """ xor_expression : and_expression 
                     | xor_expression XOR and_expression """
+    if len(p)==2:
+        p[0] = p[1]
+    else:
+        p[0] = ('binary', p[2], p[1], p[3])
 
 def p_or_expression(p):
     """ or_expression : xor_expression 
                     | or_expression OR xor_expression """
+    if len(p)==2:
+        p[0] = p[1]
+    else:
+        p[0] = ('binary', p[2], p[1], p[3])
 
 def p_expression(p):
     """ expression : or_expression 
                     | or_expression CONDOP expression COLON expression """
-
-
+    if len(p)==2:
+        p[0] = p[1]
+    else:
+        p[0] = ('cond', p[1], p[3], p[5])
 
 
 
