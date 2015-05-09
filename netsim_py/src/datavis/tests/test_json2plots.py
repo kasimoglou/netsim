@@ -139,7 +139,7 @@ def test_plot_creation_through_nsd_read(tmp_dir):
     filename = os.path.join(cfg.resource_path, "datavis/predefined_plots.json")
     with open(filename, "r") as f:
         json_str = f.read()
-        derived_tables, plot_models = vpd.decode(json.loads(json_str))
+        derived_tables, plot_models = vpd.decode(json.loads(json_str)["views"])
         create_simulation_results("asdf", plot_models, os.path.join(cfg.resource_path, "datavis/castalia_output2.txt"))
 
     # restore the working directory to its previous value

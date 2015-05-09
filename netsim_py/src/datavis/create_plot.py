@@ -222,6 +222,21 @@ def default_title(x, y, axes, axisvalues):
         title += "(" + ','.join("%s=%s" % (a, str(v)) for a, v in sva) + ")"
     return title
 
+pm_defaults = {
+    "select": {},
+    "title": DEFAULT,
+    "style": "linespoints",
+    "legend": DEFAULT,
+    "xlabel": None,
+    "ylabel": None,
+    "x_range": None,
+    "y_range": None,
+    "terminal": None,
+    "logscale": None,
+    "grid": " ",
+    "key": None,
+    "output": DEFAULT
+}
 
 def make_plot(rel, x, y, axes, select={}, title=DEFAULT, style='linespoints',
               legend=DEFAULT,

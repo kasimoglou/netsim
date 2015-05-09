@@ -50,12 +50,11 @@
             <a class="navbar-brand" href="#!/">NSD Editor</a>
           </div>
 
-          <div class="collapse navbar-collapse" id="js-navbar-collapse">
+          <div class="collapse navbar-collapse" id="js-navbar-collapse" ng-controller="homepageController">
 
-            <ul class="nav navbar-nav navbar-right">
-              <li class="active"><a href="#!/">Home</a></li>
-              <!--li><a ng-href="#/about">About</a></li>
-              <li><a ng-href="#/">Contact</a></li-->
+              <ul class="nav navbar-nav navbar-right">
+                <li ng-class="{'active': getLocationPath() === '/'}"><a href="#!/">My Nsd Files</a></li>
+                <li ng-class="{'active': getLocationPath() === '/vectorl_files'}"><a href="#!/vectorl_files" >My VectorL Files</a></li>
             </ul>
           </div>
         </div>

@@ -63,7 +63,8 @@ define(['angular',
         var success_alert_timeout = null;
         $scope.saveVectorl = function() {
             API.vectorlUpdate($routeParams.id, $scope.vectorl)
-                    .success(function() {
+                    .success(function(response) {
+                        $scope.vectorl = response;
                         $scope.alerts.save_success = true;
                         success_alert_timeout = $timeout($scope.dismiss, 10000);
             })

@@ -157,9 +157,16 @@ class Model(Scope):
             obj = model.symtab[name]
             self.bind(name, obj)
 
-    def add_event(self, name, args):
+    def add_event(self, name, params):
         e = Event(self)
-        e.args = args
+        e.params = params
+        self.bind(name, e)
+
+    def add_function(self, name, rtype, params, body):
+        e = Function()
+        e.rtype = rtype
+        e.params = params
+        e.body = body
         self.bind(name, e)
 
     def validate(self):
@@ -173,7 +180,53 @@ class Declaration:
 
 @model
 class Event(Declaration):
-    args = attr(list, nullable=False)
+    '''
+    An event is emitted from event handlers, 
+    or from the environment.
+    '''
+    params = attr(list, nullable=False)
+    handlers = refs()
+
+@model
+class Action(Declaration):
+    '''
+    A template for event handlers for events of
+    a particular type.
+    '''
+    pass
+
+@model
+class EventHandler(Declaration):
+    '''
+    An event handler is executed to process an event.    
+    '''
+    event = ref(inv=Event.handlers)
+    body = ref()
+
+
+@model
+class Function(Declaration):
+    '''A template for creating formulas.'''
+    rtype = attr(str, nullable=False)
+    params = attr(list, nullable=False)
+    body = ref()
+
+
+@model
+class Formula(Declaration):
+    '''
+    A formula is an encapsulation of an expression.
+    '''
+    rtype = attr(str, nullable=False)
+    expr = ref()
+
+@model
+class Const(Formula):
+    value = attr(object)
+
+@model
+class Variable(Declaration):
+    pass
 
 
 
@@ -290,27 +343,169 @@ def p_func_decl(p):
 
 
 def p_body(p):
-    "body : LBRACE RBRACE "
+    "body : LBRACE declarations RBRACE "
     pass
 
+def p_declarations(p):
+    """ declarations : 
+                     | declarations fexpr_decl """
+
+def p_fexpr_decl(p):
+    """ fexpr_decl : LET ID EQUALS expression """
+
+def p_cexpr_decl(p):
+    """ fexpr_decl : CONST ID EQUALS expression """
+
+def p_var_decl(p):
+    """ var_decl : VAR ID EQUALS expression """
+
+def p_event_action(p):
+    """ event_action : ON ID action_block """
+
+def p_action_block(p):
+    """ action_block : statement
+                     | action_block statement """
+
+def p_emit_statement(p):
+    " statement : EMIT ID LPAREN arglist RPAREN AFTER expression "
+
+def p_assignment(p):
+    " statement : ID ASSIGN expression "
 
 # Add to model
 
 def p_model_event_decl(p):
     """model : model event_decl
             | model func_decl
+            | model fexpr_decl
+            | model var_decl
+            | model event_action
             """
     model = p[0] = p[1]
     try:
         decl = p[2][0]
         if decl == 'event':
-            _, ename, eargs, eline = p[2]
-            model.add_event(ename, eargs)
+            _, ename, eparams, eline = p[2]
+            model.add_event(ename, eparams)
         elif decl=='func':
             _, ename, erettype, eargs, ebody, eline = p[2]
             model.add_func(ename, erettype, eargs, ebody)
     except Exception as e:
         comperr(p, eline, str(e))
+
+
+#
+# Expression grammar
+#
+
+def p_primary_expression_literal(p):
+    """ primary_expression : ICONST 
+                            | FCONST 
+                            | TRUE 
+                            | FALSE  """
+
+
+def p_primary_expression_id(p):
+    """ primary_expression :  qual_id """
+
+def p_qual_id(p):
+    """ qual_id : ID 
+                | ID PERIOD ID """
+
+def p_primary_expression_paren(p):
+    """ primary_expression :  LPAREN expression RPAREN  """
+
+def p_primary_expression_indexing(p):
+    """ primary_expression : qual_id LPAREN func_args RPAREN """
+
+def p_primary_expression_concat(p):
+    """ primary_expression : LBRACKET expr_list RBRACKET """
+
+def p_primary_expression_fcall(p):
+    """ primary_expression : qual_id LPAREN expr_list RPAREN """
+
+
+
+def p_postfix_expression(p):
+    """ postfix_expression : primary_expression 
+        | postfix_expression LBRACKET index_spec RBRACKET """
+
+def p_unary_expression(p):
+    """ unary_expression : postfix_expression 
+        | unary_op cast_expression """
+
+def p_unary_op(p):
+    """ unary_op : PLUS 
+                | MINUS 
+                | LNOT """
+
+def p_cast_expression(p):
+    """ cast_expression : unary_expression 
+                    | LPAREN typename RPAREN cast_expression """
+
+def p_mult_expression(p):
+    """ mult_expression : cast_expression 
+                    | mult_expression mult_op cast_expression """ 
+
+def p_mult_op(p):
+    """ mult_op : TIMES 
+                | DIVIDE 
+                | MOD """
+
+def p_add_expression(p):
+    """ add_expression : mult_expression 
+                       | add_expression add_op mult_expression """
+
+def p_add_op(p):
+    """ add_op : PLUS 
+               | MINUS """
+
+def p_shift_expression(p):
+    """ shift_expression : add_expression 
+                         | shift_expression shift_op add_expression """
+
+def p_shift_op(p):
+    """ shift_op : LSHIFT 
+                 | RSHIFT """
+
+def p_rel_expression(p):
+    """ rel_expression : shift_expression 
+                        | rel_expression rel_op shift_expression """
+
+def p_rel_op(p):
+    """ rel_op : LT 
+                | GT 
+                | LE 
+                | GE """
+
+def p_eq_expression(p):
+    """ eq_expression : rel_expression 
+                    | eq_expression eq_op rel_expression """
+
+def p_eq_op(p):
+    """ eq_op : EQ 
+                | NE """
+
+def p_and_expression(p):
+    """ and_expression : eq_expression 
+                    | and_expression AND eq_expression """
+
+def p_xor_expression(p):
+    """ xor_expression : and_expression 
+                    | xor_expression XOR and_expression """
+
+def p_or_expression(p):
+    """ or_expression : xor_expression 
+                    | or_expression OR xor_expression """
+
+def p_expression(p):
+    """ expression : or_expression 
+                    | or_expression CONDOP expression COLON expression """
+
+
+
+
+
 
 
 

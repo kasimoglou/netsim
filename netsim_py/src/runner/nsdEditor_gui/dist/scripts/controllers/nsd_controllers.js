@@ -666,7 +666,8 @@ define(['underscore',
             }
             
             API.nsdUpdate($routeParams.id, $scope.nsd)
-                    .success(function() {
+                    .success(function(response) {
+                        $scope.nsd = response;
                         $scope.alerts.save_success = true;
                         success_alert_timeout = $timeout($scope.dismiss, 10000);
             })
