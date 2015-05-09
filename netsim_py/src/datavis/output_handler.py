@@ -5,6 +5,8 @@ import subprocess, shlex
 import urllib.request
 import logging, os
 import time
+from datavis.json2plots import ViewsPlotsDecoder
+from runner.config import cfg
 
 from runner.config import resource_path
 from runner.default_json_simoutput import node_plot_results_default, node_parameter_results_default, network_plot_results_default, network_parameter_results_default, node_2_node_results_default
@@ -72,19 +74,31 @@ def generate_output(fileloc=None):
     generated plots and files to the Project Repository.
     """
 
-
     if fileloc is None:
         fileloc = os.getcwd()
 
-    # assign values for testing
-    simulation_id = "@@@@@@@@@@@@@"
-    castalia_data = efst.get_castalia_data()
-    plotModels = efst.get_plot_models()
+    test_mode = True
+
+    if test_mode is False:  # real values
+        simulation_id = "?"
+        filename = "json.nsd"
+        castalia_data = "castalia_output.txt"
+    else:     # dummy values
+        simulation_id = "@@@@@@@@@@@@@"
+        filename = os.path.join(cfg.resource_path, "datavis/predefined_plots.json")
+        castalia_data = os.path.join(cfg.resource_path, "datavis/castalia_output2.txt")
 
     #
     # Get the results of the simulation
     #
-    results_json = create_simulation_results(simulation_id, plotModels, castalia_data)
+
+    vpd = ViewsPlotsDecoder()
+    with open(filename, "r") as f:
+        json_str = f.read()
+
+    derived_tables, plot_models = vpd.decode(json.loads(json_str)["views"])
+
+    results_json = create_simulation_results(simulation_id, plot_models, castalia_data)
     results_json_string = json.dumps(results_json, default=lambda o: o.__dict__, indent=2)
     with open(fileloc + "/results.json", "w") as f:
         print(results_json_string, file=f)
