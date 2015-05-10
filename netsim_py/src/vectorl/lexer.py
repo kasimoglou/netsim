@@ -14,24 +14,24 @@ reserved = (
     # boolean constants
     'TRUE', 'FALSE',
     # declarations
-    'CONST', 'VAR', 'LET', 'EVENT', 'ON', 'FUNC',
+    'CONST', 'DEF', 'VAR', 'EVENT', 'ON',
     # directives
     'EMIT', 'AFTER',
     # modules
     'IMPORT', 'FROM',
     # control flow
-    'IF', 'THEN', 'ELSE'
+    'IF', 'ELSE'
     )
 
 tokens = reserved + (
     # Literals (identifier, integer constant, float constant, string constant, char const)
     'ID', 'ICONST', 'FCONST', 
 
-    # Operators (+,-,*,/,%,|,&,~,^,<<,>>, ||, &&, !, <, <=, >, >=, ==, !=)
+    # Operators (+,-,*,/,%,~,|,&,^,<<,>>, ||, &&, !, <, <=, >, >=, ==, !=)
     'PLUS', 'MINUS', 'TIMES', 'DIVIDE', 'MOD',
-    'OR', 'AND',  'XOR', 'LSHIFT', 'RSHIFT',
+    'NOT', 'OR', 'AND',  'XOR', 'LSHIFT', 'RSHIFT',
     # 'LOR', 'LAND', 'NOT',
-    'LNOT',
+    'LOR', 'LAND', 'LNOT',
     'LT', 'LE', 'GT', 'GE', 'EQ', 'NE',
     
     # Assignment (=, :=)
@@ -66,7 +66,7 @@ t_DIVIDE           = r'/'
 t_MOD              = r'%'
 t_OR               = r'\|'
 t_AND              = r'&'
-#t_NOT              = r'~'
+t_NOT              = r'~'
 t_XOR              = r'\^'
 t_LSHIFT           = r'<<'
 t_RSHIFT           = r'>>'

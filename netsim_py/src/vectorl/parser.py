@@ -1,9 +1,10 @@
 
 from models.mf import *
-from models.validation import Validation
-from models.constraints import is_legal_identifier
+from models.constraints import is_legal_identifier, LEGAL_IDENTIFIER
 import ply.yacc as yacc
 from vectorl.lexer import tokens, get_lexer
+
+from collections import namedtuple
 
 
 #
@@ -44,6 +45,11 @@ class Scope:
             raise KeyError("Name '%s' exists in scope." % name)
         self.symtab[name] = obj
 
+    def __getitem__(self, name):
+        obj = self.lookup(name)
+        if obj is None:
+            raise KeyError("Name '%s' does not exist in scope" % name)
+        return name
 
 @model
 class ModelFactory(Scope):
@@ -114,11 +120,15 @@ class ModelFactory(Scope):
         '''
         model = Model(self)
         model.ast = ast
+
+        # Process imports
         for clause in ast:
             if clause[0] == 'import':
                 model.add_import(clause[1], clause[2])
             elif clause[0]=='from':
                 model.add_from(clause[1], clause[2])
+
+
         return model
 
     def get_model_source(self, name):
@@ -128,16 +138,9 @@ class ModelFactory(Scope):
         '''
         raise NotImplemented
 
-    validation = attr(Validation, nullable=False)
 
-    def __init__(self, validation=None):
-        import io
+    def __init__(self):
         super().__init__()
-        if validation is None:
-            self.validation = Validation(outfile=io.StringIO(),max_failures=10000)
-        else:
-            self.validation = validation
-
 
 
 
@@ -177,9 +180,7 @@ class Model(Scope):
             self.bind(name, obj)
 
     def add_event(self, name, params):
-        e = Event(self)
-        e.params = params
-        self.bind(name, e)
+        e = Event(self, name, params)
 
     def add_function(self, name, rtype, params, body):
         e = Function()
@@ -191,20 +192,66 @@ class Model(Scope):
     def validate(self):
         pass
 
+    @staticmethod
+    def is_type(cls, t):
+        return t in ('bool','int','real','time')
+
+
+    def __getitem__(self, name):
+        # reimplement to get qualified names
+        if isinstance(name, tuple):
+            scope = self
+            for n in name:
+                if n is not None:
+                    scope = scope[n]
+            return scope
+        else:
+            return super().__getitem__(name)
+
+
+IS_TYPE = Constraint(Model.is_type, " is a type")
+
+
 @model
 class Declaration:
     model = ref(inv=Model.declarations)
     def __init__(self, model):
         self.model = model
 
+    @property 
+    def validation(self):
+        return self.model.factory.validation
+
+
+
 @model
-class Event(Declaration):
+class Named(Declaration):
+    name = attr(str, nullable=False)
+    CheckedConstraint(LEGAL_IDENTIFIER)(name)
+
+    def __init__(self, model, name):
+        if name in model.symtab:
+            raise NameError("Name '%s' already used in this scope" % name)
+        super().__init__(model)
+        self.name = name
+        model.bind(name, value)
+
+
+Parameter = namedtuple('Parameter', ['name','type'])
+
+@model
+class Event(Named):
     '''
     An event is emitted from event handlers, 
     or from the environment.
     '''
     params = attr(list, nullable=False)
-    handlers = refs()
+    actions = refs()
+
+    def __init__(self, model, name, params):
+        super().__init__(model, name)
+        self.params = [Parameter(name=n, type=t) for t,n in params]
+
 
 @model
 class Action(Declaration):
@@ -212,40 +259,49 @@ class Action(Declaration):
     A template for event handlers for events of
     a particular type.
     '''
-    pass
+    event = ref(inv=Event.actions)
 
-@model
-class EventHandler(Declaration):
-    '''
-    An event handler is executed to process an event.    
-    '''
-    event = ref(inv=Event.handlers)
-    body = ref()
+    def __init__(self, model, evt):
+        super().__init__(self, model)
+        self.event = evt
 
 
 @model
-class Function(Declaration):
+class Function(Named):
     '''A template for creating formulas.'''
     rtype = attr(str, nullable=False)
     params = attr(list, nullable=False)
-    body = ref()
+    constdecl = attr(bool, nullable=False, default=False)
+
+    def __init__(self, model, name, rtype, params, constdecl=False):
+        super().__init__(model, name)
+        self.rtype = rtype
+        self.params = [Parameter(name=n, type=t) for t,n in params]
+        self.constdecl = constdecl
 
 
 @model
-class Formula(Declaration):
+class FExpr(Function):
     '''
     A formula is an encapsulation of an expression.
     '''
-    rtype = attr(str, nullable=False)
-    expr = ref()
+    def __init__(self, model, name, rtype, constdecl=False):
+        super().__init__(model, name, rtype, [], constdecl)
+
 
 @model
-class Const(Formula):
-    value = attr(object)
+class Variable(Named):
+    '''
+    A state variable.
+    '''
+    type = attr(str, nullable=False)
+    CheckedConstraint(IS_TYPE)(type)
 
-@model
-class Variable(Declaration):
-    pass
+    sizeof = attr(tuple, nullable=False)
+
+    def __init__(self, model, name, type):
+        super().__init__(model, name)
+        self.type = type
 
 
 
@@ -274,6 +330,8 @@ def p_error(p):
         raise SyntaxError("Error at end of source")
 
 # Model declaration
+
+
 
 def p_model(p):
     "model : newmodel"
@@ -358,13 +416,13 @@ def p_event_decl(p):
 # functions
 
 def p_func_decl(p):
-    "func_decl : FUNC typename ID LPAREN arglist RPAREN body "
+    "func_decl : DEF typename ID LPAREN arglist RPAREN body "
     p[0] = ('func', p[3], p[2], p[5], p[7], p.lineno(1) )
 
 
 def p_body(p):
-    "body : LBRACE declarations RBRACE "
-    p[0] = p[2]
+    "body : LBRACE declarations expression RBRACE "
+    p[0] = (p[2], p[3])
 
 
 def p_declarations(p):
@@ -379,8 +437,8 @@ def p_declarations(p):
 # inline functions
 
 def p_fexpr_decl(p):
-    """ fexpr_decl : typename ID EQUALS expression SEMI """
-    p[0] = ('fexpr', p[2],p[1],p[4])
+    """ fexpr_decl : DEF typename ID EQUALS expression SEMI """
+    p[0] = ('fexpr', p[3],p[2],p[5])
 
 def p_cexpr_decl(p):
     """ fexpr_decl : CONST typename ID EQUALS expression SEMI """
@@ -395,18 +453,22 @@ def p_var_decl(p):
 # actions
 
 def p_event_action(p):
-    """ action_decl : ON ID LBRACE action_block RBRACE """
-    p[0] = ('action', p[2], p[4])
+    """ action_decl : ON qual_id statement """
+    p[0] = ('action', p[2], p[3])
 
-def p_action_block(p):
-    """ action_block : statement
-                     | action_block statement """
-    if len(p)==2:
-        p[0] = [p[1]]
-    else:
-        p[0] = p[1] + [p[2]]
+# statements (allowed in actions)
 
-# statements (allowed in action blocks)
+def p_block_statement(p):
+    """ statement : LBRACE statements RBRACE """
+    p[0] = ('block', p[2])
+
+def p_statements_opt(p):
+    " statements : "
+    p[0] = []
+
+def p_statements(p):
+    "statements : statements statement"
+    p[0] = p[1] + [p[2]]
 
 def p_emit_statement(p):
     " statement : EMIT ID LPAREN expr_list_opt RPAREN AFTER expression SEMI "
@@ -421,14 +483,14 @@ def p_fexpr_statement(p):
     p[0] = p[1]
 
 def p_if_statement(p):
-    """ statement : IF LPAREN expression RPAREN THEN statement 
-                  | IF LPAREN expression RPAREN THEN statement ELSE statement
+    """ statement : IF LPAREN expression RPAREN statement 
+                  | IF LPAREN expression RPAREN statement ELSE statement
     """
-    assert len(p) in (7,9)
-    if len(p)==7:
-        p[0] = ('if', p[3], p[6], None)
+    assert len(p) in (6,8)
+    if len(p)==6:
+        p[0] = ('if', p[3], p[5], None)
     else:
-        p[0] = ('if', p[3], p[6], p[8])
+        p[0] = ('if', p[3], p[5], p[7])
 
 
 #
@@ -448,18 +510,18 @@ def p_primary_expression_id(p):
 
 def p_qual_id(p):
     """ qual_id : ID 
-                | ID PERIOD ID """
+                | ID PERIOD qual_id"""
     if len(p)==4:
-        p[0] =  ('id', p[1],p[3])
+        p[0] =  ('id', p[1]) + p[3][1:]
     else:
-        p[0] = ('id', None, p[1])
+        p[0] = ('id', p[1])
 
 def p_primary_expression_paren(p):
     """ primary_expression :  LPAREN expression RPAREN  """
     p[0] =  p[2]
 
 def p_primary_expression_concat(p):
-    """ primary_expression : LBRACKET expr_list_opt RBRACKET """
+    """ primary_expression : LBRACKET expr_list RBRACKET """
     p[0] = ('concat', p[2])
 
 def p_primary_expression_fcall(p):
@@ -548,6 +610,7 @@ def p_unary_expression(p):
 def p_unary_op(p):
     """ unary_op : PLUS 
                 | MINUS 
+                | NOT
                 | LNOT """
     p[0] = p[1]
 
@@ -652,16 +715,30 @@ def p_or_expression(p):
     else:
         p[0] = ('binary', p[2], p[1], p[3])
 
+def p_land_expression(p):
+    """ land_expression : or_expression 
+                    | land_expression LAND or_expression """
+    if len(p)==2:
+        p[0] = p[1]
+    else:
+        p[0] = ('binary', p[2], p[1], p[3])
+
+def p_lor_expression(p):
+    """ lor_expression : land_expression 
+                    | lor_expression LOR land_expression """
+    if len(p)==2:
+        p[0] = p[1]
+    else:
+        p[0] = ('binary', p[2], p[1], p[3])
+
+
 def p_expression(p):
-    """ expression : or_expression 
-                    | or_expression CONDOP expression COLON expression """
+    """ expression : lor_expression 
+                    | lor_expression CONDOP expression COLON expression """
     if len(p)==2:
         p[0] = p[1]
     else:
         p[0] = ('cond', p[1], p[3], p[5])
-
-
-
 
 
 
