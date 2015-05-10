@@ -119,7 +119,14 @@ class Mote:
     # the Network object
     network = ref()
 
-    
+@model
+class RFsimulation:
+    def __init__(self, network):
+        self.network = network
+
+    # the Network object
+    network = ref()
+        
 
 
 @model
@@ -136,7 +143,7 @@ class Network:
     # All nodes
     motes = refs(inv=Mote.network)
 
-    RF_simulations = attr(list)
+    RF_simulations = refs(inv=RFsimulation.network)
 
 
 

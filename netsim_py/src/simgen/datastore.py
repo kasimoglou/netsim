@@ -97,6 +97,7 @@ class DataStore:
 
 
 
+
 class ProjectRepoStore(DataStore):
     """The datastore used to access the project repository.
     """
@@ -138,6 +139,10 @@ class ProjectRepoStore(DataStore):
         a file-like object."""
         self.simdb.put_attachment(self.simid, data, name, content_type)
 
+    def get_attachment(self, docid, filename):
+        """GET an attachment from root object, fiename is the attachment name docid the doc attached to"""
+        return self.simdb.get_attachment(self.ptdb, docid, filename)
+
     def get_nsd(self, oid):
         """Read the NSD."""
         return self.simdb.get(oid)
@@ -149,6 +154,15 @@ class ProjectRepoStore(DataStore):
     def get_project(self, oid):
         """Retrieve plan for the given oid"""
         return self.ptdb.get(oid)
+
+    def get_nodedef(self, oid):
+        """Retrieve plan for the given oid"""
+        return self.ptdb.get(oid)
+
+    def get_RFsimulation(self, oid):
+        """Retrieve rfsimulation for the given oid"""
+        return self.ptdb.get(oid)
+
 
 
 

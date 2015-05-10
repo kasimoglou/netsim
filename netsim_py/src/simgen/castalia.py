@@ -77,8 +77,17 @@ class NSDReader:
         # read parameters
         populate_modeled_instance(nsd, nsd_obj)
         self.nsd=nsd
+        #read Couchdb json files
         self.plan= self.read_plan(datastore, self.nsd)
         self.project= self.read_project(datastore, self.nsd)
+       
+
+        #Store json objects to simhome
+        self.create_jsonfile(nsd_obj, simhome, "/nsd.json")
+        self.create_jsonfile(self.plan, simhome, "/plan.json")
+        self.create_jsonfile(self.project, simhome, "/project.json")
+
+        #Create network model
         self.create_network(datastore)
 
         return nsd
@@ -105,7 +114,13 @@ class NSDReader:
     #Read the NODEDEF json object from CouhDb
     #
     def read_nodedef(self, datastore, nodedef_id):
+        #assert not nodedef_id
         return datastore.get_nodedef(nodedef_id)
+
+    def create_jsonfile(self, jsondata, simhome, filename):
+        path=simhome+filename
+        with open(path, 'w') as outfile:
+            json.dump(jsondata, outfile)
 
 
     #
@@ -121,6 +136,17 @@ class NSDReader:
             nodedata=self.read_nodedef(datastore, self.plan['NodePosition'][i]['nodeTypeId'])
             nodedef=NodeDef(self.nsd, nodedata)
             self.nodeinfo.append(nodedef)
+        """
+        for i in range (0,len(self.plan['simulations'])-1):
+            #Read RF_simulation id from json dict
+            simid = str(self.plan['simulations'][i])
+            #Download RF simulation object from Couchdb
+            sim=datastore.get_RFsimulation(simid)
+            #Store json RF simulation object to helper RFsim_def class (for further attribute processsing)
+            RFsim_def=RFsim_def(self.nsd, nodedata)
+            #Create RF simulation model object
+            sim=RFsimulation(self.network)
+        """
 
     def create_mote(self, data):
         mote = Mote(self.network, self.defaultMoteType)
@@ -147,8 +173,6 @@ class NSDReader:
                 tval = transform_value(attr,(RF_Antenna_conf(data['rfAntennaConf']['antennaTypeId'], data['rfAntennaConf']['anglePointer'], data['rfAntennaConf']['TXresistance'], data['rfAntennaConf']['TXpower'], data['rfAntennaConf']['TXpolarization'])))
                 setattr(mote, 'rf_antenna_conf', tval)
             
-
-
         
         
 
@@ -191,7 +215,7 @@ class CastaliaGen:
 
     def generate_code(self):        
         generate_castalia(self)
-        self.generate_nodefile()
+        #self.generate_nodefile()
 
 
    
@@ -204,6 +228,13 @@ class NodeDef:
     def __init__(self, nsd_obj, jsondict):
         self.nsd=nsd_obj
         self.jsondata=jsondict
+
+class RFsim_def:
+
+    def __init__(self, nsd_obj, jsondict):
+        self.nsd=nsd_obj
+        self.jsondata=jsondict
+
 
 
     
