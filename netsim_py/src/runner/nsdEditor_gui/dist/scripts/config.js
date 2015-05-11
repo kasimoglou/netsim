@@ -7,6 +7,7 @@ require.config({
         underscore: '/nsdEdit/bower_components/underscore-amd/underscore',
         requirejs: '/nsdEdit/bower_components/requirejs/require.min',
         jquery: '/nsdEdit/bower_components/jquery/dist/jquery',
+        bootstrap: '/nsdEdit/bower_components/bootstrap-sass-official/assets/javascripts/bootstrap',
         'angular-route': '/nsdEdit/bower_components/angular-route/angular-route',
         'angular-mocks': '/nsdEdit/bower_components/angular-mocks/angular-mocks',
         angular: '/nsdEdit/bower_components/angular/angular',
@@ -19,7 +20,8 @@ require.config({
         'angular-validator-rules': '/nsdEdit/bower_components/angular-validator/dist/angular-validator-rules',
         'ngDialog': '/nsdEdit/bower_components/ngDialog/js/ngDialog',
         'multiselect': '/nsdEdit/bower_components/amitava82/angular-multiselect/src/multiselect',
-        'ngGrid': '/nsdEdit/bower_components/ng-grid/ng-grid-2.0.14.debug'
+        'ngGrid': '/nsdEdit/bower_components/ng-grid/ng-grid-2.0.14.debug',
+        'json-formatter': '/nsdEdit/bower_components/json-formatter/dist/json-formatter'
     },
     shim: {
         angular: {
@@ -27,6 +29,11 @@ require.config({
                 'jquery'
             ],
             exports: 'angular'
+        },
+        bootstrap: {
+            deps: [
+                'jquery'
+            ]
         },
         'angular-animate': {
             deps: [
@@ -74,6 +81,12 @@ require.config({
             ]
         },
         'ngGrid': {
+            deps: [
+                'jquery',
+                'angular'
+            ]
+        },
+        'json-formatter': {
             deps: [
                 'jquery',
                 'angular'

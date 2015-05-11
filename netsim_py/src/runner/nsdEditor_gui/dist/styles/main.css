@@ -8474,3 +8474,11 @@ multiselect.hide-check-buttons .dropdown-menu li[ng-show="multiple"] {
   margin-top: 10px;
   margin-left: 30px;
 }
+
+/* line 180, ../../app/styles/main.scss */
+.json-formatter-div {
+  padding: 15px;
+  border: 1px solid #dce4ec;
+  margin-bottom: 15px;
+  background-color: #f5f5f5;
+}

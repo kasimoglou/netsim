@@ -42,6 +42,15 @@ define(['underscore', 'angular'], function(_) {
             return httpPromise(config);
         }
         
+        function apiPlanRead(plan_id) {
+            var config = {
+                url: '/plan/' + plan_id,
+                method: 'GET'
+            };
+            
+            return httpPromise(config);
+        }
+        
         // Creates a new nsd
         function apiNsdCreate(nsd) {
             var config = {
@@ -163,6 +172,7 @@ define(['underscore', 'angular'], function(_) {
 
             projectsRead: apiProjectsRead,
             projectPlansRead: apiProjectPlansRead,
+            planRead: apiPlanRead,
             nsdCreate: apiNsdCreate,
             nsdRead: apiNsdRead,
             nsdUpdate: apiNsdUpdate,
