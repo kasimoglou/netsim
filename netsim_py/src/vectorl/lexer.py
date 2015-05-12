@@ -20,12 +20,14 @@ reserved = (
     # modules
     'IMPORT', 'FROM',
     # control flow
-    'IF', 'ELSE'
+    'IF', 'ELSE', 'RETURN', 'WHILE',
+    # output
+    'PRINT'
     )
 
 tokens = reserved + (
     # Literals (identifier, integer constant, float constant, string constant, char const)
-    'ID', 'ICONST', 'FCONST', 
+    'ID', 'ICONST', 'FCONST', 'STRCONST',
 
     # Operators (+,-,*,/,%,~,|,&,^,<<,>>, ||, &&, !, <, <=, >, >=, ==, !=)
     'PLUS', 'MINUS', 'TIMES', 'DIVIDE', 'MOD',
@@ -111,7 +113,7 @@ for r in reserved:
     reserved_map[r.lower()] = r
 
 def t_ID(t):
-    r'[A-Za-z_][\w_]*'
+    r'[A-Za-z][\w_]*'
     t.type = reserved_map.get(t.value,"ID")
     return t
 
@@ -120,6 +122,9 @@ t_ICONST = r'\d+'
 
 # Floating literal
 t_FCONST = r'((\d+)(\.\d+)(e(\+|-)?(\d+))? | (\d+)e(\+|-)?(\d+))'
+
+# String literal
+t_STRCONST = r'"[^"\n]*"'
 
 # Comments
 def t_comment(t):

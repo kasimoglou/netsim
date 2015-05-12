@@ -38,8 +38,8 @@ def test_empty_lexer(empty_lexer):
 
 @pytest.fixture(params=[
 ('x', 'ID'),
-('_', 'ID'),
-('_131','ID'),
+('_', 'SUB'),
+('a131','ID'),
 ('0', 'ICONST'),
 ('0312', 'ICONST'),
 ('572937979798798211239127129', 'ICONST'),
