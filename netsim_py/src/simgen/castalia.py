@@ -6,10 +6,11 @@ Created on Oct 14, 2014
 
 import os.path
 import json
-from models.nsd import NSD, Network, Mote, MoteType, Position, RF_Antenna_conf
+from models.nsd import NSD, Network, Mote, MoteType, Position, RF_Antenna_conf, RFsimulation
 from models.mf import Attribute
 from simgen.utils import docstring_template
 from .castaliagen import generate_castalia
+from simgen.test_jsondata import test_read_plan, test_motedata
 import pdb
 
 
@@ -70,7 +71,7 @@ class NSDReader:
 
     def read_nsd(self, datastore, nsd_id, simhome):
         nsd = NSD()
-        
+        self.simhome=simhome
         # get nsd
         nsd_obj = datastore.get_nsd(nsd_id)
         
@@ -86,7 +87,7 @@ class NSDReader:
         self.create_jsonfile(nsd_obj, simhome, "/nsd.json")
         self.create_jsonfile(self.plan, simhome, "/plan.json")
         self.create_jsonfile(self.project, simhome, "/project.json")
-
+        #test_read_plan(datastore, nsd)
         #Create network model
         self.create_network(datastore)
 
@@ -117,6 +118,9 @@ class NSDReader:
         #assert not nodedef_id
         return datastore.get_nodedef(nodedef_id)
 
+    #
+    #Creates a jsonfile with the jsondata in simhome
+    #
     def create_jsonfile(self, jsondata, simhome, filename):
         path=simhome+filename
         with open(path, 'w') as outfile:
@@ -136,17 +140,28 @@ class NSDReader:
             nodedata=self.read_nodedef(datastore, self.plan['NodePosition'][i]['nodeTypeId'])
             nodedef=NodeDef(self.nsd, nodedata)
             self.nodeinfo.append(nodedef)
+        self.read_rfsimulations(datastore, self.plan['simulations'])
         """
-        for i in range (0,len(self.plan['simulations'])-1):
-            #Read RF_simulation id from json dict
-            simid = str(self.plan['simulations'][i])
-            #Download RF simulation object from Couchdb
-            sim=datastore.get_RFsimulation(simid)
-            #Store json RF simulation object to helper RFsim_def class (for further attribute processsing)
-            RFsim_def=RFsim_def(self.nsd, nodedata)
-            #Create RF simulation model object
-            sim=RFsimulation(self.network)
+        if '_attachments' in self.plan:
+            self.read_attachments(datastore, self.plan['_attachments'] )
         """
+
+    def read_rfsimulations(self, datastore, data):
+        for item in data:
+           # simjson=datastore.get_RFsimulation(item)
+           # RFsim_def = RFsim_def(self.nsd, self.network, simjson)
+            sim = RFsimulation(self.network, str(item))
+            print("network", sim.network)
+            print("simid", sim.simid)
+        
+    def read_attachments(self, datastore, attachments):
+        for key,value in attachments.items():
+            print("+++++++++++++++++++",key)
+            cm = datastore.get_attachment(self.plan, key)
+            path = self.simhome + '/' + key
+            with open(path, 'wb') as outfile:
+                outfile.write(bytes(int(x,0) for x in cm))
+    
 
     def create_mote(self, data):
         mote = Mote(self.network, self.defaultMoteType)
@@ -154,24 +169,25 @@ class NSDReader:
         #Extract arguments from json 
         metamodel = mote.__model_class__
         for attr in metamodel.attributes:
-            if(attr.name=='node_id'):
+            if(attr.name =='node_id'):
                 tval = transform_value(attr, data["nodeId"])
                 setattr(mote, 'node_id', tval)
             elif (attr.name=='moteRole'):
                 tval = transform_value(attr, data['nodeType'])
                 setattr(mote, 'moteRole', tval)
             elif (attr.name=='position'):
-                tval = transform_value(attr,(Position(data['coordinates'][0], data['coordinates'][1], data['coordinates'][2])))
+                tval = transform_value(attr,(Position(float(data['coordinates'][0]), float(data['coordinates'][1]), float(data['coordinates'][2]))))
                 setattr(mote, 'position', tval)
-            elif (attr.name=='elevOfGround'):
+            elif (attr.name=='elevation'):
                 tval = transform_value(attr, float(data['elevOfGround']))
                 setattr(mote, 'elevation', tval) 
-            elif (attr.name=='RXtheshold'):
-                tval = transform_value(attr, float(data['RXtheshold']))
+            elif (attr.name=='rx_threshold'):
+                tval = transform_value(attr, float(data['RXthreshold']))
                 setattr(mote, 'rx_threshold', tval)   
             elif (attr.name=='rf_antenna_conf'):
                 tval = transform_value(attr,(RF_Antenna_conf(data['rfAntennaConf']['antennaTypeId'], data['rfAntennaConf']['anglePointer'], data['rfAntennaConf']['TXresistance'], data['rfAntennaConf']['TXpower'], data['rfAntennaConf']['TXpolarization'])))
                 setattr(mote, 'rf_antenna_conf', tval)
+        #test_motedata(mote)
             
         
         
@@ -231,9 +247,10 @@ class NodeDef:
 
 class RFsim_def:
 
-    def __init__(self, nsd_obj, jsondict):
-        self.nsd=nsd_obj
-        self.jsondata=jsondict
+    def __init__(self, nsd_obj, network_obj, jsondict):
+        self.nsd = nsd_obj
+        self.network = network_obj
+        self.jsondata = jsondict
 
 
 

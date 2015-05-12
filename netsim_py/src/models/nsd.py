@@ -121,11 +121,13 @@ class Mote:
 
 @model
 class RFsimulation:
-    def __init__(self, network):
+    def __init__(self, network, simid):
         self.network = network
+        self.simid = simid
 
     # the Network object
     network = ref()
+    simid = attr(str, nullable=False, default = None)
         
 
 
