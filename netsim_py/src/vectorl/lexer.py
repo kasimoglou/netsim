@@ -10,26 +10,30 @@ import ply.lex as lex
 # Reserved words
 reserved = (
     # types
-    'INT', 'REAL', 'BOOL',
+    'INT', 'REAL', 'BOOL', 'TIME',
     # boolean constants
     'TRUE', 'FALSE',
     # declarations
-    'CONST', 'VAR', 'LET', 'EVENT', 'ON', 'FUNC',
+    'CONST', 'DEF', 'VAR', 'EVENT', 'ON',
     # directives
     'EMIT', 'AFTER',
     # modules
-    'IMPORT', 'FROM'
+    'IMPORT', 'FROM',
+    # control flow
+    'IF', 'ELSE', 'RETURN', 'WHILE',
+    # output
+    'PRINT'
     )
 
 tokens = reserved + (
     # Literals (identifier, integer constant, float constant, string constant, char const)
-    'ID', 'ICONST', 'FCONST', 
+    'ID', 'ICONST', 'FCONST', 'STRCONST',
 
-    # Operators (+,-,*,/,%,|,&,~,^,<<,>>, ||, &&, !, <, <=, >, >=, ==, !=)
+    # Operators (+,-,*,/,%,~,|,&,^,<<,>>, ||, &&, !, <, <=, >, >=, ==, !=)
     'PLUS', 'MINUS', 'TIMES', 'DIVIDE', 'MOD',
-    'OR', 'AND',  'XOR', 'LSHIFT', 'RSHIFT',
+    'NOT', 'OR', 'AND',  'XOR', 'LSHIFT', 'RSHIFT',
     # 'LOR', 'LAND', 'NOT',
-    'LNOT',
+    'LOR', 'LAND', 'LNOT',
     'LT', 'LE', 'GT', 'GE', 'EQ', 'NE',
     
     # Assignment (=, :=)
@@ -44,8 +48,8 @@ tokens = reserved + (
     'LBRACE', 'RBRACE',
     'COMMA', 'PERIOD', 'SEMI', 'COLON',
 
-    # Ellipsis (...)
-    'ELLIPSIS',
+    # Ellipsis (...)  _
+    'ELLIPSIS',  'SUB'
     )
 
 # Completely ignored characters
@@ -64,7 +68,7 @@ t_DIVIDE           = r'/'
 t_MOD              = r'%'
 t_OR               = r'\|'
 t_AND              = r'&'
-#t_NOT              = r'~'
+t_NOT              = r'~'
 t_XOR              = r'\^'
 t_LSHIFT           = r'<<'
 t_RSHIFT           = r'>>'
@@ -77,6 +81,8 @@ t_LE               = r'<='
 t_GE               = r'>='
 t_EQ               = r'=='
 t_NE               = r'!='
+
+t_SUB              = r'_'
 
 # Assignment operators
 
@@ -107,7 +113,7 @@ for r in reserved:
     reserved_map[r.lower()] = r
 
 def t_ID(t):
-    r'[A-Za-z_][\w_]*'
+    r'[A-Za-z][\w_]*'
     t.type = reserved_map.get(t.value,"ID")
     return t
 
@@ -117,15 +123,14 @@ t_ICONST = r'\d+'
 # Floating literal
 t_FCONST = r'((\d+)(\.\d+)(e(\+|-)?(\d+))? | (\d+)e(\+|-)?(\d+))'
 
+# String literal
+t_STRCONST = r'"[^"\n]*"'
+
 # Comments
 def t_comment(t):
-    r'/\*(.|\n)*?\*/'
+    r'(/\*(.|\n)*?\*/)|(//.*\n)'
     t.lexer.lineno += t.value.count('\n')
 
-# Preprocessor directive (ignored)
-def t_preprocessor(t):
-    r'\#(.)*?\n'
-    t.lexer.lineno += 1
     
 def t_error(t):
     #print("Illegal character %s" % repr(t.value[0]))
