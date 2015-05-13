@@ -7,11 +7,14 @@ from models.mf import Attribute
 from simgen.utils import docstring_template
 import pyproj
 
+
 def generate_castalia(gen):
     '''
     Main entry routine for generating a castalia simulation from the NSD
     '''
-    cm = m2m_nsd_to_castalia(gen.nsd)
+
+    gen.log.info("The NSD object=%s", repr(gen.nsd))
+    cm = m2m_nsd_to_castalia(gen, gen.nsd)
     m2t_castalia_model(gen, cm)
     gen.log.debug("Code generated from NSD")
 
@@ -19,28 +22,28 @@ def generate_castalia(gen):
 # M2M transform: NSD -> CastaliaModel
 #
 
-def m2m_nsd_to_castalia(nsd):
+def m2m_nsd_to_castalia(gen, nsd):
     '''
     Create castalia model from nsd.
     '''
     cm = CastaliaModel()
-    cm.omnetpp = m2m_nsd_to_omnetpp(nsd)
-    cm.network = m2m_nsd_to_network(nsd)
+    cm.omnetpp = m2m_nsd_to_omnetpp(gen, nsd)
+    cm.network = m2m_nsd_to_network(gen, nsd)
     return cm
 
-def m2m_nsd_to_omnetpp(nsd):
+def m2m_nsd_to_omnetpp(gen, nsd):
     '''
     Create Omnetpp model from NSD
     '''
     o = Omnetpp()
-    o.sim_time_limit = nsd.sim_time_limit
-    o.simtime_scale = nsd.simtime_scale
-    o.cpu_time_limit = nsd.cpu_time_limit
+    o.sim_time_limit = nsd.parameters.sim_time_limit
+    o.simtime_scale = nsd.parameters.simtime_scale
+    o.cpu_time_limit = nsd.parameters.cpu_time_limit
     o.castalia_path = castalia_path()
     return o
 
 
-def m2m_nsd_to_network(nsd):
+def m2m_nsd_to_network(gen, nsd):
     '''
     Create castalia module network.
     '''
@@ -52,6 +55,7 @@ def m2m_nsd_to_network(nsd):
         node = Node(net, 'node', len(node_modules))
         node.name = mote.node_id
         node.mote = mote
+        node.ApplicationName = 'ConnectivityMatrix'
         node_modules.append(node)
     assert len(node_modules)>0
 
@@ -91,27 +95,33 @@ def compute_positions(node_modules):
     all_pos = []
     for n in node_modules:
         x,y = pyproj.transform(from_proj, to_proj, n.mote.position.lon, n.mote.position.lat)
+
         z = n.mote.position.alt + n.mote.elevation
         all_pos.append( (x,y,z) )
+
 
     # rebase coordinates to the (0,0)-(P,Q) rectangle
     pmin = [0]*3
     for p in range(3):
-        pmin[i] = min(all_pos, key= (lambda P: P[p]))
+        val = min(P[p] for P in all_pos)
+        print("val=",val)
+        pmin[p] = val
+
 
     final_pos = [(x-pmin[0], y-pmin[1], z-pmin[2]) for x,y,z in all_pos]
 
     # initialize
     for i in range(len(node_modules)):
         node = node_modules[i]
-        node.xCoord = final_pos[i][0]
-        node.yCoord = final_pos[i][1]
-        node.zCoord = final_pos[i][2]
+        node.xCoor = final_pos[i][0]
+        node.yCoor = final_pos[i][1]
+        node.zCoor = final_pos[i][2]
 
     aoi = [0]*3
     for p in range(3):
-        aoi[i] = max(final_pos, key= (lambda P: [p]))
+        aoi[p] = max(P[p] for P in final_pos)
 
+    print('aoi=',aoi)
     return aoi
 
 
@@ -145,7 +155,7 @@ def generate_omnetpp_for_module(omnetpp, m):
 
     # now, iterate over submodules
     for sm in m.submodules:
-        generate_omnetpp_for_module(omnetpp.sm)
+        generate_omnetpp_for_module(omnetpp,sm)
 
 
 
@@ -213,6 +223,39 @@ SN.physicalProcess[*].rng-0         = 10    # currently used only in CarsPhysica
 
 SN.node[*].MobilityManager.rng-0    = 0 # used to randomly place the nodes
 
+sim-time-limit = 100s
+
+SN.field_x = 30                                 # meters
+SN.field_y = 30                                 # meters
+
+# Specifying number of nodes and their deployment
+SN.numNodes = 9
+SN.deployment = "3x3"
+
+# Removing variability from wireless channel
+SN.wirelessChannel.bidirectionalSigma = 0
+SN.wirelessChannel.sigma = 0
+
+# Select a Radio and a default Tx power
+SN.node[*].Communication.Radio.RadioParametersFile = "../Parameters/Radio/CC2420.txt"
+SN.node[*].Communication.Radio.TxOutputPower = "-5dBm"
+
+# Using connectivity map application module with default parameters
+SN.node[*].ApplicationName = "ConnectivityMap"
+
+[Config varyTxPower]
+SN.node[*].Communication.Radio.TxOutputPower = ${TXpower="0dBm","-1dBm","-3dBm","-5dBm"}
+
+[Config varySigma]
+SN.wirelessChannel.sigma = ${Sigma=0,1,3,5}
+
+
+"""
+
+    return locals()
+
+
+"""
 sim-time-limit = {{cm.omnetpp.sim_time_limit}}s
 simtime-scale = {{cm.omnetpp.simtime_scale}}
 % if cm.omnetpp.cpu_time_limit is not None:
@@ -220,8 +263,6 @@ cpu-time-limit = {{cm.omnetpp.cpu_time_limit}}
 % end
 
 """
-    return locals()
-
 
 
 

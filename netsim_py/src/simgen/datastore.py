@@ -141,26 +141,33 @@ class ProjectRepoStore(DataStore):
 
     def get_attachment(self, docid, filename):
         """GET an attachment from root object, fiename is the attachment name docid the doc attached to"""
+        assert docid is not None
+        assert filename is not None
         return self.simdb.get_attachment(self.ptdb, docid, filename)
 
     def get_nsd(self, oid):
         """Read the NSD."""
+        assert oid is not None
         return self.simdb.get(oid)
 
     def get_plan(self, oid):
         """Retrieve plan for the given oid"""
+        assert oid is not None
         return self.ptdb.get(oid)
         
     def get_project(self, oid):
         """Retrieve plan for the given oid"""
+        assert oid is not None
         return self.ptdb.get(oid)
 
     def get_nodedef(self, oid):
         """Retrieve plan for the given oid"""
+        assert oid is not None
         return self.ptdb.get(oid)
 
     def get_RFsimulation(self, oid):
         """Retrieve rfsimulation for the given oid"""
+        assert oid is not None
         return self.ptdb.get(oid)
 
 

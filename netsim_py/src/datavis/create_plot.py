@@ -3,7 +3,7 @@ Created on Jan 19, 2015
 
 @author: George Mantakos
 '''
-
+import logging
 from subprocess import PIPE, Popen
 from datavis.database import Relation
 
@@ -130,7 +130,11 @@ class Plot():
             for g in self.graphs:
                 sbh.add_label_values(g.output_data())
             values = sbh.get_values()
-            for i in list(range(len(values[0])-1)):
+            import logging
+            logging.root.debug("the values=%s",values)
+            if not values:
+                return
+            for i in range(len(values[0])-1):
                 for row in values:
                     node = str(row[0])
                     val = str(row[i+1])
@@ -174,6 +178,8 @@ class Graph(object):
         using = "using 2:xticlabels(1)" if self.style == "histogram" else ""
         return """ '-' %s title "%s" %s""" % (using, title, style)
 
+
+
     def output_data_for_gnuplot(self, f):
         """
         writes this graph's data, in gnuplot format, to f
@@ -197,6 +203,8 @@ class Graph(object):
         if self.y is not None:
             for i in self.y: col_names.append(i.name)
 
+        logging.root.critical("col_names=%s", col_names)
+
         if self.x is not None:
             o = [i.name for i in self.x]
         elif self.y is not None:  # applicable when x is None
@@ -204,9 +212,17 @@ class Graph(object):
         else:  # should never occur, just in case
             o = []
         sql = self.relation.sql_select(col_names, where=self.select, order=o)
-        conn = self.relation.dataset.conn
+        logging.root.debug("SQL='%s'",sql)
+        try:
+            conn = self.relation.dataset.conn
+            results =  conn.execute(sql).fetchall()
+        except:
+            logging.root.critical("IT THROWS")
+            raise
+        logging.root.debug("Results=%s", results)
+        return results
 
-        return conn.execute(sql).fetchall()
+
 DEFAULT = "DEFAULT"
 
 

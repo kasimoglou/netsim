@@ -34,6 +34,7 @@ class Generator:
         self.sim_root = sim_root
         self.datastore = datastore
         self.log = logging.getLogger(os.path.basename(simhome))
+        self.log.setLevel('DEBUG')
             
     
     def generate(self):
@@ -70,7 +71,7 @@ def register_generator(name, cls):
 
 
 
-def generate_simulation(fileloc=None, loglevel='INFO'):
+def generate_simulation(fileloc=None, loglevel='DEBUG'):
     """This function is called by the executor to bootstrap code generation.
     
     Its main function is to retrieve file 'url.txt' from directory 'fileloc',

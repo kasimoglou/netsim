@@ -67,6 +67,14 @@ class SimOutputHandler:
 
 
 def generate_output(fileloc=None):
+    logging.getLogger().setLevel('DEBUG')
+    try:
+        generate(fileloc)
+    except Exception as e:
+        logging.root.info("Caught exception", exc_info=True)
+
+
+def generate(fileloc):
     """
     Main function for output generation.
 
@@ -77,16 +85,9 @@ def generate_output(fileloc=None):
     if fileloc is None:
         fileloc = os.getcwd()
 
-    test_mode = True
-
-    if test_mode is False:  # real values
-        simulation_id = "?"
-        filename = "json.nsd"
-        castalia_data = "castalia_output.txt"
-    else:     # dummy values
-        simulation_id = "@@@@@@@@@@@@@"
-        filename = os.path.join(cfg.resource_path, "datavis/predefined_plots.json")
-        castalia_data = os.path.join(cfg.resource_path, "datavis/castalia_output2.txt")
+    simulation_id = "?"
+    filename = "nsd.json"
+    castalia_data = "simout.txt"
 
     #
     # Get the results of the simulation
@@ -95,6 +96,8 @@ def generate_output(fileloc=None):
     vpd = ViewsPlotsDecoder()
     with open(filename, "r") as f:
         json_str = f.read()
+
+    logging.root.debug("The nsd is:\n%s", json.dumps(json.loads(json_str), indent=4))
 
     derived_tables, plot_models = vpd.decode(json.loads(json_str)["views"])
 

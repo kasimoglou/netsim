@@ -29,7 +29,7 @@ class CastaliaModule:
         if self.parent is None:
             return myname
         else:
-            return '.'.join(self.parent.full_name(), myname)
+            return '.'.join([self.parent.full_name(), myname])
 
 
     def __init__(self, parent, name, index=None):
@@ -61,9 +61,9 @@ class Network(CastaliaModule):
     string physicalProcessName = default ("CustomizablePhysicalProcess");
     string debugInfoFileName = default ("Castalia-Trace.txt");
     """
-    field_x = parameter(int)
-    field_y = parameter(int)
-    field_z = parameter(int)
+    field_x = parameter(float)
+    field_y = parameter(float)
+    field_z = parameter(float)
 
     numNodes = parameter(int)
     numPhysicalProcesses = parameter(int)

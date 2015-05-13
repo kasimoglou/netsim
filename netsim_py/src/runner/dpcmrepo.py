@@ -79,7 +79,7 @@ class ProjectRepository(pycouchdb.Server):
 		results = self.PT.query("_design/ptModels/_view/plans_by_projectId", group='true', key=prjid)
 		for obj in results:
 			assert obj['key']==prjid
-			for plan in obj['value']['planIds']:
+			for plan in obj['value']['planIds']['planIds']:
 				yield plan
 
 	def get_nsds(self):

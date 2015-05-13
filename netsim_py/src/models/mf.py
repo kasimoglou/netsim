@@ -653,8 +653,6 @@ def symmetric_relationship(C, rel, kind):
     return r
 
 
-
-
 #
 # Declarative model construction API
 #

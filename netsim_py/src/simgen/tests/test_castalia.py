@@ -5,19 +5,19 @@ Created on Oct 15, 2014
 '''
 
 
-
-from simgen.castalia import CastaliaGen
+from models.mf import *
+from simgen.castalia import *
 from os.path import abspath, normpath, join, basename
 from simgen.castalia import NSDReader
 from simgen.datastore import create_datastore_proxy
 from simgen.tests.filestore import FileStore
-
+import pytest
 
 resource_path = normpath(abspath(join(basename(__file__), "../../resources")))
 
 
 
-def test_reader_nsd_json():
+def notest_reader_nsd_json():
     
     reader = NSDReader()
     

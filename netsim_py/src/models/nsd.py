@@ -7,12 +7,15 @@ Created on Sep 17, 2014
 @author: vsam
 '''
 
-from models.mf import model, attr, ref, refs, ref_list
+from models.mf import model, attr, ref, refs, ref_list, annotation_class
+from models.json_reader import required, descend, ignore, json_name
 from collections import namedtuple
 from enum import Enum
 from numbers import Number
 
-# #############################
+
+
+##############################
 # Environment: part of an NSD
 ##############################
 
@@ -48,8 +51,6 @@ class SensorType:
 
 # This type is used for Node coordinates (corresponds to PLNxxxx coord. triplet)
 Position = namedtuple('Position', ('lat', 'lon', 'alt'))
-RF_Antenna_conf = namedtuple('RF_Antenna_conf', ('antennaTypeId', 'anglePointer', 'TXresistance', 'TXpower', 'TXpolarization'))
-
 
 
 @model
@@ -110,14 +111,15 @@ class Mote:
     # position of the node in relative coordinates
     position = attr(Position)
 
-    rf_antenna_conf=attr(RF_Antenna_conf)
+    rf_antenna_conf=attr(object)
 
     elevation= attr(float, nullable=False, default=None)
-    rx_threshold= attr(float, nullable=False, default=None)
 
+    rx_threshold= attr(float, nullable=False, default=None)
 
     # the Network object
     network = ref()
+
 
 @model
 class RFsimulation:
@@ -146,6 +148,24 @@ class Network:
     RF_simulations = refs(inv=RFsimulation.network)
 
 
+#
+#  Parameters object
+#
+@model
+class Parameters:
+    nsd = ref()
+
+    # The time reached when the simulation terminates (sec)
+    sim_time_limit = attr(float)
+    required(sim_time_limit)
+
+    # Simulation time resolution exponent, The default is -9 (nanosec)
+    simtime_scale = attr(int, default=-9)
+
+    # CPU time limit, simulation stops when reached. The default is no limit.
+    cpu_time_limit = attr(int, default=None)
+
+
 
 
 ######################################
@@ -153,6 +173,7 @@ class Network:
 #  The main NSD object
 #
 ######################################
+
 
 @model
 class NSD:
@@ -180,20 +201,25 @@ class NSD:
     #  Parameters
     #
 
-    # The time reached when the simulation terminates (sec)
-    sim_time_limit = attr(float)
+    parameters = ref(inv=Parameters.nsd)
+    descend(parameters)
 
-    # Simulation time resolution exponent, The default is -9 (nanosec)
-    simtime_scale = attr(int, default=-9)
-
-    # CPU time limit, simulation stops when reached. The default is no limit.
-    cpu_time_limit = attr(int, default=None)
-
+    #
     # DPCM platform attributes
-    plan_id = attr(str, nullable=False, default=None)
-    project_id = attr(str, nullable=False, default=None)
+    #
+
+    plan_id = attr(str, nullable=False)
+    required(plan_id)
+
+    project_id = attr(str, nullable=False)
+    required(project_id)
+
     name = attr(str, nullable=False)
+    required(name)
+
     userId=attr(str,nullable=False)
+
+
     #
     # Environment
     #
@@ -205,10 +231,6 @@ class NSD:
     #
 
     network = ref(inv=Network.nsd)
-    NodePosition= attr(list)
-    numOfNodes=attr(str,nullable=False)
-    numOfRoots=attr(str,nullable=False)
-    numOfNidNodes=attr(str,nullable=False)
     EPSG=attr(str,nullable=False)
     networkId=attr(str,nullable=False)
 
@@ -217,13 +239,19 @@ class NSD:
     #
     plots = attr(list)
     
-    # def node_listing(nodes):
-    	
+        
     
 @model
 class Plan:
-	 nsd = ref()
+    nsd = ref()
+
+    name = attr(str, nullable=False)
+    NodePosition= attr(list)
+    numOfNodes=attr(int,nullable=False)
+    numOfRoots=attr(int,nullable=False)
+    numOfNidNodes=attr(int,nullable=False)
 
 @model 
 class Project:
-	 nsd = ref()
+    nsd = ref()
+

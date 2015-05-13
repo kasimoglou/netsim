@@ -206,11 +206,11 @@ def main():
     args = parser.parse_args()
 
     assert args.loglevel is not None
-    #logging.getLogger().setLevel(args.loglevel)
-    logging.basicConfig(level=args.loglevel)
+    logging.root.setLevel(args.loglevel)
+
     mp.set_start_method("forkserver")
 
-    logging.info("Logging level: %s", args.loglevel)
+    logging.info("Logging level: %s", logging.getLevelName(logging.root.getEffectiveLevel()))
     logging.info("Redirect: %s",args.redir)
     
     configure('simulation_run', args.config)

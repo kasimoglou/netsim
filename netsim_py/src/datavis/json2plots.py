@@ -1,3 +1,4 @@
+import logging
 import ast
 from models.nsdplot import PlotModel, DATA_TABLE, DerivedTable, Table,  Column, ColumnExpr, ColumnRef, Expression, \
     ConstantExpr, Operator, \
@@ -34,19 +35,38 @@ class ViewsPlotsDecoder:
     @staticmethod
     def gen_plotmodel(rel, d):
         """
-        generate a PlotModel associated to relation rel from specified dictionary d (the dictionary should represent only one PlotModel)
+        generate a PlotModel associated to relation rel from specified dictionary d 
+        (the dictionary should represent only one PlotModel)
         returns the PlotModel
         """
         sel = ViewsPlotsDecoder.get_attr("select", d)
         if sel != pm_defaults["select"]:
+            # vsam: added a conversion to dict, as needed
+            if isinstance(sel, str):
+                import json
+                sdict = json.loads(sel)
+                logging.root.debug("sdict = %s", sdict)
+                sel = sdict
             sel = SelectorParser().parse(sel)
+
+            logging.root.debug("d[x]= %s", d['x'])
+            logging.root.debug("rel=%s",rel)
+
+        # vsam: there was a problem with the x and y arguments
+        def procxy(val):
+            if val is None: return None
+            zoot = [x.strip() for x in val.split(',') ]
+            ret = tuple(rel.col[x] for x in zoot)
+            return ret
+
+        print("d=",d)
 
         pm = PlotModel(
             d["model_type"],
             d["stat_type"],
             rel,
-            tuple([rel.col[x] for x in d["x"]]),
-            tuple([rel.col[y] for y in d["y"]]),
+            procxy( d["x"] if "x" in d else None ),
+            procxy( d["y"] ),
             ViewsPlotsDecoder.get_attr("axes", d),
             sel,
             ViewsPlotsDecoder.get_attr("title", d),
@@ -330,8 +350,11 @@ class SelectorParser():
     }
 
     def parse(self, selector_dict):
+        logging.root.debug("Selector is %s",selector_dict)
+        logging.root.debug("Selector is %s",type(selector_dict))
         assert isinstance(selector_dict, dict)
         for attr in selector_dict:
             sel_str = selector_dict[attr]
             selector_dict[attr] = eval(sel_str, self.allowed_funcs)
         return selector_dict
+
