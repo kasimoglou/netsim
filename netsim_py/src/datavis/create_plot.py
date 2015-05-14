@@ -251,7 +251,8 @@ pm_defaults = {
     "logscale": None,
     "grid": " ",
     "key": None,
-    "output": DEFAULT
+    "output": DEFAULT,
+    "x": None
 }
 
 def make_plot(rel, x, y, axes, select={}, title=DEFAULT, style='linespoints',
