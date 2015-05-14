@@ -9,14 +9,15 @@ define(['underscore',
 
     // New nsd form Controller
     nsdControllers.controller('newNsdFormController',
-        ['$scope', '$location', '$validator', 'API', function($scope, $location, $validator, API) {
+        ['$scope', '$location', '$validator', '$window', 'API', 
+        function($scope, $location, $validator, $window, API) {
                 
         $scope.nsd = {
             name: '',
-            project_id: ''
+            project_id: $location.search().project_id || ''
         };
         $scope.projects = [];
-
+        
         // This method calls `projectRead` api call and fetches all
         // projects created by user.
         $scope.fetchProjects = function() {
@@ -36,9 +37,12 @@ define(['underscore',
         // 
         $scope.createNsd = function() {
             $validator.validate($scope, 'nsd').success(function() {
+                if ($location.search().plan_id) {
+                    $scope.nsd.plan_id = $location.search().plan_id;
+                }
                 API.nsdCreate($scope.nsd)
                         .success(function(response) {
-                            $location.path('/nsd/' + response._id);
+                            $window.location.href = '#!/nsd/' + response._id;
                 })
                         .error(function() {
                            console.log('Error creating nsd.');
