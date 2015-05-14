@@ -50,7 +50,7 @@ class NSDReader(JSONReader):
             # read parameters
             self.populate_modeled_instance(nsd, nsd_obj)
         except Exception as e:
-            log.debug("Failed to populate NSD.", str(e))
+            self.log.debug("Failed to populate NSD.")
             raise RuntimeError(str(e))
 
         self.nsd=nsd
