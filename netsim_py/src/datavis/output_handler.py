@@ -99,10 +99,14 @@ def generate(fileloc):
 
     logging.root.debug("The nsd is:\n%s", json.dumps(json.loads(json_str), indent=4))
 
-    derived_tables, plot_models = vpd.decode(json.loads(json_str)["views"])
+    nsd = json.loads(json_str)
+    if "views" not in nsd:
+        nsd["views"] = []
+    derived_tables, plot_models = vpd.decode(nsd["views"])
 
     results_json = create_simulation_results(simulation_id, plot_models, castalia_data)
     results_json_string = json.dumps(results_json, default=lambda o: o.__dict__, indent=2)
+    logging.root.debug("Results in json are:\n%s", json.dumps(json.loads(results_json_string), indent=2))
     with open(fileloc + "/results.json", "w") as f:
         print(results_json_string, file=f)
 
