@@ -21,7 +21,10 @@ class BadRequest(ClientError): pass
 class NotFound(ClientError): pass
 class Unauthorized(ClientError): pass
 class Forbidden(ClientError): pass
-class Conflict(ClientError): pass
+class Conflict(ClientError): 
+	def __init__(self, cobj=None):
+		super().__init__()
+		self.current_object = cobj
 
 class ServerError(Error): pass  # These correspond to 500 
 
@@ -286,7 +289,12 @@ class RepoDao:
 		# Couchdb does not have the concept of update, but we
 		# still need to check consistency.
 		obj['_id'] = oid
-		return self.__db().save(obj)
+		try:
+			return self.__db().save(obj)
+		except dpcmrepo.Conflict as e:
+			# try to read the current object
+			cur = self.__db().get(oid)
+			raise Conflict(cur) from e
 		return obj
 
 	@repoerror

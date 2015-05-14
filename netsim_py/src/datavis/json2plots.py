@@ -53,11 +53,16 @@ class ViewsPlotsDecoder:
             logging.root.debug("rel=%s",rel)
 
         # vsam: there was a problem with the x and y arguments
-        def procxy(val):
-            if val is None: return None
-            zoot = [x.strip() for x in val.split(',') ]
-            ret = tuple(rel.col[x] for x in zoot)
-            return ret
+        def axis_spec(val):
+            if isinstance(val, tuple) or val is None: 
+                return val
+            elif isinstance(val, list):
+                return tuple(val)
+            elif isinstance(val,str):
+                zoot = [x.strip() for x in val.split(',') ]
+                ret = tuple(rel.col[x] for x in zoot)
+                return ret
+            assert False # What is this?
 
         print("d=",d)
 
@@ -65,8 +70,8 @@ class ViewsPlotsDecoder:
             d["model_type"],
             d["stat_type"],
             rel,
-            procxy( d["x"] if "x" in d else None ),
-            procxy( d["y"] ),
+            axis_spec( d["x"] if "x" in d else None ),
+            axis_spec( d["y"] ),
             ViewsPlotsDecoder.get_attr("axes", d),
             sel,
             ViewsPlotsDecoder.get_attr("title", d),

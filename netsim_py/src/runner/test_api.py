@@ -102,11 +102,11 @@ def test_update(repo, foo_dao):
 	oid = obj['_id']
 	obj['value'] = 2
 	obj2 = foo_dao.update(oid, obj)
-	print(obj2)
+	print("send=",obj,"receive=",obj2)
 
 	# Check for conflict
 	with pytest.raises(api.Conflict):
-		foo_dao.update(oid, obj)
+		obj2 = foo_dao.update(oid, obj)
 
 	del obj['_rev']
 	with pytest.raises(api.Conflict):
