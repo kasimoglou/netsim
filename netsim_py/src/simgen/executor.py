@@ -222,13 +222,13 @@ class LocalExecutor(Executor):
         # Create the Makefile by executing opp_makemake 
         #
         args = self.make_opp_makemake_args(fileloc)
-        execute_command(fileloc, args, "process", redirect)
+        execute_command(fileloc, args, "process.txt", redirect)
 
         #
         # Build the simulation executable 
         #
         args = ["/usr/bin/make"]
-        execute_command(fileloc, args, "compile", redirect)
+        execute_command(fileloc, args, "compile.txt", redirect)
     
     
     
@@ -244,7 +244,7 @@ class LocalExecutor(Executor):
         #
         prog = os.path.join(fileloc , self.SIMEXEC)
         args = [prog, '--cmdenv-output-file=simout.txt']
-        execute_command(fileloc, args, "exec", redirect)
+        execute_command(fileloc, args, "exec.txt", redirect)
     
     
     #-----------------------------------------------------

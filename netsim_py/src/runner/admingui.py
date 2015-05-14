@@ -21,7 +21,7 @@ import bottle
 import os.path
 import urllib.request 
 import pycouchdb
-
+import json
 
 from bottle import run, route, view, static_file, post, \
 					request, HTTPError, redirect, abort
@@ -172,6 +172,14 @@ def view_simhome(xtor, name):
 			elif any(f.endswith(s) 
 				for s in ('.jpg', '.png')):
 				viewer_type='image'
+			elif f.endswith('.json'):
+				viewer_type = 'text'
+				with open(fpath, 'r') as fs:
+					unformatted=fs.read()
+					try:
+						viewer_content = json.dumps(json.loads(unformatted), indent=4, sort_keys=True)
+					except:
+						viewer_content = unformatted
 			else:
 				viewer_type='binary'
 	files.sort()
