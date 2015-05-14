@@ -15,7 +15,7 @@
                             <div class="form-group">
                                 <label for="pname" class="control-label">Filter by project:</label>
                                 <select class="form-control" id="pname"
-                                        ng-options="project.id as project.id for project in projects"
+                                        ng-options="project.id as project.name for project in projects"
                                         ng-model="filters.project_id"
                                         ng-change="filterVectorLs()">
                                     <option value="">-- select project --</option>
@@ -40,7 +40,7 @@
                                     <tr class="cursor-pointer" ng-repeat="vectorl in shown_vectorls"
                                         ng-click="go(vectorl._id)">
                                         <td>[[vectorl.name]]</td>
-                                        <td>[[vectorl.project_id]]</td>
+                                        <td>[[vectorl.project_name]]</td>
                                         <td>
                                             <a class="btn listing-delete-btn" 
                                                ng-click="confirmDeleteVectorl(vectorl._id, vectorl.name);$event.stopPropagation()">

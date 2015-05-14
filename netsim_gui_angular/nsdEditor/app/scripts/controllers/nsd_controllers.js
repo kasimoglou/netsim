@@ -72,6 +72,7 @@ define(['underscore',
             API.nsdRead($routeParams.id)
                     .success(function(response) {
                         $scope.nsd = response;
+                        $scope.getProjectName($scope.nsd.project_id);
                         $scope.initializeParameters($scope.nsd);
                         $scope.initializeEnvironment($scope.nsd);
                         $scope.initializeOutput($scope.nsd);
@@ -82,6 +83,18 @@ define(['underscore',
                     .error(function() {
                         console.log('Error loading nsd.');
                         alert('Error loading nsd.');
+            });
+        };
+        
+        $scope.getProjectName = function(project_id) {
+            API.projectsRead()
+                    .success(function(response) {
+                        var project = _.findWhere(response.results, {id: project_id});
+                        $scope.temp.project_name = project.name;
+            })
+                    .error(function() {
+                        console.log('Error reading project name');
+                        alert('Error reading project name.');
             });
         };
 
@@ -706,17 +719,26 @@ define(['underscore',
             API.projectsRead()
                     .success(function(response) {
                         $scope.projects = response.results;
+                        $scope.readNsds();
             })
                     .error(function() {
                         console.log('Error during fetching projects from repository.');
                         alert('Error during fetching projects from repository.');
             });
         };
+        
+        $scope.getProjectName = function(project_id) {
+            var project = _.findWhere($scope.projects, {id: project_id});
+            return project.name;
+        };
 
         $scope.readNsds = function() {
             API.nsdsRead()
                     .success(function(response) {
                         $scope.nsds = response.results;
+                        _.each($scope.nsds, function(nsd) {
+                            nsd.project_name = $scope.getProjectName(nsd.project_id);
+                        });
                         $scope.shown_nsds = $scope.nsds;
             })
                     .error(function() {
@@ -774,7 +796,6 @@ define(['underscore',
             $location.path('/nsd/' + nsd_id);
         };
 
-        $scope.readNsds();
         $scope.fetchProjects();
     }]);
 
