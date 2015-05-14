@@ -50,6 +50,10 @@ def process_api_error(ex):
 		logging.debug("In process_api_error: http code unknown, ex.cls = %s", ex.__class__, exc_info=1)
 		json_abort(500, 'An unexpected error occurred.',
 			'An unanticipated error occurred. This is a bug in the server.')
+	elif isinstance(ex, api.Conflict):
+		response.status = 409
+		response.json = ex.current_object
+		return ex.current_object
 	else:
 		msg = bottle.HTTP_CODES[code]
 		details = ' '.join(ex.args)
@@ -177,7 +181,10 @@ class RestApi:
 			response.status = 201   # Created
 			return self.dao.create(obj)
 		except Exception as e:
-			process_api_error(e)
+			try:
+				return process_api_error(e)
+			except Exception as ne:
+				process_api_error(e)
 
 	def PUT(self, oid):
 		try:
@@ -189,7 +196,7 @@ class RestApi:
 		try:
 			return self.dao.update(oid, obj)
 		except Exception as e:
-			process_api_error(e)
+			return process_api_error(e)
 
 	def DELETE(self, oid):
 		try:
