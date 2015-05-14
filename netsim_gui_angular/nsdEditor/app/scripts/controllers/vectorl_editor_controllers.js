@@ -44,6 +44,7 @@ define(['angular',
         function($scope, $routeParams, API, $timeout) {
 
         $scope.vectorl = {};
+        $scope.temp = {};
 
         $scope.alerts = {
             save_success: false
@@ -53,10 +54,23 @@ define(['angular',
             API.vectorlRead($routeParams.id)
                     .success(function(response) {
                         $scope.vectorl = response;
+                        $scope.getProjectName($scope.vectorl.project_id);
             })
                     .error(function() {
                         console.log('Error reading vectorl file.');
                         alert('Error reading vectorl file.');
+            });
+        };
+        
+        $scope.getProjectName = function(project_id) {
+            API.projectsRead()
+                    .success(function(response) {
+                        var project = _.findWhere(response.results, {id: project_id});
+                        $scope.temp.project_name = project.name;
+            })
+                    .error(function() {
+                        console.log('Error reading project name');
+                        alert('Error reading project name.');
             });
         };
 
@@ -102,17 +116,26 @@ define(['angular',
             API.projectsRead()
                     .success(function(response) {
                         $scope.projects = response.results;
+                        $scope.readVectorls();
             })
                     .error(function() {
                         console.log('Error during fetching projects from repository.');
                         alert('Error during fetching projects from repository.');
             });
         };
+        
+        $scope.getProjectName = function(project_id) {
+            var project = _.findWhere($scope.projects, {id: project_id});
+            return project.name;
+        };
 
         $scope.readVectorls = function() {
             API.vectorlsRead()
                     .success(function(response) {
                         $scope.vectorls = response.results;
+                        _.each($scope.vectorls, function(vectorl) {
+                            vectorl.project_name = $scope.getProjectName(vectorl.project_id);
+                        });
                         $scope.shown_vectorls = $scope.vectorls;
             })
                     .error(function() {
@@ -170,7 +193,6 @@ define(['angular',
             $location.path('/vectorl/' + vectorl_id);
         };
 
-        $scope.readVectorls();
         $scope.fetchProjects();
     }]);
 
