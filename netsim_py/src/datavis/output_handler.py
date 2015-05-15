@@ -18,34 +18,56 @@ from simgen.datastore import context
 class SimOutputHandler:
     def __init__(self):
         self.status = 'FINISHED'
+        
 
-    def finish_job(self):
+    def finish_job(self,results_json):
         try:
             if (self.status == 'ABORTED'):
-                self.create_SIMOUTPUT([], [], [], [], [])
+                self.create_null_SIMOUTPUT()
             else:
-                self.create_SIMOUTPUT(node_plot_results_default, node_parameter_results_default,
-                                      network_plot_results_default, network_parameter_results_default,
-                                      node_2_node_results_default)
+                self.create_SIMOUTPUT(results_json)
         except:
             logging.exception("Cannot create json file")
+
+	
+
+	#
+	#Creates the SIMOUTPUT json file in case where ABORTED
+	#    
+    def create_null_SIMOUTPUT(self):
+        data = context.datastore.get_root_object()
+        try:
+            data["simulation_status"] = self.status
+            data["node_plot_results"] = []
+            data["node_parameter_results"] = []
+            data["network_plot_results"] = []
+            data["network_parameter_results"] = []
+            data["node_2_node_results"] = []
+            data["type"] = "simoutput"
+
+            #Write json data to SIMOUTPUTx
+            logging.info("Data = %s", data)
+            context.datastore.put_root_object(data)
+
+        except:
+            logging.exception("Wrong json content")
+
 
     #
     #Creates the SIMOUTPUT json file and stores
     #all the simulation results
     #
-    def create_SIMOUTPUT(self, node_plot_results, node_parameter_results, network_plot_results,
-                         network_parameter_results, node_2_node_results):
+    def create_SIMOUTPUT(self, results_json):
 
         data = context.datastore.get_root_object()
 
         try:
             data["simulation_status"] = self.status
-            data["node_plot_results"] = node_plot_results
-            data["node_parameter_results"] = node_parameter_results
-            data["network_plot_results"] = network_plot_results
-            data["network_parameter_results"] = network_parameter_results
-            data["node_2_node_results"] = node_2_node_results
+            data["node_plot_results"] = results_json['node_plot_results']
+            data["node_parameter_results"] = results_json['node_parameter_results']
+            data["network_plot_results"] = results_json['network_plot_results']
+            data["network_parameter_results"] = results_json['network_parameter_results']
+            data["node_2_node_results"] = results_json['node_2_node_results']
             data["type"] = "simoutput"
 
             #Write json data to SIMOUTPUTx
@@ -99,13 +121,17 @@ def generate(fileloc):
 
     logging.root.debug("The nsd is:\n%s", json.dumps(json.loads(json_str), indent=4))
 
-    derived_tables, plot_models = vpd.decode(json.loads(json_str)["views"])
+    nsd = json.loads(json_str)
+    if "views" not in nsd:
+        nsd["views"] = []
+    derived_tables, plot_models = vpd.decode(nsd["views"])
 
     results_json = create_simulation_results(simulation_id, plot_models, castalia_data)
     results_json_string = json.dumps(results_json, default=lambda o: o.__dict__, indent=2)
+    logging.root.debug("Results in json are:\n%s", json.dumps(json.loads(results_json_string), indent=2))
     with open(fileloc + "/results.json", "w") as f:
         print(results_json_string, file=f)
 
     simoutput_handler = SimOutputHandler()
-    simoutput_handler.finish_job()
+    simoutput_handler.finish_job(results_json)
         

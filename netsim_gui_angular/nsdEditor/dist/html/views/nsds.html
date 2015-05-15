@@ -14,7 +14,7 @@
                             <div class="form-group">
                                 <label for="pname" class="control-label">Filter by project:</label>
                                 <select class="form-control" id="pname"
-                                        ng-options="project.id as project.id for project in projects"
+                                        ng-options="project.id as project.name for project in projects"
                                         ng-model="filters.project_id"
                                         ng-change="filterNsds()">
                                     <option value="">-- select project --</option>
@@ -40,7 +40,7 @@
                                     <tr class="cursor-pointer" ng-repeat="nsd in shown_nsds"
                                         ng-click="go(nsd._id)">
                                         <td>[[nsd.name]]</td>
-                                        <td>[[nsd.project_id]]</td>
+                                        <td>[[nsd.project_name]]</td>
                                         <td>[[nsd.plan_id]]</td>
                                         <td>
                                             <a class="btn listing-delete-btn" 

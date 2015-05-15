@@ -9,14 +9,15 @@ define(['underscore',
 
     // New nsd form Controller
     nsdControllers.controller('newNsdFormController',
-        ['$scope', '$location', '$validator', 'API', function($scope, $location, $validator, API) {
+        ['$scope', '$location', '$validator', '$window', 'API', 
+        function($scope, $location, $validator, $window, API) {
                 
         $scope.nsd = {
             name: '',
-            project_id: ''
+            project_id: $location.search().project_id || ''
         };
         $scope.projects = [];
-
+        
         // This method calls `projectRead` api call and fetches all
         // projects created by user.
         $scope.fetchProjects = function() {
@@ -36,9 +37,12 @@ define(['underscore',
         // 
         $scope.createNsd = function() {
             $validator.validate($scope, 'nsd').success(function() {
+                if ($location.search().plan_id) {
+                    $scope.nsd.plan_id = $location.search().plan_id;
+                }
                 API.nsdCreate($scope.nsd)
                         .success(function(response) {
-                            $location.path('/nsd/' + response._id);
+                            $window.location.href = '#!/nsd/' + response._id;
                 })
                         .error(function() {
                            console.log('Error creating nsd.');
@@ -72,6 +76,7 @@ define(['underscore',
             API.nsdRead($routeParams.id)
                     .success(function(response) {
                         $scope.nsd = response;
+                        $scope.getProjectName($scope.nsd.project_id);
                         $scope.initializeParameters($scope.nsd);
                         $scope.initializeEnvironment($scope.nsd);
                         $scope.initializeOutput($scope.nsd);
@@ -82,6 +87,18 @@ define(['underscore',
                     .error(function() {
                         console.log('Error loading nsd.');
                         alert('Error loading nsd.');
+            });
+        };
+        
+        $scope.getProjectName = function(project_id) {
+            API.projectsRead()
+                    .success(function(response) {
+                        var project = _.findWhere(response.results, {id: project_id});
+                        $scope.temp.project_name = project.name;
+            })
+                    .error(function() {
+                        console.log('Error reading project name');
+                        alert('Error reading project name.');
             });
         };
 
@@ -706,17 +723,26 @@ define(['underscore',
             API.projectsRead()
                     .success(function(response) {
                         $scope.projects = response.results;
+                        $scope.readNsds();
             })
                     .error(function() {
                         console.log('Error during fetching projects from repository.');
                         alert('Error during fetching projects from repository.');
             });
         };
+        
+        $scope.getProjectName = function(project_id) {
+            var project = _.findWhere($scope.projects, {id: project_id});
+            return project.name;
+        };
 
         $scope.readNsds = function() {
             API.nsdsRead()
                     .success(function(response) {
                         $scope.nsds = response.results;
+                        _.each($scope.nsds, function(nsd) {
+                            nsd.project_name = $scope.getProjectName(nsd.project_id);
+                        });
                         $scope.shown_nsds = $scope.nsds;
             })
                     .error(function() {
@@ -774,7 +800,6 @@ define(['underscore',
             $location.path('/nsd/' + nsd_id);
         };
 
-        $scope.readNsds();
         $scope.fetchProjects();
     }]);
 

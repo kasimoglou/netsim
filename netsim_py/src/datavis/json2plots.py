@@ -8,6 +8,7 @@ from models.nsdplot import PlotModel, DATA_TABLE, DerivedTable, Table,  Column, 
     PLUS, MINUS, DIV, MULT
 from datavis.database import less_equal, less_than, greater_than, greater_equal, not_equal, like, not_like, between
 from datavis.create_plot import pm_defaults
+import json
 import re
 
 
@@ -21,12 +22,35 @@ class ViewsPlotsDecoder:
         self.plot_models = []
 
     @staticmethod
-    def get_attr(attr, d):
+    def xy_to_valid_col_tuple(xy, rel):
+        """
+        gets a x or y in the form of
+        (node, n_index) or [node, n_index] or "node, n_index" (node, n_index are just example names)
+        returns a tuple with objects of type Column according to names in xy
+        """
+        assert rel is not None
+        if isinstance(xy, tuple) or xy is None:
+            return tuple(rel.col[c] for c in xy)
+        elif isinstance(xy, list):
+            return tuple(rel.col[c] for c in xy)
+        elif isinstance(xy, str):
+            zoot = [c.strip() for c in xy.split(',')]
+            return tuple(rel.col[c] for c in zoot)
+        assert False  # What is this?
+
+    @staticmethod
+    def get_attr(attr, d, rel=None):
         """
         helper function to return the needed argument from dictionary d if it exists or get a default value for it
+        rel is needed only for "x" and "y". It is the Table that columns in x and y belong
         """
         if attr in d and d[attr] != "":
-            return d[attr]
+            if attr in ["x", "y"]:
+                xy = d[attr]
+                if xy is None: return None
+                return ViewsPlotsDecoder.xy_to_valid_col_tuple(xy, rel)
+            else:
+                return d[attr]
         elif attr in pm_defaults:
             return pm_defaults[attr]
         else:
@@ -41,37 +65,21 @@ class ViewsPlotsDecoder:
         """
         sel = ViewsPlotsDecoder.get_attr("select", d)
         if sel != pm_defaults["select"]:
-            # vsam: added a conversion to dict, as needed
             if isinstance(sel, str):
-                import json
                 sdict = json.loads(sel)
                 logging.root.debug("sdict = %s", sdict)
                 sel = sdict
             sel = SelectorParser().parse(sel)
 
             logging.root.debug("d[x]= %s", d['x'])
-            logging.root.debug("rel=%s",rel)
-
-        # vsam: there was a problem with the x and y arguments
-        def axis_spec(val):
-            if isinstance(val, tuple) or val is None: 
-                return val
-            elif isinstance(val, list):
-                return tuple(val)
-            elif isinstance(val,str):
-                zoot = [x.strip() for x in val.split(',') ]
-                ret = tuple(rel.col[x] for x in zoot)
-                return ret
-            assert False # What is this?
-
-        print("d=",d)
+            logging.root.debug("rel=%s", rel)
 
         pm = PlotModel(
             d["model_type"],
             d["stat_type"],
             rel,
-            axis_spec( d["x"] if "x" in d else None ),
-            axis_spec( d["y"] ),
+            ViewsPlotsDecoder.get_attr("x", d, rel),
+            ViewsPlotsDecoder.get_attr("y", d, rel),
             ViewsPlotsDecoder.get_attr("axes", d),
             sel,
             ViewsPlotsDecoder.get_attr("title", d),
@@ -138,14 +146,15 @@ class ViewsPlotsDecoder:
     def decode(self, views):
         """
         Decodes views and plots in json format to DerivedTable and PlotModel respectively
-        returns a tuple of lists (list_DerivedTalbe, list_plotModel)
+        returns a tuple of lists (list_DerivedTable, list_plotModel)
         """
         for v in views:
             if v["name"] == "dataTable":
                 rel = DATA_TABLE
             else:
                 rel = self.gen_derived_table(v)
-            self.gen_plots(rel, v["plots"])
+            if "plots" in v:
+                self.gen_plots(rel, v["plots"])
 
         return self.derived_tables, self.plot_models
 
@@ -355,8 +364,8 @@ class SelectorParser():
     }
 
     def parse(self, selector_dict):
-        logging.root.debug("Selector is %s",selector_dict)
-        logging.root.debug("Selector is %s",type(selector_dict))
+        logging.root.debug("Selector is %s", selector_dict)
+        logging.root.debug("Selector is %s", type(selector_dict))
         assert isinstance(selector_dict, dict)
         for attr in selector_dict:
             sel_str = selector_dict[attr]

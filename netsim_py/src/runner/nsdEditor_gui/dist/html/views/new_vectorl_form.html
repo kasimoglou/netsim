@@ -17,7 +17,7 @@
                     <div class="form-group">
                         <label for="pname" class="control-label">Project:</label>
                         <select class="form-control" id="pname"
-                                ng-options="project.id as project.id for project in projects"
+                                ng-options="project.id as project.name for project in projects"
                                 ng-model="vectorl.project_id" validator="[required]">
                             <option value="">-- select project --</option>
                         </select>

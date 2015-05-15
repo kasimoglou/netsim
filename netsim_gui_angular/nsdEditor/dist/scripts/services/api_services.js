@@ -41,7 +41,7 @@ define(['underscore', 'angular'], function(_) {
 
             return httpPromise(config);
         }
-
+        
         // Creates a new nsd
         function apiNsdCreate(nsd) {
             var config = {
