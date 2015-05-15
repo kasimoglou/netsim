@@ -85,7 +85,7 @@ class JsonOutput:
         return json.dumps(self, default=lambda o: o.__dict__, indent=2)
 
     def get_json(self):
-        return self.__dict__
+        return json.loads(self.get_json_string())
 
 
 class NodePlotResults_node:
