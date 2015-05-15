@@ -109,10 +109,9 @@ def DELETE_simulation(simid):
 		process_api_error(e)	
 
 
-'''
 # This is the old code, which has been superceded by the new,
 # model-based API. To be removed eventually.
-
+'''
 @app.get('/projects')
 def GET_projects():
 	try:
@@ -120,8 +119,9 @@ def GET_projects():
 	except:
 		logging.exception('in getting projects from the PR')
 		json_abort(500, "Cannot get projects from the Project Repository")
-			
-					
+'''
+
+'''			
 @app.get('/project/<prjid>/plans')
 def get_plans(prjid):
 		try:
@@ -131,14 +131,22 @@ def get_plans(prjid):
 			json_abort(500, "Cannot get project plans from the Project Repository")
 '''
 
+#
+# New code
+
 
 @app.get('/projects')
 def GET_projects():
 	try:
-		return { 'results': list(api.project_dao.findAll()) }
+		# A small bug: add the 'id' field to be a copy of '_id', to simulate old behaviour
+		projects = list(api.project_dao.findAll())
+		for p in projects:
+			p['id'] = p['_id']
+		return { 'results': projects }
 	except:
 		logging.exception('in getting projects from the PR')
 		json_abort(500, "Cannot get projects from the Project Repository")
+
 			
 					
 @app.get('/project/<prjid>/plans')
