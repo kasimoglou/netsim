@@ -153,7 +153,8 @@ class ViewsPlotsDecoder:
                 rel = DATA_TABLE
             else:
                 rel = self.gen_derived_table(v)
-            self.gen_plots(rel, v["plots"])
+            if "plots" in v:
+                self.gen_plots(rel, v["plots"])
 
         return self.derived_tables, self.plot_models
 
