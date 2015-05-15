@@ -12,7 +12,6 @@ from models.nsd import NSD, Network, Mote, MoteType, Position, RFsimulation, PRN
 from models.mf import Attribute
 from simgen.utils import docstring_template
 from .castaliagen import generate_castalia
-#from simgen.test_jsondata import test_read_plan, test_motedata
 import pdb
 
 

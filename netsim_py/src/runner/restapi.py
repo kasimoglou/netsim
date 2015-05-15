@@ -109,6 +109,7 @@ def DELETE_simulation(simid):
 		process_api_error(e)	
 
 
+
 # This is the old code, which has been superceded by the new,
 # model-based API. To be removed eventually.
 '''

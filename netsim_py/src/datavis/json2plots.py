@@ -63,16 +63,10 @@ class ViewsPlotsDecoder:
         (the dictionary should represent only one PlotModel)
         returns the PlotModel
         """
+
         sel = ViewsPlotsDecoder.get_attr("select", d)
         if sel != pm_defaults["select"]:
-            if isinstance(sel, str):
-                sdict = json.loads(sel)
-                logging.root.debug("sdict = %s", sdict)
-                sel = sdict
-            sel = SelectorParser().parse(sel)
-
-            logging.root.debug("d[x]= %s", d['x'])
-            logging.root.debug("rel=%s", rel)
+            sel = SelectorParser.parse(sel,rel)
 
         pm = PlotModel(
             d["model_type"],
@@ -363,12 +357,14 @@ class SelectorParser():
         "between": between
     }
 
-    def parse(self, selector_dict):
-        logging.root.debug("Selector is %s", selector_dict)
-        logging.root.debug("Selector is %s", type(selector_dict))
-        assert isinstance(selector_dict, dict)
-        for attr in selector_dict:
-            sel_str = selector_dict[attr]
-            selector_dict[attr] = eval(sel_str, self.allowed_funcs)
-        return selector_dict
+    @staticmethod
+    def parse(selector_text, rel):
+        assert isinstance(selector_text, str)
+        assert isinstance(rel, Table)
+        namespace = dict(SelectorParser.allowed_funcs)
+        for col in rel.columns:
+            assert col.name not in namespace
+            namespace[col.name] = col.name
+        selector = eval("{"+selector_text+"}", namespace)
+        return selector
 

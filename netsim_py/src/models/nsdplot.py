@@ -48,13 +48,16 @@ class Table:
         self.name = name
         self.columns = columns
         # just for easy access to columns by name
-        self.col = {self.columns[i].name: self.columns[i] for i in list(range(len(self.columns)))}
+        #self.col = {self.columns[i].name: self.columns[i] for i in list(range(len(self.columns)))}
+        self.col = {col.name:col for col in self.columns}
 
     # the name for this table
     name = attr(str, nullable=False)
 
     # the columns contained in this table
     columns = ref_list(inv=Column.table)
+
+
 
 
 @model
