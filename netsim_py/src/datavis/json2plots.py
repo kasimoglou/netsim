@@ -357,14 +357,63 @@ class SelectorParser():
         "between": between
     }
 
+
+    #
+    # We need to avoid code insertion!
+    #
+    @staticmethod
+    def collect_names(t):
+        return [node.id for node in ast.walk(t) if isinstance(node,ast.Name)]
+
+    @staticmethod
+    def validate(selector_text, names):
+        def check(v):
+            if not v:
+                raise RuntimeError()
+
+        t = ast.parse("{"+selector_text+"}", mode='eval')
+
+        # check that we have a dict definition
+        check(isinstance(t, ast.Expression))
+        check(isinstance(t.body, ast.Dict))
+
+        # check that the lhs of the dict are all just names
+        for node in t.body.keys:
+            check(isinstance(node, ast.Name))
+            check(node.id in names)
+
+        # check that the rhs only contains names from the allowed funcs
+        allowed = SelectorParser.allowed_funcs.keys()
+        for node in t.body.values:
+            for name in SelectorParser.collect_names(node):
+                check(name in allowed)
+
+    # This is not real protection from code injection, but it is better than nothing
+    class StrictDict:
+        def __init__(self, symbols):
+            self.symbols = symbols
+        def __getitem__(self, name):
+            if name not in self.symbols:
+                raise RuntimeError("bad name")
+            return self.symbols[name]
+        def __contains__(self, name):
+            return True
+
+
     @staticmethod
     def parse(selector_text, rel):
         assert isinstance(selector_text, str)
         assert isinstance(rel, Table)
+
+        colnames = {col.name for col in rel.columns}
         namespace = dict(SelectorParser.allowed_funcs)
-        for col in rel.columns:
-            assert col.name not in namespace
-            namespace[col.name] = col.name
-        selector = eval("{"+selector_text+"}", namespace)
+
+        try:
+            SelectorParser.validate(selector_text, colnames)
+            namespace.update({name:name for name in colnames})
+            selector = eval("{"+selector_text+"}", {}, SelectorParser.StrictDict(namespace))
+        except Exception as e:
+            print(e)
+            raise ValueError("The selector {%s} is malformed" % selector_text)
         return selector
 

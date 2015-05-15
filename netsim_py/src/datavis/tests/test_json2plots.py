@@ -128,17 +128,20 @@ def test_selector_parser():
 def test_selector_empty():
     assert SelectorParser.parse("", table)=={}
 def test_selector_bad_function():
-    with pytest.raises(NameError):
+    with pytest.raises(ValueError):
         SelectorParser.parse("a: foo(2)", table)
 def test_selector_bad_name():
-    with pytest.raises(NameError):
+    with pytest.raises(ValueError):
         SelectorParser.parse("aa: 2", table)
 def test_selector_expression():
     sel = SelectorParser.parse("a: 3*5",table)
     assert sel['a']==15
 def test_selector_expression2():
-    sel = SelectorParser.parse("a: less_than(b)",table)
-    assert sel['a']('a') == "a < 'b'"
+    with pytest.raises(ValueError):
+        SelectorParser.parse("a: less_than(b)",table)
+def test_selector_builtin():
+    with pytest.raises(ValueError):
+        SelectorParser.parse("a: eval('2')",table)
 
 
 def test_plot_creation_through_nsd_read(tmp_dir):
