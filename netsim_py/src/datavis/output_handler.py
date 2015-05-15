@@ -133,5 +133,5 @@ def generate(fileloc):
         print(results_json_string, file=f)
 
     simoutput_handler = SimOutputHandler()
-    simoutput_handler.finish_job(results_json_string)
+    simoutput_handler.finish_job(results_json)
         
