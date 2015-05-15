@@ -25,6 +25,10 @@ required = annotation_class('required',())()
 # mapped in json, it is left alone!
 ignore = annotation_class('ignore', ())()
 
+# Declare a function transforming the json value to 
+# a model value
+json_filter = annotation_class('json_filter',('function',))
+
 
 #
 # relationship annotation
@@ -103,12 +107,16 @@ class JSONReader:
         """
         assert isinstance(attr, Attribute)
         
-        if isinstance(value, attr.type):
-            return value 
-        if attr.nullable and value is None:
-            return value
-        
         try:
+            if json_filter.has(attr):
+                return json_filter.get(attr).function(value)
+
+            if isinstance(value, attr.type):
+                return value 
+
+            if attr.nullable and value is None:
+                return value
+        
             # try a default python conversion
             tval = attr.type(value)
             return tval

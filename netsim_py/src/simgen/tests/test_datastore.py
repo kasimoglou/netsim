@@ -15,7 +15,7 @@ from simgen.datastore import create_datastore_proxy
 from os.path import join, normpath
 from tempfile import mkdtemp
 from simgen.utils import put_file
-
+from simgen.tests.filestore import FileStore
 
 #
 #  Testing FileStore

@@ -94,18 +94,35 @@ class ApiEntity(Entity):
 	dao_name = attr(str, nullable=True)
 	CheckedConstraint(LEGAL_IDENTIFIER)(dao_name)
 
-	def __init__(self, name, db, **kwargs):
+	# operations supported
+	read = attr(bool, nullable=False, default=True)
+	create = attr(bool, nullable=False, default=True)
+	update = attr(bool, nullable=False, default=True)
+	delete = attr(bool, nullable=False, default=True)
+
+	def __init__(self, name, db, read_only=False, **kwargs):
 		super().__init__(name, db)
 		self.dao_name = kwargs.get('dao_name', "%s_dao" % name)
 
+		if read_only:
+			self.create = self.update = self.delete = False
 
 # A partial model of the project repository
 
-DB_PT = Database('dpcm_pt_repository')
+DB_PT = Database('dpcm_integration_repo')
 DB_SIM = Database('dpcm_simulator')
 
-PROJECT = Entity('project', DB_PT)
-PLAN = Entity('plan', DB_PT)
+USER = ApiEntity('user', DB_PT, read_only=True)
+USER.add_field('userName')
+USER.add_field('userPass')
+
+PROJECT = ApiEntity('project', DB_PT, read_only=True)
+PROJECT.add_field('name')
+PROJECT.add_field('plans')
+PROJECT.add_foreign_key('userId', USER)
+
+PLAN = ApiEntity('plan', DB_PT, read_only=True)
+PLAN.add_field('name')
 
 NSD = ApiEntity('nsd', DB_SIM)
 NSD.add_foreign_key('project_id', PROJECT)
@@ -120,7 +137,7 @@ SIM = Entity('simoutput', DB_SIM)
 SIM.add_foreign_key('nsdid', NSD)
 
 DATABASES = [ DB_PT, DB_SIM ]
-ENTITIES = [ PROJECT, PLAN, NSD, VECTORL, SIM ]
+ENTITIES = [ USER, PROJECT, PLAN, NSD, VECTORL, SIM ]
 
 
 #
@@ -134,6 +151,8 @@ ENTITIES = [ PROJECT, PLAN, NSD, VECTORL, SIM ]
 class CouchDesign(Named):
 	'''
 	A CouchEntityModel is a couchdb design document for an entity.
+
+
 	'''
 
 	# The entity this model is about
@@ -146,9 +165,16 @@ class CouchDesign(Named):
 	def id(self):
 		return "_design/"+self.name
 
-	def __init__(self, entity):
+	def __init__(self, entity, domain = ''):
+		'''
+		Create the design document.
+
+		The name of the document is '%s%s_model' %(domain, entity.name).
+		Use domain to avoid collisions.
+		'''
+
 		self.entity = entity
-		super().__init__("%s_model" % entity.name)
+		super().__init__("%s%s_model" % (domain,entity.name))
 
 		self.views.add(CouchView('all', entity.idfield))
 
@@ -173,6 +199,7 @@ class CouchDesign(Named):
 class CouchView(Named):
 	'''
 	A view in a design document.
+
 	'''
 
 	design = ref(inv=CouchDesign.views)

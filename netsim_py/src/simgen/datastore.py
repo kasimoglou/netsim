@@ -9,7 +9,7 @@ Created on Sep 24, 2014
 '''
 
 
-import os.path, json
+import os.path, json, logging
 from urllib.parse import urlparse, urlunparse
 from simgen.utils import get_file, put_file, execute_function
 from runner import dpcmrepo, config
@@ -123,12 +123,13 @@ class ProjectRepoStore(DataStore):
         self.simdb = self.repo.SIM
         
         # The simulation id is the last element of the url of the root object
-        self.simid = os.path.basename(self.parsed_root_url.path)
+        self.sim_id = os.path.basename(self.parsed_root_url.path)
+        logging.root.debug("Datastore initialized: %s\n%s", self.parsed_root_url.path, self.sim_id)
 
 
     def get_root_object(self):
         """Read the root object."""
-        return self.simdb.get(self.simid)
+        return self.simdb.get(self.sim_id)
         
     def put_root_object(self, sim):
         """Save the root object sim."""
@@ -137,7 +138,7 @@ class ProjectRepoStore(DataStore):
     def put_attachment(self, data, name, content_type):
         """Add an attachment to root object, under name. 'data' must be either bytes or
         a file-like object."""
-        self.simdb.put_attachment(self.simid, data, name, content_type)
+        self.simdb.put_attachment(self.sim_id, data, name, content_type)
 
     def get_attachment(self, docid, filename):
         """GET an attachment from root object, fiename is the attachment name docid the doc attached to"""
@@ -209,6 +210,7 @@ class Context:
         self.fileloc = os.getcwd()        
         self.sim_url = get_root_url(self.fileloc)
         self.__datastore = None
+        self.__sim_id = None
 
     def finalize(self):
         """Called to clean up the context, before the subprocess ends."""
@@ -221,7 +223,9 @@ class Context:
             self.__datastore = create_datastore_proxy(self.sim_url)
         return self.__datastore
 
-
+    @property
+    def sim_id(self):
+        return self.datastore.sim_id
 
 #
 # The context global var

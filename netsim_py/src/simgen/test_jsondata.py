@@ -6,9 +6,15 @@ from models.mf import Attribute
 from simgen.utils import docstring_template
 from .castaliagen import generate_castalia
 import pdb
+import pytest
+
+#
+# Julie, this is not how to write py.test-3 tests.
+# Please RTFM (or call me).
+#
 
 
-def test_read_plan(datastore, nsd):
+def notest_read_plan(datastore, nsd):
 		planid=nsd.plan_id
 		plan=datastore.get_plan(planid)
 		print("----------------------------------------------------------------------")
@@ -22,7 +28,7 @@ def test_read_plan(datastore, nsd):
 			print("RF_Antenna_conf:", plan['NodePosition'][i]['rfAntennaConf']) 
 			
 
-def test_motedata(mote):
+def notest_motedata(mote):
 	print("MoteID:",mote.node_id)
 	print("Position:",mote.position)
 	print("MoteRole:",mote.moteRole)

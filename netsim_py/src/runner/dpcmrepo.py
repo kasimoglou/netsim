@@ -23,7 +23,7 @@ from pycouchdb.exceptions import Error, UnexpectedError, \
 	FeedReaderExited, ApiError, GenericError, \
 	Conflict, NotFound, BadRequest, AuthenticationFailed
 
-from models.project_repo import ApiEntity
+from models.project_repo import ApiEntity, DATABASES, DB_PT, DB_SIM
 from simgen.utils import docstring_template
 
 
@@ -50,12 +50,12 @@ class ProjectRepository(pycouchdb.Server):
 	@property
 	def PT(self):
 		'''The Planning Tool database'''
-		return self.database('dpcm_pt_repository')
+		return self.database(DB_PT.name)
 
 	@property
 	def SIM(self):
 		'''The NetSim database'''
-		return self.database('dpcm_simulator')
+		return self.database(DB_SIM.name)
 
 
 	def update_simulation(self, simid, **kwargs):
