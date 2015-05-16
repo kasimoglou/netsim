@@ -1,4 +1,4 @@
-import json
+import json, base64
 from pprint import pprint
 import random
 import subprocess, shlex
@@ -70,12 +70,25 @@ class SimOutputHandler:
             data["node_2_node_results"] = results_json['node_2_node_results']
             data["type"] = "simoutput"
 
+            data['_attachments'] = {}
+            self.add_attachments_inline(data, 'network_plot_results')
+
             #Write json data to SIMOUTPUTx
             logging.info("Data = %s", data)
             context.datastore.put_root_object(data)
 
         except:
             logging.exception("Wrong json content")
+
+    def add_attachments_inline(self, obj, field):
+        for fdecl in obj[field]:
+            fname = fdecl['file_id']
+            with open(fname, 'rb') as f:
+                fdata = f.read()
+            obj['_attachments'][fname] = {
+                'content_type': 'image/png',
+                'data': base64.b64encode(fdata).decode('ascii')
+            }
 
     #
     #Update SIMOUTPUT file with couchdb

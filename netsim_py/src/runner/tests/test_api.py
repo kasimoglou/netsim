@@ -252,3 +252,7 @@ def test_primary_key_long(repo, bar_dao):
 	obj = bar_dao.create({'pid': '0123456789012345678901234567890123456789012345678901234567890123456789', 'name': 'foo'})
 	assert obj['_id'].startswith('bar:')
 
+#
+# Test the actual models
+#
+

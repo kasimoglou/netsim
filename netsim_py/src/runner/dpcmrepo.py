@@ -23,7 +23,7 @@ from pycouchdb.exceptions import Error, UnexpectedError, \
 	FeedReaderExited, ApiError, GenericError, \
 	Conflict, NotFound, BadRequest, AuthenticationFailed
 
-from models.project_repo import ApiEntity, DATABASES, DB_PT, DB_SIM
+from models.project_repo import ApiEntity, Entity, DATABASES, DB_PT, DB_SIM, Database
 from simgen.utils import docstring_template
 
 
@@ -56,6 +56,15 @@ class ProjectRepository(pycouchdb.Server):
 	def SIM(self):
 		'''The NetSim database'''
 		return self.database(cfg[DB_SIM.name])
+
+	def db_of(self, model):
+		if isinstance(model, Entity):
+			return self.database(cfg[model.database.name])
+		elif isinstance(model, Database):
+			return self.database(cfg[model.name])
+		else:
+			raise ValueError("Unrecognized type of model")
+
 
 	def update_simulation(self, simid, **kwargs):
 		'''Add fields to a simulation object. 
@@ -101,7 +110,7 @@ class ProjectRepository(pycouchdb.Server):
 		database = functools.lru_cache(10)(self.database)
 
 		for ddoc in MODELS:
-			dbname = ddoc.database.name
+			dbname = cfg[ddoc.database.name]
 			if dbname not in self:
 				self.create(dbname)
 			db = database(dbname)

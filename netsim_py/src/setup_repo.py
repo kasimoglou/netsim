@@ -59,7 +59,7 @@ def view_model(server, model):
 	allView = [v for v in model.views if v.name=='all'][0]
 
 	# read in the data
-	db = server.database(entity.database.name)
+	db = server.database(cfg[entity.database.name])
 	query = db.query(allView.resource)
 
 	data = [] 							# data array
@@ -102,7 +102,7 @@ def main():
 
 	global LOCAL, REMOTE
 
-	#configure('sim_runner')
+	configure('sim_runner')
 	#REMOTE = cfg.project_repository
 
 	parser = argparse.ArgumentParser(description='''
