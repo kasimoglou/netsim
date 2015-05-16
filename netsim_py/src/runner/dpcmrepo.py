@@ -58,6 +58,10 @@ class ProjectRepository(pycouchdb.Server):
 		return self.database(cfg[DB_SIM.name])
 
 	def db_of(self, model):
+		'''
+		This method takes as input a model object defined in models/project_repo.py
+		and returns the right database for it.
+		'''
 		if isinstance(model, Entity):
 			return self.database(cfg[model.database.name])
 		elif isinstance(model, Database):
@@ -101,16 +105,25 @@ class ProjectRepository(pycouchdb.Server):
 		return self.SIM.query("_design/nsdModel/_view/byProjectId")
 
 
-	def create_models(self, MODELS):
+	def create_models(self, MODELS, translate=True):
 		'''
 		Create and upload design documents for the declared views.
+
+		If translate is True (the default), database model names will
+		be translated from the configuration.
+
+		If translate is False (e.g. for testing), database model names
+		will be used as is.
 		'''
 
 		# avoid multiple instantiations of database
 		database = functools.lru_cache(10)(self.database)
 
 		for ddoc in MODELS:
-			dbname = cfg[ddoc.database.name]
+			if translate:
+				dbname = cfg[ddoc.database.name]
+			else:
+				dbname = ddoc.database.name
 			if dbname not in self:
 				self.create(dbname)
 			db = database(dbname)

@@ -7,7 +7,7 @@ from runner import dpcmrepo
 import pytest
 from setup_repo import clone
 from models.project_repo import *
-
+from runner.config import cfg
 
 # Clone a new local repository for running the tests
 @pytest.fixture(scope='module')
@@ -22,7 +22,7 @@ def repo(request):
 		pass
 	return repo
 
-DB_TEMP = Database('temp')
+DB_TEMP = Database('test_database')
 FOO = ApiEntity('foo', DB_TEMP)
 FOO.add_foreign_key('myproject', PROJECT)
 FOO.add_foreign_key('mynsd', NSD)
