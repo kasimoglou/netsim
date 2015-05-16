@@ -29,13 +29,15 @@ _apierror_code_map = {
 }
 
 
-def json_abort(code, msg=None, details=None):
+def json_abort(code, msg=None, details=None, **kwargs):
 	'''Raise an http error with a json response body.'''
 	body = {
 		'status':code, 
 		'message': bottle.HTTP_CODE[code] if msg is None else str(msg),
 		'details': 'No information' if details is None else str(details)
 	}
+	body.update(kwargs)
+	logging.error("json_abort: body=%s\n     kwargs=%s", json.dumps(body, indent=4), str(kwargs))
 	raise bottle.HTTPResponse(status = code, body = json.dumps(body))
 
 
@@ -50,14 +52,10 @@ def process_api_error(ex):
 		logging.debug("In process_api_error: http code unknown, ex.cls = %s", ex.__class__, exc_info=1)
 		json_abort(500, 'An unexpected error occurred.',
 			'An unanticipated error occurred. This is a bug in the server.')
-	elif isinstance(ex, api.Conflict):
-		response.status = 409
-		response.json = ex.current_object
-		return ex.current_object
 	else:
 		msg = bottle.HTTP_CODES[code]
-		details = ' '.join(ex.args)
-		json_abort(code, msg, details)
+		details = ' '.join(str(arg) for arg in ex.args)
+		json_abort(code, msg, details, ** ex.kwargs)
 
 
 
@@ -109,32 +107,10 @@ def DELETE_simulation(simid):
 		process_api_error(e)	
 
 
-
-# This is the old code, which has been superceded by the new,
-# model-based API. To be removed eventually.
-'''
-@app.get('/projects')
-def GET_projects():
-	try:
-		return { 'results': list(api.get_projects()) }
-	except:
-		logging.exception('in getting projects from the PR')
-		json_abort(500, "Cannot get projects from the Project Repository")
-'''
-
-'''			
-@app.get('/project/<prjid>/plans')
-def get_plans(prjid):
-		try:
-			return { 'results': list(api.get_plans(prjid)) }
-		except:
-			logging.exception('in getting projects from the PR')
-			json_abort(500, "Cannot get project plans from the Project Repository")
-'''
-
 #
-# New code
-
+# These endpoints are kept for compatibility with the initial versions of the
+# nsd editor
+#
 
 @app.get('/projects')
 def GET_projects():

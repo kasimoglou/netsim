@@ -47,6 +47,12 @@ class ConfigDict:
         '''
         return self.cfg[self.section][optname]
 
+    def defined(self, optname):
+        try:
+            self.get(optname)
+            return True
+        except KeyError:
+            return False
 
     def __getattr__(self, optname):
         '''Get configuration option as an attribute, by calling self.get().
@@ -87,6 +93,35 @@ def configure(sect, cfgfile=None):
 
     logging.info("Initialize configuration for %s", sect)
     cfg.read(sect, cfgf)
+
+    # check for options
+    fail = False
+    for opt, detail in OPTIONS:
+        if not cfg.defined(opt):
+            logging.critical("Configuration file is missing required option '%s'\n   %s",opt, detail)
+            fail = True
+    if fail:
+        raise RuntimeError("Incomplete configuration")
+
+    for opt, detail in OPTIONS:
+        logging.info("Configuration %25s : %s",opt, cfg[opt])
+
+OPTIONS = [
+    ('planning_tool_database', """The name of the PT database in the project repo."""),
+    ('netsim_database', """The name of the network simulator database in the project repo."""),
+    ('omnetpp_path',"""The path where OmNet++ is installed."""),
+    ('castalia_path', """The path where Castalia is installed."""),
+    ('local_executor_path',"""The path where the local executor stores simulation homes."""),
+    ('postgresql_connection', """The designation of the Postgresql connection, as expected by psycopg2"""),
+    ('gui_bind_addr', """The host address to which the ReSTful services and the gui bind."""),
+    ('gui_bind_port', """The port to which the ReSTful services and the gui bind"""),
+    ('gui_file_path', """Path to the admin gui files."""),
+    ('nsdEdit_file_path', """Path to the NSD editor gui files."""),
+    ('http_server', """The name of http server. Use 'wsgiref' and 'cherrypy' for deployment."""),
+    ('resource_path', """The path to resource files."""),
+    ('project_repository', """The url to the project repository.""")
+]
+
 
 
 # 

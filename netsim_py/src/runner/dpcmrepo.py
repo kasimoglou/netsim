@@ -8,7 +8,7 @@ import functools
 import logging
 import pycouchdb
 import os.path
-from runner.config import project_repository
+from runner.config import project_repository, cfg
 
 # Import pycouchdb exceptions in this namespace.
 # Inheritance tree:
@@ -50,13 +50,12 @@ class ProjectRepository(pycouchdb.Server):
 	@property
 	def PT(self):
 		'''The Planning Tool database'''
-		return self.database(DB_PT.name)
+		return self.database(cfg[DB_PT.name])
 
 	@property
 	def SIM(self):
 		'''The NetSim database'''
-		return self.database(DB_SIM.name)
-
+		return self.database(cfg[DB_SIM.name])
 
 	def update_simulation(self, simid, **kwargs):
 		'''Add fields to a simulation object. 
@@ -102,8 +101,10 @@ class ProjectRepository(pycouchdb.Server):
 		database = functools.lru_cache(10)(self.database)
 
 		for ddoc in MODELS:
-			db = database(ddoc.entity.database.name)
-
+			dbname = ddoc.database.name
+			if dbname not in self:
+				self.create(dbname)
+			db = database(dbname)
 			obj = ddoc.to_object()
 
 			# copy revision to avoid conflict error

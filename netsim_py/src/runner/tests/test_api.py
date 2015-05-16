@@ -9,7 +9,6 @@ from setup_repo import clone
 from models.project_repo import *
 
 
-
 # Clone a new local repository for running the tests
 @pytest.fixture(scope='module')
 def repo(request):
@@ -31,6 +30,13 @@ FOO.add_foreign_key('mysim', SIM)
 
 mFOO = CouchDesign(FOO)
 
+BAR = ApiEntity('bar', DB_TEMP)
+BAR.add_foreign_key('pid', PROJECT)
+BAR.add_field('name')
+BAR.set_primary_key('pid', 'name')
+mBAR = CouchDesign(BAR)
+
+
 # Create a fictitious type 'foo' to test the dao
 @pytest.fixture
 def foo_dao(request, repo):
@@ -40,8 +46,22 @@ def foo_dao(request, repo):
 		repo.delete(DB_TEMP.name)
 		del repo.DB
 	request.addfinalizer(fin)
-	repo.create_models([mFOO])
+	repo.create_models([mFOO,mBAR])
 	return api.RepoDao(mFOO)
+
+
+@pytest.fixture
+def bar_dao(request, repo):
+	# load the view designs in the repo
+	repo.DB = repo.create(DB_TEMP.name)
+	def fin():
+		repo.delete(DB_TEMP.name)
+		del repo.DB
+	request.addfinalizer(fin)
+	repo.create_models([mFOO,mBAR])
+	return api.RepoDao(mBAR)
+
+
 
 def check_create(repo, foo_dao, obj_body):
 	obj = foo_dao.create(obj_body)
@@ -57,12 +77,15 @@ def check_create(repo, foo_dao, obj_body):
 
 def test_crud_create(repo, foo_dao):
 	check_create(repo, foo_dao, {'name':'Vasilis'})
+
 def test_crud_create_empty(repo, foo_dao):
 	check_create(repo, foo_dao, {})
+
 def test_crud_create_big(repo, foo_dao):
 	check_create(repo, foo_dao, 
 		{ ("label%d" % n) : { "value": n*n, "index" : n }  
 		for n in range(10) })
+
 def test_crud_create_given_key(repo, foo_dao):
 	obj = check_create(repo, foo_dao, { '_id': "foo032" })
 	assert obj['_id']=="foo032"
@@ -189,4 +212,43 @@ def test_find(repo, foo_dao, sample):
 	sidx = [i for i in range(20) if i%3==0 and i%2==0]
 	assert len(s) == len(sidx)
 	assert all(obj['index'] in sidx for obj in s)
+
+def test_dao(bar_dao):
+	assert bar_dao.model.entity is BAR
+	assert bar_dao.entity is BAR
+	assert bar_dao.entity.primary_key
+
+def test_primary_key(repo, bar_dao):
+	obj = bar_dao.create({'pid': '001', 'name': 'foo'})
+	assert obj['_id']=="bar:001:foo"
+
+	with pytest.raises(api.Conflict) as e:
+		bar_dao.create({'pid':'001', 'name':'foo'})
+
+	with pytest.raises(api.BadRequest) as e:
+		bar_dao.create({'name':'bar'})
+
+	bar_dao.delete(obj['_id'])
+	obj = bar_dao.create({'pid': '001', 'name': 'foo'})
+	assert obj['_id']=="bar:001:foo"
+
+def test_primary_key_no_update(repo, bar_dao):
+	obj = bar_dao.create({'pid': '001', 'name': 'foo'})
+	assert obj['_id']=="bar:001:foo"
+
+	with pytest.raises(api.BadRequest) as e:
+		obj['pid'] = '002'
+		bar_dao.update(obj)
+
+	with pytest.raises(api.BadRequest) as e:
+		obj['pid'] = None
+		bar_dao.update(obj)
+
+	with pytest.raises(api.BadRequest) as e:
+		del obj['pid']
+		bar_dao.update(obj)
+
+def test_primary_key_long(repo, bar_dao):
+	obj = bar_dao.create({'pid': '0123456789012345678901234567890123456789012345678901234567890123456789', 'name': 'foo'})
+	assert obj['_id'].startswith('bar:')
 
