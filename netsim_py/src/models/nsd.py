@@ -31,7 +31,18 @@ class Environment:
     '''
     nsd = ref()
 
+    type = attr(str, nullable=False)
+    required(type)
 
+@model
+class CastaliaEnvironment(Environment):
+    pass
+
+@model
+class VectorlEnvironment(Environment):
+    vectorl_id = attr(str, nullable=False)
+    json_name('vectrol_id')(vectorl_id)
+    required(vectorl_id)
 
 
 ##############################
@@ -175,16 +186,6 @@ class Mote:
     # The plan that this is read initially from
     plan = ref()
 
-@model
-class RFsimulation:
-    def __init__(self, network, simid):
-        self.network = network
-        self.simid = simid
-
-    # the Network object
-    network = ref()
-    simid = attr(str, nullable=False, default = None)
-        
 
 
 @model
@@ -200,9 +201,6 @@ class Network:
 
     # All nodes
     motes = refs(inv=Mote.network)
-
-    RF_simulations = refs(inv=RFsimulation.network)
-
 
 #
 #  Parameters object

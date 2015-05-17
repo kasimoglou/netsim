@@ -6,10 +6,11 @@ Created on Oct 14, 2014
 
 import os.path
 import json
-from models.nsd import NSD, Network, Mote, MoteType, Position, Plan, Project
+from models.nsd import NSD, Network, Mote, MoteType, Position, Plan, Project,\
+    CastaliaEnvironment, VectorlEnvironment
 from models.json_reader import JSONReader, repository
 from models.nsd import NSD, Network, Mote, MoteType, Position, \
-   RFsimulation, NodeType, ConnectivityMatrix
+   NodeType, ConnectivityMatrix
 from models.mf import Attribute
 from simgen.utils import docstring_template
 from .castaliagen import generate_castalia
@@ -44,6 +45,9 @@ class NSDReader(JSONReader):
         self.nsd=nsd
         nsd.plan = Plan()
         nsd.project = Project()
+
+        # add the environment spec
+        nsd.environment = self.create_environment(nsd_json)
 
         #read Couchdb json files
         plan_json = self.read_object(nsd.plan_id, nsd.plan)
@@ -97,9 +101,25 @@ class NSDReader(JSONReader):
         with open(filename, 'w') as outfile:
             json.dump(jsondata, outfile)
 
+
+    def create_environment(self, nsd_json):
+        '''
+        Create the correct environment spec in the nsd.
+        '''
+        env_json = nsd_json['environment']
+        if env_json['type']=='castalia':
+            env = CastaliaEnvironment()
+        elif env_json['type']=='vectorl':
+            env = VectorlEnvironment()
+        else:
+            raise ValueError("Unknown environment spec: %s" % env_json[type])
+        self.populate_modeled_instance(env, env_json)
+        self.nsd.environment = env
+
+
     def create_network(self):
         '''
-
+        Adjust the data read into the NSD, before returning.
         '''
         network=Network(self.nsd)        
         for mote in self.nsd.plan.NodePosition:
