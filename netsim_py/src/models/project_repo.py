@@ -97,7 +97,6 @@ class ConstraintUnique(Named):
 	Declare a uniqueness constraint on a number of attributes.
 	'''
 
-	view = ref()
 	entity = ref()
 	fields = ref_list(inv=Field.constraints)
 	primary_key = attr(bool, default = False)
@@ -183,6 +182,8 @@ PROJECT.add_foreign_key('userId', USER)
 PLAN = ApiEntity('plan', DB_PT, read_only=True)
 PLAN.add_field('name')
 
+NODEDEF = Entity('nodedef', DB_PT)
+
 NSD = ApiEntity('nsd', DB_SIM)
 NSD.add_foreign_key('project_id', PROJECT)
 NSD.add_foreign_key('plan_id', PLAN)
@@ -198,30 +199,7 @@ SIM = Entity('simoutput', DB_SIM)
 SIM.add_foreign_key('nsdid', NSD)
 
 DATABASES = [ DB_PT, DB_SIM ]
-ENTITIES = [ USER, PROJECT, PLAN, NSD, VECTORL, SIM ]
-
-#
-# Validate
-# 
-
-# check that databases are unique
-def check_unique(L):
-	L = list(L)
-	ll = len(L)
-	sl = len(set(L))
-	assert ll==sl
-
-check_unique(db.name for db in DATABASES)
-for db in DATABASES:
-	check_unique(e.name for e in db.entities)
-
-for entity in ENTITIES:
-	if not isinstance(entity, ApiEntity):
-		check_unique(f.name for f in entity.fields)
-	else:
-		all_names = [f.name for f in entity.fields]+[f.name for f in entity.unique]
-		check_unique(all_names)
-		check_unique(f.primary_key for f in entity.unique)
+ENTITIES = [ USER, PROJECT, PLAN, NODEDEF, NSD, VECTORL, SIM ]
 
 #
 # models for project repository entity handling
@@ -230,16 +208,44 @@ for entity in ENTITIES:
 
 @model
 class Design(Named):
+	'''
+	A couchdb design document.
+	'''
+
+	# the views it contains 
+	views = refs()
+
 	@property
 	def id(self):
+		'''The document couchdb id.'''
 		return "_design/"+self.name
 
+	def to_object(self):
+		ddoc = {
+			'_id' : self.id,
+			'language' : 'javascript',
+			'views' : {}
+		}
 
+		for view in self.views:
+			ddoc['views'][view.name] = view.to_object()
+
+		return ddoc
+
+
+@model
+class DbDesign(Design):
+	database = ref(inv=Database.design)
+	def __init__(self, db, domain=''):
+		super().__init__("%s_design")
+		self.database=db
+	def to_object(self):
+		return None
 
 @model
 class CouchDesign(Design):
 	'''
-	A CouchEntityModel is a couchdb design document for an entity.
+	A CouchDesign is a couchdb design document for an entity.
 
 	The design document defines one view for each foreign key and
 	for each uniqueness constraint.
@@ -248,8 +254,6 @@ class CouchDesign(Design):
 	# The entity this model is about
 	entity = attr(Entity, nullable=False)
 
-	# the views it contains 
-	views = refs()
 
 	@property 
 	def database(self):
@@ -271,18 +275,6 @@ class CouchDesign(Design):
 		for fk in entity.fields:
 			if isinstance(fk, ForeignKey):
 				self.views.add(IndexView('by_%s' % fk.name, fk))
-
-	def to_object(self):
-		ddoc = {
-			'_id' : self.id,
-			'language' : 'javascript',
-			'views' : {}
-		}
-
-		for view in self.views:
-			ddoc['views'][view.name] = view.to_object()
-
-		return ddoc
 
 
 @model

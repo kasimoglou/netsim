@@ -7,20 +7,13 @@ Created on Oct 14, 2014
 import os.path
 import json
 from models.nsd import NSD, Network, Mote, MoteType, Position, Plan, Project
-from models.json_reader import JSONReader
-from models.nsd import NSD, Network, Mote, MoteType, Position, RFsimulation, PRNodeType
+from models.json_reader import JSONReader, repository
+from models.nsd import NSD, Network, Mote, MoteType, Position, \
+   RFsimulation, NodeType, ConnectivityMatrix
 from models.mf import Attribute
 from simgen.utils import docstring_template
 from .castaliagen import generate_castalia
 import pdb
-
-
-
-def extract_jsonfile_arg(data, arg):
-    for key,value in data.items():
-        if key==arg:
-            return value
-
 
 
 class NSDReader(JSONReader):
@@ -35,135 +28,85 @@ class NSDReader(JSONReader):
         self.datastore = gen.datastore
 
     def read_nsd(self, nsd_id, simhome):
+        '''
+        Read an nsd and download all other linked information.
+        All downloaded json objects are saved in the simulation home.
+
+        Return the nsd object on wchich all the information is linked.
+        '''
         nsd = NSD()
         self.simhome=simhome
         # get nsd
 
-        try:
-            # read parameters
-            nsd_obj = self.datastore.get_nsd(nsd_id)        
-            self.log.debug("NSD OBJECT=\n%s", json.dumps(nsd_obj, sort_keys=True, indent=4))
-            self.populate_modeled_instance(nsd, nsd_obj)
-        except Exception as e:
-            self.log.debug("Failed to populate NSD.")
-            raise RuntimeError(str(e))
+        nsd_json = self.read_object(nsd_id, nsd)
+        self.create_jsonfile(nsd_json, "nsd.json")
 
         self.nsd=nsd
+        nsd.plan = Plan()
+        nsd.project = Project()
 
         #read Couchdb json files
-        plan = self.read_plan()
-        project = self.read_project()
+        plan_json = self.read_object(nsd.plan_id, nsd.plan)
+        self.create_jsonfile(plan_json, "plan.json")
 
-        #Store json objects to simhome
-        self.create_jsonfile(nsd_obj, simhome, "/nsd.json")
-        self.create_jsonfile(plan, simhome, "/plan.json")
-        self.create_jsonfile(project, simhome, "/project.json")
-
+        project_json = self.read_object(nsd.project_id, nsd.project)
+        self.create_jsonfile(project_json, "project.json")
 
         # Read nodedef objects
         nodeDefOids = {n.nodeTypeId for n in nsd.plan.NodePosition}
-        self.log.debug("Collected nodeDef objects: %s", ','.join(nodeDefOids) )
-        self.nodeDef = {oid:self.read_nodedef(oid) for oid in nodeDefOids}
+        self.log.debug("Collected nodeDef objects: %s", nodeDefOids )
+
+        self.nodeDefs = {oid: NodeType() for oid in nodeDefOids}
+        nodeDefJson = {oid:self.read_object(oid, self.nodeDefs[oid]) 
+            for oid in nodeDefOids}
+        self.create_jsonfile(nodeDefJson, "nodedefs.json")
+        nsd.nodedefs = set(self.nodeDefs.values())
+
+        # read connectivity matrix, if it exists
+        if ('_attachments' in plan_json and 
+             'connectivityMatrix.json' in plan_json['_attachments']):
+            cm = nsd.plan.connectivityMatrix = ConnectivityMatrix()
+            cm_json = self.read_object((plan_json,'connectivityMatrix.json'), cm)
+            self.create_jsonfile(cm_json, "connectivityMatrix.json")
 
         # Create network model
         self.create_network()
 
         return nsd
 
-
-    #
-    #Reads the  plan json file from CouchDb
-    #    
-    def read_plan(self):
+    def read_object(self, oid, obj):
+        '''
+        Read object oid from the repository, and populate model 
+        object obj.
+        '''
+        entity = repository.get(obj.__class__).entity
         try:
             # read parameters
-            plan = self.datastore.get_plan(self.nsd.plan_id)
-            self.nsd.plan = Plan()
-            self.populate_modeled_instance(self.nsd.plan, plan)
+            json_obj = self.datastore.get(entity, oid)
+            self.populate_modeled_instance(obj, json_obj)
         except Exception as e:
-            self.log.debug("Failed to read plan.")
+            self.log.debug("Failed to read %s." % (entity.name))
             raise RuntimeError(str(e))
-        self.log.debug("PLAN=\n%s", json.dumps(plan, indent=4))
-        return plan
+        self.log.debug("%s=\n%s", entity.name, json.dumps(json_obj, indent=4))
+        return json_obj
 
-    #
-    #Read the  project json file from CouchDb
-    #  
-    def read_project(self):
-        try:
-            project=self.datastore.get_project(self.nsd.project_id)
-            self.nsd.project = Project()
-            self.populate_modeled_instance(self.nsd.project, project)
-        except Exception as e:
-            self.log.debug("Failed to read project.")
-            raise RuntimeError(str(e))            
-        self.log.debug("PROJECT=\n%s", json.dumps(project, indent=4))
-        return project
-
-    #
-    #Read the NODEDEF json object from CouhDb
-    #
-    def read_nodedef(self, nodedef_id):
-        try:
-            nodedef_json=self.datastore.get_nodedef(nodedef_id)
-            nodedef = PRNodeType()
-            self.populate_modeled_instance(nodedef, nodedef_json)
-        except Exception as e:
-            self.log.debug("Failed to read node type %s.", nodedef_id)
-            raise RuntimeError(str(e))
-        return nodedef
-
-    #
-    #Creates a jsonfile with the jsondata in simhome
-    #
-    def create_jsonfile(self, jsondata, simhome, filename):
-        path=simhome+filename
-        with open(path, 'w') as outfile:
+    def create_jsonfile(self, jsondata, filename):
+        '''
+        Creates a jsonfile with the jsondata in simhome
+        '''
+        with open(filename, 'w') as outfile:
             json.dump(jsondata, outfile)
 
-
-    #
-    #Extract info from couchdb json files and creates the network model
-    #
     def create_network(self):
+        '''
 
-        network=Network(self.nsd)
-        
-        self.defaultMoteType=MoteType()
-        
+        '''
+        network=Network(self.nsd)        
         for mote in self.nsd.plan.NodePosition:
             mote.network = network
-            mote.moteType = self.defaultMoteType
+            mote.nodeType = self.nodeDefs[mote.nodeTypeId]
 
         
-    def read_rfsimulations(self, datastore, data):
-        for item in data:
-           # simjson=datastore.get_RFsimulation(item)
-           # RFsim_def = RFsim_def(self.nsd, self.network, simjson)
-            sim = RFsimulation(self.network, str(item))
-            print("network", sim.network)
-            print("simid", sim.simid)
-        
-    def read_attachments(self, datastore, attachments):
-        for key,value in attachments.items():
-            print("+++++++++++++++++++",key)
-            cm = datastore.get_attachment(self.plan, key)
-            path = self.simhome + '/' + key
-            with open(path, 'wb') as outfile:
-                outfile.write(bytes(int(x,0) for x in cm))
-    
-
-    def create_mote(self, data):
-        mote = Mote(self.network, self.defaultMoteType)
-
-        mote.node_id = str(data['nodeId'])
-        mote.moteRole = data['nodeType']
-        mote.position = Position(*[float(c) for c in data['coordinates']])
-        mote.elevation = float(data['elevOfGround'])
-        mote.rx_threshold = float(data['RXthreshold'])
-        mote.rf_antenna_conf = data['rfAntennaConf']
-
-        return mote      
         
         
 
@@ -210,24 +153,3 @@ class CastaliaGen:
         #self.generate_nodefile()
 
 
-   
-    
-#
-#Class for storing NODEDEF json dicts
-#
-class NodeDef:
-
-    def __init__(self, nsd_obj, jsondict):
-        self.nsd=nsd_obj
-        self.jsondata=jsondict
-
-class RFsim_def:
-
-    def __init__(self, nsd_obj, network_obj, jsondict):
-        self.nsd = nsd_obj
-        self.network = network_obj
-        self.jsondata = jsondict
-
-
-
-    
