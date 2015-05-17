@@ -259,7 +259,6 @@ class RepoDao:
 
 	@repoerror
 	def findBy(self, view, key=None, reduced=True):
-		logging.error('FIND: %s',self.type)
 		if view not in self.views:
 			raise BadRequest('View does not exist')
 		resource = self.views[view].resource
