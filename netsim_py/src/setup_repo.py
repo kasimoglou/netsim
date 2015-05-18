@@ -9,7 +9,7 @@ Project repository management operations
 import argparse, sys
 from runner.config import cfg, configure
 from runner.dpcmrepo import ProjectRepository
-from models.project_repo import MODELS
+from models.project_repo import MODELS, SIM
 
 LOCAL="http://127.0.0.1:5984/"
 REMOTE="http://213.172.45.30:5984/"
@@ -98,6 +98,22 @@ def view(server):
 		view_model(server, model)
 
 
+def cleanup(server, args):
+	print('Cleaning up project repository at',LOCAL)
+	if not args:
+		args = ['test']
+	for exc in args:
+		print("Removing simulations for executor", exc)
+		prefix = "SIMOUTPUT:%s:" % exc
+		db = server.db_of(SIM)
+		stale = []
+		for obj in db.all():
+			if obj['id'].startswith(prefix):
+				stale.append(obj['doc'])
+		db.delete_bulk(stale)
+
+
+
 def main():
 
 	global LOCAL, REMOTE
@@ -118,16 +134,23 @@ def main():
 
 	prepare -- prepare the remote server for the network simulator. This basically loads
 	       some view definitions and other design docs into the remote server.
+
+	cleanup [exec] -- clean up the local server: remove all SIMOUTPUT objects with 
+	     the given executor ('test' executor by default).
 	''')
-	parser.add_argument("operation",  help="Select the operation.",
-						choices=['pull','clone', 'prepare','view'])
+	parser.add_argument("operation",  help="Select the operation.", 
+						choices=['pull','clone', 'prepare', 'view', 'cleanup'])
+
+	parser.add_argument("args", 
+		help="Arguments to the commands (see description)",
+		nargs="*")
 
 	parser.add_argument("--remote", '-r',
 	                    help="The url to the remote couchdb installation of the DPCM repository.\
 	                     The default is taken from the config file (%s)" % REMOTE, 
 	                    default=REMOTE)
 
-	parser.add_argument("--local", '-l',
+	parser.add_argument("--local", '-l', 
 	                    help="The url to the local couchdb. The default is http://127.0.0.1:5984/",
 	                    default=LOCAL)
 
@@ -149,6 +172,9 @@ def main():
 	elif args.operation=='view':
 		server = ProjectRepository(args.remote)
 		view(server)
+	elif args.operation=='cleanup':
+		server = ProjectRepository(args.local)
+		cleanup(server, args.args)
 	else:
 		print('An invalid operation was chosen!')
 		sys.exit(1)

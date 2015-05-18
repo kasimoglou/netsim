@@ -11,39 +11,64 @@ from collections import namedtuple
 from models.nsd import *
 
 
+def index_to_text(idx):
+    '''
+    This method prints an index (a number of a slice) into
+    the grammar of omnet++ :   [3] or [3..6] or [*]
+    '''
+    if isinstance(idx, int):
+        return "%d" % idx
+    else:
+        assert isinstance(idx, slice)
+        p,q = slice.start, slice.stop
+        if p is None and q is None:
+            return "*"
+        a = str(idx.start) if idx.start is not None else ""
+        b = str(idx.stop-1) if idx.stop is not None else ""
+        return "%s..%s" % (a,b)
+
+
 @model
 class CastaliaModule:
     # module tree
     parent = ref()
-    submodules = refs(inv=parent)
+    submodules = ref_list(inv=parent)
 
     # The name and index of this submodule in the parent
-    name = attr(str, nullable=False)
-    index = attr(int, nullable=True, default=None)
+    subname = attr(str, nullable=False)
 
+    # the index can be a number or a range.
+    index = attr(type=(int,slice), nullable=True, default=None)
+
+    @property
     def full_name(self):
         if self.index is None:
-            myname = self.name
+            myname = self.subname
         else:
-            myname = "%s[%d]" % (self.name, self.index)
+            myname = "%s[%s]" % (self.subname, index_to_text(self.index))
+
         if self.parent is None:
             return myname
         else:
-            return '.'.join([self.parent.full_name(), myname])
+            return '.'.join([self.parent.full_name, myname])
 
+    def dummy(self, name, index):
+        return CastaliaModule(self, name, index)
 
     def __init__(self, parent, name, index=None):
         self.parent = parent
-        self.name = name
+        self.subname = name
         self.index = index
 
 
+
+
 # an annotation for parameter attributes
-Param = annotation_class('Param',[])
+Param = annotation_class('Param',[])()
 
 # convenience declaration for annotated attributes
 def parameter(type, **kwargs):
-    return Param()(attr(type=type, **kwargs))
+    return Param(attr(type=type, **kwargs))
 
 
 @model
@@ -79,12 +104,12 @@ class WirelessChannel(CastaliaModule):
     int yCellSize = default (5);            // how big are the cells in each dimension
     int zCellSize = default (1);
 
-    double pathLossExponent = default (2.4);        // how fast is the signal strength fading
-    double PLd0 = default (55);                                     // path loss at reference distance d0 (in dBm)
-    double d0 = default (1.0);                                      // reference distance d0 (in meters)
+    double pathLossExponent = default (2.4);  // how fast is the signal strength fading
+    double PLd0 = default (55);               // path loss at reference distance d0 (in dBm)
+    double d0 = default (1.0);                // reference distance d0 (in meters)
 
-    double sigma = default (4.0);                           // how variable is the average fade for nodes at the same distance
-                                        // from eachother. std of a gaussian random variable.
+    double sigma = default (4.0);  // how variable is the average fade for nodes at the same distance
+                                   // from eachother. std of a gaussian random variable.
 
     double bidirectionalSigma = default (1.0);      // how variable is the average fade for link B->A if we know
                                                     // the fade of link A->B. std of a gaussian random variable
@@ -106,6 +131,22 @@ class WirelessChannel(CastaliaModule):
 
 @model
 class Node(CastaliaModule):
+    '''
+      //node location is defined by five parameters below
+        double xCoor = default (0);
+        double yCoor = default (0);
+        double zCoor = default (0);
+        double phi = default (0);
+        double theta = default (0);
+        
+        double startupOffset = default (0);        //node startup offset (i.e. delay), in seconds 
+        double startupRandomization = default (0.05);   //node startup randomisation, in seconds
+        // Node will become active startupOffset + random(startupRandomization) 
+        // seconds after the start of simulation
+
+        string ApplicationName;                                                                         //the name of the implemented Application Module
+        string MobilityManagerName = default ("NoMobilityManager");     //the name of the implemented Mobility Module
+    '''
     xCoor = parameter(float)
     yCoor = parameter(float)
     zCoor = parameter(float)
@@ -122,7 +163,7 @@ class ResourceManager(CastaliaModule):
         double flashSize = default (0.0);               //in kB
         double flashWriteCost = default (0.0);  //per kB
         double flashReadCost = default (0.0);   //per kB
-        double imageSize = default (0.0);               //the space that the OS (e.g. Contiki or TinyOS) occupies in the flash
+        double imageSize = default (0.0);   //the space that the OS (e.g. Contiki or TinyOS) occupies in the flash
 
         string cpuPowerSpeedLevelNames = default ("");
         string cpuPowerPerLevel = default (""); //spent energy per time unit
@@ -135,7 +176,7 @@ class ResourceManager(CastaliaModule):
         // source http://www.allaboutbatteries.com/Energy-tables.html
 
         double baselineNodePower = default (6); // periodic energy consumption of node, in mWatts
-        double periodicEnergyCalculationInterval = default (1000);      // interval for energy calculation, in msec     
+        double periodicEnergyCalculationInterval = default (1000); // interval for energy calculation, in msec     
     '''
     initialEnergy = parameter(float)
 
@@ -296,3 +337,11 @@ class CastaliaModel:
     omnetpp = attr(type=Omnetpp, nullable=False)
     network = attr(type=CastaliaModule, nullable=False)
 
+
+MODEL = [
+    CastaliaModel, Omnetpp,
+    CastaliaModule, 
+    Network, WirelessChannel,    
+    Node, ResourceManager, SensorManager,
+    Application, Communication, Radio, Mac    
+]

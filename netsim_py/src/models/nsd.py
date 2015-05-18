@@ -134,6 +134,7 @@ class NodeType:
     descend(functionalBlocks)
 
     name = attr(str, nullable=False)
+
     motes = refs()
     nsd = ref()
 
@@ -201,6 +202,8 @@ class Network:
 
     # All nodes
     motes = refs(inv=Mote.network)
+
+
 
 #
 #  Parameters object
