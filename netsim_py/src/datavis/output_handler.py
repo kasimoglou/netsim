@@ -107,7 +107,7 @@ def generate(fileloc):
     if fileloc is None:
         fileloc = os.getcwd()
 
-    simulation_id = "?"
+    simulation_id = context.datastore.sim_id
     filename = "nsd.json"
     castalia_data = "simout.txt"
 

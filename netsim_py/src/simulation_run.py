@@ -24,8 +24,8 @@ class CopyGenerator(Generator):
     This is only useful for testing.
     '''
     
-    def __init__(self, simhome, sim_root, datastore):
-        super().__init__(simhome, sim_root, datastore)
+    def __init__(self):
+        super().__init__()
 
 
     @staticmethod

@@ -1,7 +1,7 @@
 '''
 Created on Mar 23, 2015
 
-Create and use a copy of the DPCM repository to a local couchdb server.
+Project repository management operations
 
 @author: vsam
 '''
@@ -14,9 +14,14 @@ from models.project_repo import MODELS
 LOCAL="http://127.0.0.1:5984/"
 REMOTE="http://213.172.45.30:5984/"
 
+local = None
+remote = None
+
+
 
 def replicate(server, src, dst):
-	for dbname in ('pt_repository', 'simulator'):
+
+	for dbname in ('pt_repository', 'simulator', 'integration_repo'):
 		source = src+dbname
 		destination = dst+dbname
 

@@ -8,7 +8,7 @@ Created on Sep 17, 2014
 '''
 
 from models.mf import model, attr, ref, refs, ref_list, annotation_class
-from models.json_reader import required, descend, ignore, json_name
+from models.json_reader import required, descend, ignore, json_name, json_filter
 from collections import namedtuple
 from enum import Enum
 from numbers import Number
@@ -49,10 +49,6 @@ class SensorType:
     sensitivity = attr(float)  # the minimum physical value measured
 
 
-# This type is used for Node coordinates (corresponds to PLNxxxx coord. triplet)
-Position = namedtuple('Position', ('lat', 'lon', 'alt'))
-
-
 @model
 class MoteType:
     # node type name
@@ -90,36 +86,85 @@ class MoteType:
     routing = attr(str)
 
 
+# This type is used for Node coordinates (corresponds to PLNxxxx coord. triplet)
+Position = namedtuple('Position', ('lat', 'lon', 'alt'))
+
+
+@model
+class PRFunctionalBlock:
+    blockDefId = attr(str)
+    blockName = attr(str)
+    blockCode = attr(str)
+    isReprogrammable = attr(str)
+    isConfigurable = attr(str)
+    nature = attr(str)
+    noInstances = attr(int)
+    blockInstanceId = attr(int)
+
+    nodeType = ref()
+
+@model
+class PRNodeType:
+    # some code word
+    code = attr(str)
+
+    # human-readable
+    description = attr(str)
+
+    # NODE/ROOT/NID
+    nature = attr(str, nullable=False)
+    required(nature)
+
+    functionalBlocks = refs(inv=PRFunctionalBlock.nodeType)
+    descend(functionalBlocks)
+
+    motes = refs()
+
 @model
 class Mote:
     """A mote represents a wireless sensor, gateway, or other element in the network.
     """
 
-    def __init__(self, network, moteType):
-        self.network = network
-        self.moteType = moteType
 
     # node id
     node_id = attr(str, nullable=False, default=None)
+    required(node_id)
+    json_name('nodeId')(node_id)
+
 
     # the node type determines the hardware used
+    nodeTypeId = attr(str)
+    required(nodeTypeId)
+    nodeTypeObj = ref(inv=PRNodeType.motes)
+
+
     moteType = ref(inv=MoteType.nodes)
+
 
     #Mote role (ROOT or MOTE)
     moteRole = attr(str, nullable=False, default=None)
+    required(moteRole)
+    json_name('nodeType')(moteRole)
 
     # position of the node in relative coordinates
     position = attr(Position)
+    json_name('coordinates')(position)
+    required(position)
+    json_filter(lambda coord: Position(*(float(c) for c in coord)))(position)
 
     rf_antenna_conf=attr(object)
 
-    elevation= attr(float, nullable=False, default=None)
+    elevation= attr(float, nullable=False, default=0.0)
+    json_name('elevOfGround')(elevation)
 
     rx_threshold= attr(float, nullable=False, default=None)
+    json_name('RXthreshold')(rx_threshold)    
 
     # the Network object
     network = ref()
 
+    # The plan that this is read initially from
+    plan = ref()
 
 @model
 class RFsimulation:
@@ -200,13 +245,6 @@ class NSD:
     '''
 
     #
-    #  Parameters
-    #
-
-    parameters = ref(inv=Parameters.nsd)
-    descend(parameters)
-
-    #
     # DPCM platform attributes
     #
 
@@ -220,6 +258,23 @@ class NSD:
     required(name)
 
     userId=attr(str,nullable=False)
+    
+    plan = ref()
+    project = ref()
+
+
+    #
+    # Application
+    #
+
+    network = ref(inv=Network.nsd)
+
+    #
+    #  Parameters
+    #
+
+    parameters = ref(inv=Parameters.nsd)
+    descend(parameters)
 
 
     #
@@ -228,13 +283,6 @@ class NSD:
 
     environment = ref(inv=Environment.nsd)
 
-    #
-    # Application
-    #
-
-    network = ref(inv=Network.nsd)
-    EPSG=attr(str,nullable=False)
-    networkId=attr(str,nullable=False)
 
     #
     # Statistics
@@ -248,12 +296,39 @@ class Plan:
     nsd = ref()
 
     name = attr(str, nullable=False)
-    NodePosition= attr(list)
+
+    NodePosition= refs(inv=Mote.plan)
+    descend(NodePosition)
+
+    # numbers
     numOfNodes=attr(int,nullable=False)
     numOfRoots=attr(int,nullable=False)
     numOfNidNodes=attr(int,nullable=False)
 
+    # units of measurement
+    UOMs = attr(object)
+
+    # couch entities
+    _id = attr(str)
+    _rev = attr(str)
+
+
 @model 
 class Project:
     nsd = ref()
+
+    # the owner of the project
+    userId = attr(str)
+
+    # a list of plans (strings)
+    plans = attr(list)
+
+    name = attr(str)
+
+    # this is the EPSG used by the mapping tools, always a UTM srs
+    EPSG = attr(str)
+
+    # couch entities
+    _id = attr(str)
+    _rev = attr(str)
 

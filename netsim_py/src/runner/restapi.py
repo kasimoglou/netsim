@@ -109,7 +109,9 @@ def DELETE_simulation(simid):
 		process_api_error(e)	
 
 
-
+# This is the old code, which has been superceded by the new,
+# model-based API. To be removed eventually.
+'''
 @app.get('/projects')
 def GET_projects():
 	try:
@@ -117,8 +119,9 @@ def GET_projects():
 	except:
 		logging.exception('in getting projects from the PR')
 		json_abort(500, "Cannot get projects from the Project Repository")
-			
-					
+'''
+
+'''			
 @app.get('/project/<prjid>/plans')
 def get_plans(prjid):
 		try:
@@ -126,23 +129,56 @@ def get_plans(prjid):
 		except:
 			logging.exception('in getting projects from the PR')
 			json_abort(500, "Cannot get project plans from the Project Repository")
+'''
 
+#
+# New code
+
+
+@app.get('/projects')
+def GET_projects():
+	try:
+		# A small bug: add the 'id' field to be a copy of '_id', to simulate old behaviour
+		projects = list(api.project_dao.findAll())
+		for p in projects:
+			p['id'] = p['_id']
+		return { 'results': projects }
+	except:
+		logging.exception('in getting projects from the PR')
+		json_abort(500, "Cannot get projects from the Project Repository")
+
+			
+					
+@app.get('/project/<prjid>/plans')
+def get_plans(prjid):
+		try:
+			project = api.project_dao.read(prjid)
+			logging.root.debug('Project=%s', json.dumps(project, indent=4) )
+			return { 'results': project.get('plans',[]) }
+		except:
+			logging.exception('in getting projects from the PR')
+			json_abort(500, "Cannot get project plans from the Project Repository")
 
 
 
 class RestApi:
 	def __init__(self, dao):
 		self.dao = dao
+		self.entity = dao.model.entity
 		self.views = {view.key.name : view.name for view in dao.model.views}
 		self.route()
 
 
 	def route(self):
-		app.get('/%s' % self.dao.type)(self.GETALL)		
-		app.get('/%s/<oid>' % self.dao.type)(self.GET)
-		app.post('/%s' % self.dao.type) (self.POST)
-		app.put('/%s/<oid>' % self.dao.type) (self.PUT)
-		app.delete('/%s/<oid>' % self.dao.type) (self.DELETE)
+		if self.entity.read:
+			app.get('/%s' % self.dao.type)(self.GETALL)		
+			app.get('/%s/<oid>' % self.dao.type)(self.GET)
+		if self.entity.create:
+			app.post('/%s' % self.dao.type) (self.POST)
+		if self.entity.update:
+			app.put('/%s/<oid>' % self.dao.type) (self.PUT)
+		if self.entity.delete:
+			app.delete('/%s/<oid>' % self.dao.type) (self.DELETE)
 
 	def GETALL(self):
 		reduced = not (request.query.reduced in ('no','false','0'))
