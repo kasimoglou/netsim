@@ -37,7 +37,8 @@ local_executor_path= %(execdir)s/Simulations
 #  of psycopg2.
 #
 postgresql_connection: dbname=dpcm
-
+planning_tool_database = dpcm_integration_repo
+netsim_database = dpcm_simulator
 
 #
 # Gui host and port

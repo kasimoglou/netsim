@@ -82,7 +82,7 @@ def m2m_nsd_to_network(gen, nsd):
     all_nodes = net.dummy('node', slice(None,None))
     radio = Radio(all_nodes,'Communication.Radio')
     radio.RadioParametersFile = "../Parameters/Radio/CC2420.txt"
-    radios.ymbolsForRSSI = 8
+    radio.symbolsForRSSI = 8
 
     return net
     
@@ -182,9 +182,11 @@ def generate_omnetpp_for_module(omnetpp, m):
 
 @docstring_template
 def omnetpp_module_param(mod, modpath, param):
-    """{{modpath}}.{{param.name}} = {{! value}}\n"""
-    value = getattr(mod, param.name)
-
+    """\
+% if value is not None:
+{{modpath}}.{{param.name}} = {{! value}}
+% end"""
+    value = getattr(mod, param.name, None)
     if isinstance(value, str):
         value = '"%s"' % value
     return locals()
