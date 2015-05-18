@@ -15,8 +15,12 @@ from models.mf import RelKind, python_type, annotation_class, Attribute
 #
 ##################################################################
 
+# Declare a class model in nsd.py to correspond to a PR entity model
+# defined in project_repo.py
+repository = annotation_class('repository', ('entity',))
+
 # Declare an attribute to have another name in json
-json_name = annotation_class('json_name', ('name'))
+json_name = annotation_class('json_name', ('name',))
 
 # Declare a required attribute to map
 required = annotation_class('required',())()
@@ -124,7 +128,7 @@ class JSONReader:
             raise TransformValueError(attr,value) from e
 
 
-    def populate_modeled_instance(self, model, json):
+    def populate_modeled_instance(self, model, json, **defaults):
         """
         Given a model object and a json dict, fill in the attributes of model
         from the json dict.
@@ -142,6 +146,9 @@ class JSONReader:
             # Respect 'ignore' annotation
             if ignore.has(attr):
                 continue
+
+            if attr.name in defaults:
+                setattr(model, attr.name, tval)
 
             # here we respect name mapping by a 'json_name' annotation
             json_field = json_name.get_item(attr, default=attr.name)

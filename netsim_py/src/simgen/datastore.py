@@ -13,7 +13,8 @@ import os.path, json, logging
 from urllib.parse import urlparse, urlunparse
 from simgen.utils import get_file, put_file, execute_function
 from runner import dpcmrepo, config
-
+from models.project_repo import SIM
+from io import StringIO
 
 def set_root_url(fileloc, url):
     """Store the root url into the simulation home.
@@ -97,7 +98,6 @@ class DataStore:
 
 
 
-
 class ProjectRepoStore(DataStore):
     """The datastore used to access the project repository.
     """
@@ -171,8 +171,19 @@ class ProjectRepoStore(DataStore):
         assert oid is not None
         return self.ptdb.get(oid)
 
+    def get(self, entity, oid):
+        """
+        Given an entity from models/project_repo.py and
+        an oid, retrieve the object.
+        """
+        db = self.repo.db_of(entity)
 
-
+        if isinstance(oid, (tuple,list)) and len(oid)==2:
+            doc, fname = oid
+            data = db.get_attachment(doc, fname)
+            return json.loads(data.decode('utf-8'))
+        else:
+            return db.get(oid)
 
 
 

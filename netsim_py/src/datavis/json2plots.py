@@ -63,16 +63,10 @@ class ViewsPlotsDecoder:
         (the dictionary should represent only one PlotModel)
         returns the PlotModel
         """
+
         sel = ViewsPlotsDecoder.get_attr("select", d)
         if sel != pm_defaults["select"]:
-            if isinstance(sel, str):
-                sdict = json.loads(sel)
-                logging.root.debug("sdict = %s", sdict)
-                sel = sdict
-            sel = SelectorParser().parse(sel)
-
-            logging.root.debug("d[x]= %s", d['x'])
-            logging.root.debug("rel=%s", rel)
+            sel = SelectorParser.parse(sel,rel)
 
         pm = PlotModel(
             d["model_type"],
@@ -363,12 +357,63 @@ class SelectorParser():
         "between": between
     }
 
-    def parse(self, selector_dict):
-        logging.root.debug("Selector is %s", selector_dict)
-        logging.root.debug("Selector is %s", type(selector_dict))
-        assert isinstance(selector_dict, dict)
-        for attr in selector_dict:
-            sel_str = selector_dict[attr]
-            selector_dict[attr] = eval(sel_str, self.allowed_funcs)
-        return selector_dict
+
+    #
+    # We need to avoid code insertion!
+    #
+    @staticmethod
+    def collect_names(t):
+        return [node.id for node in ast.walk(t) if isinstance(node,ast.Name)]
+
+    @staticmethod
+    def validate(selector_text, names):
+        def check(v):
+            if not v:
+                raise RuntimeError()
+
+        t = ast.parse("{"+selector_text+"}", mode='eval')
+
+        # check that we have a dict definition
+        check(isinstance(t, ast.Expression))
+        check(isinstance(t.body, ast.Dict))
+
+        # check that the lhs of the dict are all just names
+        for node in t.body.keys:
+            check(isinstance(node, ast.Name))
+            check(node.id in names)
+
+        # check that the rhs only contains names from the allowed funcs
+        allowed = SelectorParser.allowed_funcs.keys()
+        for node in t.body.values:
+            for name in SelectorParser.collect_names(node):
+                check(name in allowed)
+
+    # This is not real protection from code injection, but it is better than nothing
+    class StrictDict:
+        def __init__(self, symbols):
+            self.symbols = symbols
+        def __getitem__(self, name):
+            if name not in self.symbols:
+                raise RuntimeError("bad name")
+            return self.symbols[name]
+        def __contains__(self, name):
+            return True
+
+
+    @staticmethod
+    def parse(selector_text, rel):
+        assert isinstance(selector_text, str)
+        assert isinstance(rel, Table)
+
+        colnames = {col.name for col in rel.columns}
+        namespace = dict(SelectorParser.allowed_funcs)
+
+        try:
+            SelectorParser.validate(selector_text, colnames)
+            namespace.update({name:name for name in colnames})
+            selector = eval("{"+selector_text+"}", {}, SelectorParser.StrictDict(namespace))
+        except Exception as e:
+            print(e)
+            raise ValueError("The selector {%s} is malformed" % selector_text)
+        return selector
 

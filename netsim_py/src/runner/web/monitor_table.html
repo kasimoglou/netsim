@@ -3,6 +3,8 @@
  % from runner.monitor import Manager
  % from runner.config import *
 
+
+
  <table class="datatable">
      <thead>        
         <tr>
@@ -18,7 +20,14 @@
         <tr><td>Database</td>
             <td>{{postgresql_connection()}}</td></tr>
         <tr><td>Project repository</td>
-            <td>{{project_repository()}}</td></tr>
+            <td><a href="{{project_repository().strip('/')}}/_utils" target="_blank">{{project_repository()}}</a></td></tr>
+        <tr><td>Planning tool database</td>
+            <td><a href="{{project_repository().strip('/')}}/_utils/database.html?{{cfg.planning_tool_database}}" target="_blank">
+                {{cfg.planning_tool_database}}</a></td></tr>
+        <tr><td>Network simulator database</td>
+            <td><a href="{{project_repository().strip('/')}}/_utils/database.html?{{cfg.netsim_database}}" target="_blank">{{cfg.netsim_database}}</a></td></tr>
+        <tr><td>Web gui and ReSTful API bind address</td>
+            <td>{{cfg.gui_bind_addr}}:{{cfg.gui_bind_port}}</td></tr>
      </tbody>
  </table>
 

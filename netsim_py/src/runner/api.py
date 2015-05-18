@@ -9,11 +9,15 @@ from runner.monitor import Manager
 from runner import dpcmrepo
 from runner.dpcmrepo import repo
 import os, logging, functools
+from runner.config import cfg
 
 
 # Exceptions thrown by the API. These resemble HTTP errors closely.
 
-class Error(Exception):	pass
+class Error(Exception):
+	def __init__(self, *args, **kwargs):
+		super().__init__(self, args)
+		self.kwargs = kwargs
 
 class ClientError(Error): pass   # These correspond to 4xx status codes
 
@@ -21,17 +25,14 @@ class BadRequest(ClientError): pass
 class NotFound(ClientError): pass
 class Unauthorized(ClientError): pass
 class Forbidden(ClientError): pass
-class Conflict(ClientError): 
-	def __init__(self, cobj=None):
-		super().__init__()
-		self.current_object = cobj
+class Conflict(ClientError): pass 
 
 class ServerError(Error): pass  # These correspond to 500 
 
 
 def apierror(func):
-	"""A decorator that wraps the method, ensuring that any exception
- 	thrown is an instance of Error. 
+	"""A decorator ensuring that any exception
+ 	thrown by the wrapped function, is an instance of Error. 
 	This is done by passing through all instances of Error, but turning
 	(and logging) all others into ServerError
 	"""
@@ -231,7 +232,7 @@ class RepoDao:
 	'''
 	def __init__(self, model):
 		self.model = model
-		entity = model.entity
+		self.entity = entity = model.entity
 		self.type = entity.name
 		self.db = entity.database.name
 
@@ -240,10 +241,12 @@ class RepoDao:
 			view.name: view  for view in model.views
 		}
 
+		self.unique = entity.unique
 
 
 	def __db(self):
-		return repo().database(self.db)
+		return repo().database(cfg[self.db])
+
 
 	def findAll(self, reduced = True):
 		'''
@@ -275,6 +278,16 @@ class RepoDao:
 			obj['type'] = self.type
 		elif obj['type'] != self.type:
 			raise BadRequest('Wrong type for object to create')
+
+		if self.entity.primary_key and '_id' in obj:
+			raise BadRequest("Cannot provide id for object with a primary key.")
+		try:
+			obj['_id'] = self.model.entity.create_id(obj)
+		except Exception as e:
+			message="In create(obj): could not create id for object."
+			details="The exception was: %s" % str(e)
+			raise BadRequest(message=message, details=details)
+
 		return self.__db().save(obj)		
 
 	@repoerror
@@ -290,16 +303,21 @@ class RepoDao:
 		# still need to check consistency.
 		obj['_id'] = oid
 		try:
+			# check primary key change
+			if self.entity.primary_key:
+				if self.entity.create_id(obj)!=oid:
+					raise BadRequest("Cannot change the primary key attributes")
 			return self.__db().save(obj)
 		except dpcmrepo.Conflict as e:
 			# try to read the current object
 			cur = self.__db().get(oid)
-			raise Conflict(cur) from e
-		return obj
+			raise Conflict(current_object = cur) from e
 
 	@repoerror
 	def delete(self, oid):
+		# Remove any sentinels for this object
 		self.__db().delete(oid)
+
 
 
 #

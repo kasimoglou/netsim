@@ -519,8 +519,6 @@ VECTORL_MODEL = {
     EmitStatement
 }
 
-import sys
-assert validate_classes(VECTORL_MODEL, outfile=sys.stdout, detail=20)
 
 
 #

@@ -8,7 +8,9 @@ Created on Sep 17, 2014
 '''
 
 from models.mf import model, attr, ref, refs, ref_list, annotation_class
-from models.json_reader import required, descend, ignore, json_name, json_filter
+from models.json_reader import repository, required, descend, \
+    ignore, json_name, json_filter
+import models.project_repo as prm
 from collections import namedtuple
 from enum import Enum
 from numbers import Number
@@ -29,11 +31,23 @@ class Environment:
     '''
     nsd = ref()
 
+    type = attr(str, nullable=False)
+    required(type)
+
+@model
+class CastaliaEnvironment(Environment):
+    pass
+
+@model
+class VectorlEnvironment(Environment):
+    vectorl_id = attr(str, nullable=False)
+    json_name('vectrol_id')(vectorl_id)
+    required(vectorl_id)
+
 
 ##############################
 #  Application: part of an NSD
 ##############################
-
 
 @model
 class SensorType:
@@ -91,7 +105,7 @@ Position = namedtuple('Position', ('lat', 'lon', 'alt'))
 
 
 @model
-class PRFunctionalBlock:
+class FunctionalBlock:
     blockDefId = attr(str)
     blockName = attr(str)
     blockCode = attr(str)
@@ -103,8 +117,9 @@ class PRFunctionalBlock:
 
     nodeType = ref()
 
+@repository(prm.NODEDEF)
 @model
-class PRNodeType:
+class NodeType:
     # some code word
     code = attr(str)
 
@@ -115,17 +130,24 @@ class PRNodeType:
     nature = attr(str, nullable=False)
     required(nature)
 
-    functionalBlocks = refs(inv=PRFunctionalBlock.nodeType)
+    functionalBlocks = refs(inv=FunctionalBlock.nodeType)
     descend(functionalBlocks)
 
+    name = attr(str, nullable=False)
+
     motes = refs()
+    nsd = ref()
+
+    # couch entities
+    _id = attr(str)
+    _rev = attr(str)
 
 @model
 class Mote:
-    """A mote represents a wireless sensor, gateway, or other element in the network.
     """
-
-
+    A mote represents a wireless sensor, gateway, 
+    or other element in the network.
+    """
     # node id
     node_id = attr(str, nullable=False, default=None)
     required(node_id)
@@ -135,11 +157,10 @@ class Mote:
     # the node type determines the hardware used
     nodeTypeId = attr(str)
     required(nodeTypeId)
-    nodeTypeObj = ref(inv=PRNodeType.motes)
+    nodeType = ref(inv=NodeType.motes)
 
-
+    # the mote type 
     moteType = ref(inv=MoteType.nodes)
-
 
     #Mote role (ROOT or MOTE)
     moteRole = attr(str, nullable=False, default=None)
@@ -166,16 +187,6 @@ class Mote:
     # The plan that this is read initially from
     plan = ref()
 
-@model
-class RFsimulation:
-    def __init__(self, network, simid):
-        self.network = network
-        self.simid = simid
-
-    # the Network object
-    network = ref()
-    simid = attr(str, nullable=False, default = None)
-        
 
 
 @model
@@ -192,7 +203,6 @@ class Network:
     # All nodes
     motes = refs(inv=Mote.network)
 
-    RF_simulations = refs(inv=RFsimulation.network)
 
 
 #
@@ -222,6 +232,7 @@ class Parameters:
 ######################################
 
 
+@repository(prm.NSD)
 @model
 class NSD:
     '''
@@ -261,6 +272,7 @@ class NSD:
     
     plan = ref()
     project = ref()
+    nodedefs = refs(inv=NodeType.nsd)
 
 
     #
@@ -289,8 +301,12 @@ class NSD:
     #
     plots = attr(list)
     
+    # couch entities
+    _id = attr(str)
+    _rev = attr(str)
         
     
+@repository(prm.PLAN)
 @model
 class Plan:
     nsd = ref()
@@ -308,11 +324,49 @@ class Plan:
     # units of measurement
     UOMs = attr(object)
 
+    connectivityMatrix = ref()
+
     # couch entities
     _id = attr(str)
     _rev = attr(str)
 
 
+@repository(prm.PLAN)
+@model
+class ConnectivityMatrix:
+    plan = ref(inv=Plan.connectivityMatrix)
+
+    rfSimId = attr(str)
+
+    connectivity = ref_list()
+    descend(connectivity)
+
+@model
+class Channel:
+    cm = ref(inv=ConnectivityMatrix.connectivity)
+
+    channelId = attr(int)
+    required(channelId)
+
+    nodeId1 = attr(int)
+    required(nodeId1)
+    RSSnodeId1 = attr(float)
+    required(RSSnodeId1)
+    TXpowerNodeId1 = attr(float)
+    required(TXpowerNodeId1)
+
+    nodeId2 = attr(int)
+    required(nodeId2)
+    RSSnodeId2 = attr(float)
+    required(RSSnodeId2)
+    TXpowerNodeId2 = attr(float)
+    required(TXpowerNodeId2)
+
+    strengthDb = attr(float)
+    required(strengthDb)
+
+
+@repository(prm.PROJECT)
 @model 
 class Project:
     nsd = ref()

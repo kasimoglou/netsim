@@ -15,6 +15,8 @@ from numbers import Number
 from functools import lru_cache
 from simgen.utils import docstring_template
 
+import hashlib, base64, uuid
+
 #
 #  Models for project repository objects
 #
@@ -31,6 +33,7 @@ class Named:
 @model
 class Database(Named):
 	entities = refs()
+	design = ref()
 
 @model
 class Entity(Named):
@@ -60,6 +63,11 @@ class Entity(Named):
 		self.fields.add(field)
 		return field
 
+	def get_field(self, name):
+		for f in self.fields:
+			if f.name==name:
+				return f
+		raise KeyError("Field %s not found in entity %s" % (name, self.name))
 
 @model
 class Field(Named):
@@ -67,6 +75,7 @@ class Field(Named):
 	A field which is compulsory in the object.
 	'''
 	entity = ref(inv=Entity.fields)
+	constraints = refs()
 
 	def is_key(self):
 		return self.name=='_id'
@@ -82,6 +91,27 @@ class ForeignKey(Field):
 		super().__init__(name)
 		self.references = refent
 
+@model
+class ConstraintUnique(Named):
+	'''
+	Declare a uniqueness constraint on a number of attributes.
+	'''
+
+	entity = ref()
+	fields = ref_list(inv=Field.constraints)
+	primary_key = attr(bool, default = False)
+	def __init__(self, name, entity, keys, primary_key=False):
+		super().__init__(name)
+		self.entity=entity
+		self.primary_key = primary_key
+		assert len(keys)>0
+		for key in keys:
+			if isinstance(key, str):
+				key = entity.get_field(key)
+			self.fields.append(key)
+
+	def names(self):
+		return [f.name for f in self.fields]
 
 @model
 class ApiEntity(Entity):
@@ -93,6 +123,10 @@ class ApiEntity(Entity):
 	# <name>_dao
 	dao_name = attr(str, nullable=True)
 	CheckedConstraint(LEGAL_IDENTIFIER)(dao_name)
+
+	unique = refs(inv=ConstraintUnique.entity)
+	primary_key = attr(type=ConstraintUnique, nullable=True, default=None)
+
 
 	# operations supported
 	read = attr(bool, nullable=False, default=True)
@@ -107,10 +141,34 @@ class ApiEntity(Entity):
 		if read_only:
 			self.create = self.update = self.delete = False
 
-# A partial model of the project repository
+	def constraint_unique(self, name, *args):
+		ConstraintUnique(name, self, args, primary_key=False)
 
-DB_PT = Database('dpcm_integration_repo')
-DB_SIM = Database('dpcm_simulator')
+	def set_primary_key(self, *args):
+		if self.primary_key is not None:
+			raise ValueError("Primary key already exists: %s" % self.primary_key.names())
+		self.primary_key = ConstraintUnique("%s_pk" % self.name, self, args, primary_key=True)
+
+	def create_id(self, obj):
+		if self.primary_key:
+			body = ":".join(str(obj[f.name]) for f in self.primary_key.fields)
+			return "%s:%s" % (self.name, body)
+		else:
+			if '_id' in obj:
+				return obj['_id']
+			else:
+				return "%s-%s" % (self.name, uuid.uuid4().hex)
+
+
+
+
+#
+# A partial model of the project repository
+# (only entities of concern to us)
+#
+
+DB_PT = Database('planning_tool_database')
+DB_SIM = Database('netsim_database')
 
 USER = ApiEntity('user', DB_PT, read_only=True)
 USER.add_field('userName')
@@ -124,63 +182,43 @@ PROJECT.add_foreign_key('userId', USER)
 PLAN = ApiEntity('plan', DB_PT, read_only=True)
 PLAN.add_field('name')
 
+NODEDEF = Entity('nodedef', DB_PT)
+
 NSD = ApiEntity('nsd', DB_SIM)
 NSD.add_foreign_key('project_id', PROJECT)
-NSD.add_field('plan_id')
+NSD.add_foreign_key('plan_id', PLAN)
 NSD.add_field('name')
+NSD.set_primary_key('project_id','name')
 
 VECTORL = ApiEntity('vectorl', DB_SIM)
 VECTORL.add_foreign_key('project_id', PROJECT)
 VECTORL.add_field('name')
+VECTORL.set_primary_key('project_id','name')
 
 SIM = Entity('simoutput', DB_SIM)
 SIM.add_foreign_key('nsdid', NSD)
 
 DATABASES = [ DB_PT, DB_SIM ]
-ENTITIES = [ USER, PROJECT, PLAN, NSD, VECTORL, SIM ]
-
+ENTITIES = [ USER, PROJECT, PLAN, NODEDEF, NSD, VECTORL, SIM ]
 
 #
 # models for project repository entity handling
 #
 
 
-
-
 @model
-class CouchDesign(Named):
+class Design(Named):
 	'''
-	A CouchEntityModel is a couchdb design document for an entity.
-
-
+	A couchdb design document.
 	'''
-
-	# The entity this model is about
-	entity = attr(Entity, nullable=False)
 
 	# the views it contains 
 	views = refs()
 
 	@property
 	def id(self):
+		'''The document couchdb id.'''
 		return "_design/"+self.name
-
-	def __init__(self, entity, domain = ''):
-		'''
-		Create the design document.
-
-		The name of the document is '%s%s_model' %(domain, entity.name).
-		Use domain to avoid collisions.
-		'''
-
-		self.entity = entity
-		super().__init__("%s%s_model" % (domain,entity.name))
-
-		self.views.add(CouchView('all', entity.idfield))
-
-		for fk in entity.fields:
-			if isinstance(fk, ForeignKey):
-				self.views.add(CouchView('by_%s' % fk.name, fk))
 
 	def to_object(self):
 		ddoc = {
@@ -196,20 +234,65 @@ class CouchDesign(Named):
 
 
 @model
+class DbDesign(Design):
+	database = ref(inv=Database.design)
+	def __init__(self, db, domain=''):
+		super().__init__("%s_design")
+		self.database=db
+	def to_object(self):
+		return None
+
+@model
+class CouchDesign(Design):
+	'''
+	A CouchDesign is a couchdb design document for an entity.
+
+	The design document defines one view for each foreign key and
+	for each uniqueness constraint.
+	'''
+
+	# The entity this model is about
+	entity = attr(Entity, nullable=False)
+
+
+	@property 
+	def database(self):
+		return self.entity.database
+
+	def __init__(self, entity, domain = ''):
+		'''
+		Create the design document.
+
+		The name of the document is '%s%s_model' %(domain, entity.name).
+		Use domain to avoid collisions.
+		'''
+
+		self.entity = entity
+		super().__init__("%s%s_model" % (domain,entity.name))
+
+		self.views.add(IndexView('all', entity.idfield))
+
+		for fk in entity.fields:
+			if isinstance(fk, ForeignKey):
+				self.views.add(IndexView('by_%s' % fk.name, fk))
+
+
+@model
 class CouchView(Named):
 	'''
 	A view in a design document.
 
 	'''
-
 	design = ref(inv=CouchDesign.views)
-
-	# when key==null, the view is on doc._id
-	key = attr(Field, nullable=True)
 
 	@property
 	def resource(self):
 		return "%s/_view/%s" % (self.design.id, self.name)
+
+@model
+class IndexView(CouchView):
+	# when key==null, the view is on doc._id
+	key = attr(Field, nullable=True)
 
 	@property
 	def key(self):
