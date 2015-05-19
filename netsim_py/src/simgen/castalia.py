@@ -6,15 +6,14 @@ Created on Oct 14, 2014
 
 import os.path
 import json
-from models.nsd import NSD, Network, Mote, MoteType, Position, Plan, Project,\
-    CastaliaEnvironment, VectorlEnvironment
 from models.json_reader import JSONReader, repository
-from models.nsd import NSD, Network, Mote, MoteType, Position, \
-   NodeType, ConnectivityMatrix
 from models.mf import Attribute
 from simgen.utils import docstring_template
 from .castaliagen import generate_castalia
-import pdb
+
+from models.nsd import NSD, Network, Mote, Position, Plan, Project,\
+    CastaliaEnvironment, VectorlEnvironment, NodeDef, ConnectivityMatrix
+
 
 
 class NSDReader(JSONReader):
@@ -60,7 +59,7 @@ class NSDReader(JSONReader):
         nodeDefOids = {n.nodeTypeId for n in nsd.plan.NodePosition}
         self.log.debug("Collected nodeDef objects: %s", nodeDefOids )
 
-        self.nodeDefs = {oid: NodeType() for oid in nodeDefOids}
+        self.nodeDefs = {oid: NodeDef() for oid in nodeDefOids}
         nodeDefJson = {oid:self.read_object(oid, self.nodeDefs[oid]) 
             for oid in nodeDefOids}
         self.create_jsonfile(nodeDefJson, "nodedefs.json")

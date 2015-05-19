@@ -196,9 +196,7 @@ class LocalExecutor(Executor):
     
     def generate_simulation(self, fileloc, redirect=True):
         # This will execute function generate_simulation() in a different process
-        print("Fileloc:", fileloc)
         execute_context(fileloc, generate_simulation, "gen", redirect)
-        print("Child id:::::::::::::::::::::::::::::", os.getpid())
         
     
     
@@ -209,6 +207,7 @@ class LocalExecutor(Executor):
     
     def compile_simulation(self, fileloc, redirect=True):
     
+        '''
         if not os.access(os.path.join(fileloc, "omnetpp.ini"), os.R_OK):
             raise RuntimeError("Cannot access omnetpp.ini at the root of path %s" % (fileloc,))
             
@@ -229,7 +228,8 @@ class LocalExecutor(Executor):
         #
         args = ["/usr/bin/make"]
         execute_command(fileloc, args, "compile.txt", redirect)
-    
+        '''
+        execute_command(fileloc, ["/usr/bin/make",'-f','executor.mak', 'compile'], "compile.txt", redirect)
     
     
     #--------------------------------------------------------
@@ -238,14 +238,13 @@ class LocalExecutor(Executor):
     
     
     def start_simulation(self, fileloc, redirect=True):
-    
-        #
-        # Create the Makefile by executing opp_makemake 
-        #
+        '''    
         prog = os.path.join(fileloc , self.SIMEXEC)
         args = [prog, '--cmdenv-output-file=simout.txt']
         execute_command(fileloc, args, "exec.txt", redirect)
-    
+        '''
+        execute_command(fileloc, ["/usr/bin/make",'-f','executor.mak', 'run'], "exec.txt", redirect)
+
     
     #-----------------------------------------------------
     # Finish simulation

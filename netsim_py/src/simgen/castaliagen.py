@@ -1,11 +1,13 @@
 
 import os.path
-from runner.config import castalia_path
+from runner.config import castalia_path, omnetpp_path
 from models.nsd import *
 from models.castalia_sim import *
 from models.mf import Attribute
 from simgen.utils import docstring_template
+from simgen.datastore import context
 import pyproj
+import numpy as np
 
 
 def generate_castalia(gen):
@@ -13,127 +15,246 @@ def generate_castalia(gen):
     Main entry routine for generating a castalia simulation from the NSD
     '''
 
-    cm = m2m_nsd_to_castalia(gen, gen.nsd)
-    m2t_castalia_model(gen, cm)
+    # generate the simulation
+    cmb = CastaliaModelBuilder(gen)
+    cmb.transform()
+    m2t_castalia_model(gen, cmb.cm)
+
+    # generate additional files
+    with gen.output_file("executor.mak") as m:
+        m.write(makefile(cmb))
+
     gen.log.debug("Code generated from NSD")
 
-#
-# M2M transform: NSD -> CastaliaModel
-#
 
-def m2m_nsd_to_castalia(gen, nsd):
+class CastaliaModelBuilder:
     '''
-    Create castalia model from nsd.
-    '''
-    cm = CastaliaModel()
-    cm.omnetpp = m2m_nsd_to_omnetpp(gen, nsd)
-    cm.network = m2m_nsd_to_network(gen, nsd)
-    return cm
-
-def m2m_nsd_to_omnetpp(gen, nsd):
-    '''
-    Create Omnetpp model from NSD
-    '''
-    o = Omnetpp()
-    o.sim_time_limit = nsd.parameters.sim_time_limit
-    o.simtime_scale = nsd.parameters.simtime_scale
-    o.cpu_time_limit = nsd.parameters.cpu_time_limit
-    o.castalia_path = castalia_path()
-    return o
-
-
-def m2m_nsd_to_network(gen, nsd):
-    '''
-    Create castalia module network.
+    A class containing the logic to transform an NSD to a castalia model.
+    This is an M2M transformation.
     '''
 
-    # We follow a top-down approach, over the
-    # Castalia model
+    def __init__(self, gen):
+        # the inputs
+        self.gen = gen
+        self.nsd = gen.nsd
 
-    # Configure network
-    net = Network(None, 'SN')
+        # The castalia model to build
+        self.cm = CastaliaModel()
 
-    # Split motes into nodeTypes. The nodes of each node
-    # type are in a range.
-
-    # TBD
-
-    # create nodes
-    node_modules = []
-    for mote in nsd.network.motes:
-        node = Node(net, 'node', len(node_modules))
-        node.name = mote.node_id
-        node.mote = mote
-        node.ApplicationName = 'ConnectivityMap'
-        node_modules.append(node)
-    assert len(node_modules)>0
-
-    AOI = compute_positions(node_modules)
-
-    # silly code
-    net.field_x = AOI[0]
-    net.field_y = AOI[1]
-    net.field_z = AOI[2]
-
-    net.numNodes = len(node_modules)
-    net.numPhysicalProcesses = 1
-    net.physicalProcessName = 'CustomizablePhysicalProcess'
-
-    all_nodes = net.dummy('node', slice(None,None))
-    radio = Radio(all_nodes,'Communication.Radio')
-    radio.RadioParametersFile = "../Parameters/Radio/CC2420.txt"
-    radio.symbolsForRSSI = 8
-
-    return net
-    
-
-def compute_positions(node_modules):
-    '''
-    Takes an array of Node objects and adorns them with coordinates.
-    Returns the area of interest.
-    '''
-    #
-    # create Proj objects for mapping
-    #
-
-    # all PT coordinates in epsg 4326
-    from_proj = pyproj.Proj(init='epsg:4326')
-
-    # for output coordinates, create an appropriate UTM projection
-    to_proj = pyproj.Proj(proj='utm', 
-        lon_0=node_modules[0].mote.position.lon, 
-        ellps='WGS84')
-
-    # all position pairs
-    all_pos = []
-    for n in node_modules:
-        x,y = pyproj.transform(from_proj, to_proj, n.mote.position.lon, n.mote.position.lat)
-        z = n.mote.position.alt + n.mote.elevation
-        all_pos.append( (x,y,z) )
+        # The [General] section
+        self.opp = General(self.cm)
 
 
-    # rebase coordinates to the (0,0)-(P,Q) rectangle
-    pmin = [0]*3
-    for p in range(3):
-        val = min(P[p] for P in all_pos)
-        print("val=",val)
-        pmin[p] = val
+    def transform(self):
+        '''
+        Main routine.
+        '''
+        self.init_omnetpp_general()
+
+        self.create_network()
+
+        for nodeType in self.cm.nodeTypes:
+            self.create_node_type(nodeType)
+
+        self.create_environment()
+
+        self.create_wireless_channel()
+
+        self.add_omnetpp_sections()
 
 
-    final_pos = [(x-pmin[0], y-pmin[1], z-pmin[2]) for x,y,z in all_pos]
+    def init_omnetpp_general(self):
+        '''
+        Create Omnetpp model from NSD
+        '''
+        self.opp.sim_time_limit = self.nsd.parameters.sim_time_limit
+        self.opp.simtime_scale = self.nsd.parameters.simtime_scale
+        self.opp.cpu_time_limit = self.nsd.parameters.cpu_time_limit
+        self.opp.castalia_path = castalia_path()
 
-    # initialize
-    for i in range(len(node_modules)):
-        node = node_modules[i]
-        node.xCoor = final_pos[i][0]
-        node.yCoor = final_pos[i][1]
-        node.zCoor = final_pos[i][2]
+    def add_omnetpp_sections(self):
+        # Add network to [General]
+        self.opp.modules.append(self.cm.network)
 
-    aoi = [0]*3
-    for p in range(3):
-        aoi[p] = max(P[p] for P in final_pos)
+        # Add nodes section
+        nodeSection = Section(self.cm, 'Nodes')
+        nodeSection.modules.append(self.nodes)
 
-    return aoi
+        # Add sections for node types
+        for nodeType in self.cm.nodeTypes:
+            s = Section(self.cm, 'NodeType_%s '% nodeType.nodeDef.code)
+            nodeType.section = s
+            s.modules.append(nodeType.nodes)
+        # make the names of node types legal!
+
+
+        # Add section for HiL
+        hil_section = Section(self.cm, 'HiL')
+
+        # Final, main section
+        ext = [hil_section]+[nt.section for nt in self.cm.nodeTypes]+[nodeSection]
+        self.main_section = Section(self.cm, 'Main', extends=ext)
+
+
+    def create_network(self):
+        '''
+        Scan through the NSD and analyze into pieces for further
+        processing
+        '''
+
+        # Configure network module. This must be done first!
+        net = Network(None, 'SN')
+        self.cm.network = net
+
+
+        # filter the node types, excluding NIDs
+        # separate the motes into types and assign ranges
+        pos = 0
+        for nodeDef in self.nsd.nodedefs:
+            # skip NIDs
+            if nodeDef.nature == 'NID':
+                continue
+            size = len(nodeDef.motes)
+            index = slice(pos, pos+size)
+            pos += size
+            # create the type
+            NodeType(self.cm, nodeDef, index)
+        net.numNodes = pos
+
+
+
+        # Configure node modules
+        self.nodes = net.base()
+        for nodeType in self.cm.nodeTypes:
+            # assign numbers to the nodes
+            num = nodeType.index.start
+            for mote in nodeType.nodeDef.motes:
+                # create node module
+                node = Node(self.nodes, 'node', num)
+                num += 1
+                node.name = mote.node_id
+                node.mote = mote
+
+        assert net.numNodes == len(self.nodes.submodules)
+
+        # adjust node coordinates and compute Area Of Interest
+        AOI = self.compute_positions(self.nodes.submodules)
+
+        # init parameters in network
+        net.field_x = AOI[0]
+        net.field_y = AOI[1]
+        net.field_z = AOI[2]
+
+        return net
+        
+
+    def compute_positions(self, node_modules):
+        '''
+        Takes a collection of Node modules and adorns them with coordinates.
+        Returns the area of interest.
+        '''
+        #
+        # create Proj objects for mapping
+        #
+
+        # all PT coordinates in epsg 4326
+        from_proj = pyproj.Proj(init='epsg:4326')
+
+        # for output coordinates, create an appropriate UTM projection
+        to_proj = pyproj.Proj(proj='utm', 
+            lon_0=node_modules[0].mote.position.lon, 
+            ellps='WGS84')
+
+        # make array of positions, keep track of the correspondence to nodes
+        node_array = [x for x in node_modules]
+        all_pos = np.zeros((len(node_array), 3))
+        i = 0
+        for n in node_array:
+            x,y = pyproj.transform(from_proj, to_proj, 
+                        n.mote.position.lon, n.mote.position.lat)
+            z = n.mote.position.alt + n.mote.elevation
+            all_pos[i,:] = np.array([x,y,z])
+            i += 1
+
+        # rebase coordinates to the (0,0)-(P,Q) rectangle, 
+        # with a buffer zone of width B
+        B = 5.0
+        bufzone = np.array([B, B, 0.0])
+        min_pos = np.min(all_pos, axis=0) - bufzone
+
+        final_pos = all_pos - min_pos
+
+        # set node parameters
+        for i in range(len(node_array)):
+            node = node_modules[i]
+            node.xCoor = final_pos[i][0]
+            node.yCoor = final_pos[i][1]
+            node.zCoor = final_pos[i][2]
+
+        aoi = np.max(final_pos, axis=0) + bufzone
+
+        return aoi
+
+
+
+    def create_environment(self):
+        '''
+        Configure the environment simulation.
+        '''
+        # TBD: make this adhere to model
+        net = self.cm.network
+        net.numPhysicalProcesses = 1
+        net.physicalProcessName = 'CustomizablePhysicalProcess'
+
+
+
+    def create_wireless_channel(self):
+        '''
+        Configure the wireless channel.
+        '''
+        pass
+        # use the connectivity matrix
+
+
+    def create_node_type(self, nodeType):
+        '''
+        Configure the node type simulation modules
+        '''
+        self.config_application(nodeType)
+        self.config_communication(nodeType)
+        self.config_resources(nodeType)
+        self.config_sensors(nodeType)
+
+
+
+    def config_communication(self, nodeType):
+        '''
+        Configure the communication stack.
+        '''
+        radio = Radio(nodeType.comm,'Radio')
+        radio.RadioParametersFile = "../Parameters/Radio/CC2420.txt"
+        radio.symbolsForRSSI = 8
+
+
+    def config_application(self, nodeType):
+        '''
+        Configure application logic.
+        '''
+        nodeType.nodes.ApplicationName = "ConnectivityMap"
+
+
+    def config_resources(self, nodeType):
+        '''
+        Configure resources.
+        '''
+        pass
+
+
+    def config_sensors(self, nodeType):
+        '''
+        Configure sensors.
+        '''
+        pass
 
 
 ##################################################
@@ -155,10 +276,17 @@ def generate_omnetpp(gen, cm):
     '''
     gen.log.debug("Generating omnetpp.ini")    
     with gen.output_file("omnetpp.ini") as omnetpp:
+        # start with preamble
         preamble = omnetpp_preamble(cm)
-        print(preamble)
         omnetpp.write(preamble)
-        generate_omnetpp_for_module(omnetpp, cm.network)
+
+        # iterate over the sections
+        for section in cm.omnetpp:
+            # print section header
+            header = omnetpp_section_header(section)
+            omnetpp.write(header)
+            for m in section.modules:
+                generate_omnetpp_for_module(omnetpp, m)
 
 
 
@@ -193,6 +321,26 @@ def omnetpp_module_param(mod, modpath, param):
 
 
 @docstring_template
+def omnetpp_section_header(section):
+    """
+#
+# section 
+#
+% if name:
+[Config {{! name}}]
+% end
+% if extends:
+extends = {{! ', '.join(s.name for s in extends) }}
+% end
+
+
+"""
+    name = section.name
+    extends = section.extends
+    return locals()
+
+
+@docstring_template
 def omnetpp_preamble(cm):
     """
 #
@@ -211,7 +359,7 @@ cmdenv-event-banners = false
 cmdenv-performance-display = false
 cmdenv-interactive = false
 
-ned-path = {{cm.omnetpp.castalia_path}}/src
+ned-path = {{param.castalia_path}}/src
 
 network = SN    # this line is for Cmdenv
 
@@ -225,34 +373,36 @@ num-rngs = 11
 # Map the 11 RNGs streams with the various module RNGs. 
 # ==========================================================
 
-SN.wirelessChannel.rng-0        = 1     # used to produce the random shadowing effects
-SN.wirelessChannel.rng-2        = 9 # used in temporal model
+{{!NET}}.wirelessChannel.rng-0        = 1     # used to produce the random shadowing effects
+{{!NET}}.wirelessChannel.rng-2        = 9 # used in temporal model
                                     
-SN.node[*].Application.rng-0        = 3 # Randomizes the start time of the application
-SN.node[*].Communication.Radio.rng-0    = 2 # used to decide if a receiver, with X probability.
+{{!NET}}.node[*].Application.rng-0        = 3 # Randomizes the start time of the application
+{{!NET}}.node[*].Communication.Radio.rng-0    = 2 # used to decide if a receiver, with X probability.
                         # to receive a packet, will indeed receive it
 
-SN.node[*].Communication.MAC.rng-0  = 4 # Produces values compared against txProb
-SN.node[*].Communication.MAC.rng-1  = 5 # Produces values between [0 ....  randomTxOffset]
+{{!NET}}.node[*].Communication.MAC.rng-0  = 4 # Produces values compared against txProb
+{{!NET}}.node[*].Communication.MAC.rng-1  = 5 # Produces values between [0 ....  randomTxOffset]
 
-SN.node[*].ResourceManager.rng-0    = 6 # Produces values of the clock drift of the CPU of each node
-SN.node[*].SensorManager.rng-0      = 7 # Produces values of the sensor devices' bias
-SN.node[*].SensorManager.rng-1      = 8 # Produces values of the sensor devices' noise
+{{!NET}}.node[*].ResourceManager.rng-0    = 6 # Produces values of the clock drift of the CPU of each node
+{{!NET}}.node[*].SensorManager.rng-0      = 7 # Produces values of the sensor devices' bias
+{{!NET}}.node[*].SensorManager.rng-1      = 8 # Produces values of the sensor devices' noise
 
-SN.physicalProcess[*].rng-0         = 10    # currently used only in CarsPhysicalProcess
+{{!NET}}.physicalProcess[*].rng-0         = 10    # currently used only in CarsPhysicalProcess
 
-SN.node[*].MobilityManager.rng-0    = 0 # used to randomly place the nodes
+{{!NET}}.node[*].MobilityManager.rng-0    = 0 # used to randomly place the nodes
 
 
 #  End of Basic config
 
-sim-time-limit = {{cm.omnetpp.sim_time_limit}}s
-simtime-scale = {{cm.omnetpp.simtime_scale}}
-% if cm.omnetpp.cpu_time_limit is not None:
-cpu-time-limit = {{cm.omnetpp.cpu_time_limit}}
+sim-time-limit = {{param.sim_time_limit}}s
+simtime-scale = {{param.simtime_scale}}
+% if param.cpu_time_limit is not None:
+cpu-time-limit = {{param.cpu_time_limit}}
 % end
 
 """
+    NET = cm.network.full_name
+    param = cm.omnetpp[0]
     return locals()
 
 
@@ -261,32 +411,64 @@ cpu-time-limit = {{cm.omnetpp.cpu_time_limit}}
 
 sim-time-limit = 100s
 
-SN.field_x = 30                                 # meters
-SN.field_y = 30                                 # meters
+{{!NET}}.field_x = 30                                 # meters
+{{!NET}}.field_y = 30                                 # meters
 
 # Specifying number of nodes and their deployment
-SN.numNodes = 9
-SN.deployment = "3x3"
+{{!NET}}.numNodes = 9
+{{!NET}}.deployment = "3x3"
 
 # Removing variability from wireless channel
-SN.wirelessChannel.bidirectionalSigma = 0
-SN.wirelessChannel.sigma = 0
+{{!NET}}.wirelessChannel.bidirectionalSigma = 0
+{{!NET}}.wirelessChannel.sigma = 0
 
 # Select a Radio and a default Tx power
-SN.node[*].Communication.Radio.RadioParametersFile = "../Parameters/Radio/CC2420.txt"
-SN.node[*].Communication.Radio.TxOutputPower = "-5dBm"
+{{!NET}}.node[*].Communication.Radio.RadioParametersFile = "../Parameters/Radio/CC2420.txt"
+{{!NET}}.node[*].Communication.Radio.TxOutputPower = "-5dBm"
 
 # Using connectivity map application module with default parameters
-SN.node[*].ApplicationName = "ConnectivityMap"
+{{!NET}}.node[*].ApplicationName = "ConnectivityMap"
 
 [Config varyTxPower]
-SN.node[*].Communication.Radio.TxOutputPower = ${TXpower="0dBm","-1dBm","-3dBm","-5dBm"}
+{{!NET}}.node[*].Communication.Radio.TxOutputPower = ${TXpower="0dBm","-1dBm","-3dBm","-5dBm"}
 
 [Config varySigma]
-SN.wirelessChannel.sigma = ${Sigma=0,1,3,5}
+{{!NET}}.wirelessChannel.sigma = ${Sigma=0,1,3,5}
 
 """
 
 
 
+@docstring_template
+def makefile(cmb):
+    """\
+# 
+# This is an automatically generated makefile
+#
 
+SIMHOME={{! simhome}}
+OMNETPP_PATH={{! opp_path}}
+CASTALIA_PATH={{! cast_path}}
+
+PATH:=/bin:/usr/bin:$(OMNETPP_PATH)/bin
+LD_LIBRARY_PATH=$(OMNETPP_PATH)/lib
+
+SIMEXEC=simexec
+
+.PHONY: all compile run
+
+all: compile run
+
+compile:
+\tln -s $(CASTALIA_PATH)/makefrag.inc makefrag
+\topp_makemake -f -r --deep -o $(SIMEXEC) -u Cmdenv -P $(SIMHOME) -M release -X./Simulations -X./src -L$(CASTALIA_PATH) -lcastalia
+\t$(MAKE)
+
+run:
+\t./$(SIMEXEC) --cmdenv-output-file=simout.txt -c Main
+
+"""
+    cast_path = castalia_path()
+    opp_path = omnetpp_path()
+    simhome = context.fileloc
+    return locals()
