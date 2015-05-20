@@ -112,14 +112,15 @@ def create_plot_for_model(pm, ds, jo):
 
     if pm.model_type == "plot":
         # generate the plot to the current working directory
-        plot.make_plot()
-        # add plot to JsonOutput jo
-        plot2json(jo, pm, plot.output + ".png")
+        if plot.make_plot():
+            # add plot to JsonOutput jo
+            plot2json(jo, pm, plot.output + ".png")
     elif pm.model_type == "parameter":
         # generate the parameter (statistic)
         res = plot.make_parameter()
-        # add the parameter to JsonOutput jo
-        parameter2json(jo, pm, res)
+        if len(res) != 0:
+            # add the parameter to JsonOutput jo
+            parameter2json(jo, pm, res)
 
     else:
         raise Exception("invalid model type: \"%s\"" % pm.model_type)
