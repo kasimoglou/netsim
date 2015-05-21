@@ -147,6 +147,9 @@ def test_diff():
 	_3 = Literal(3)
 	_5 = Literal(5)
 
+	assert Diff(_3,_5) == 2
+	assert Diff(_2 + _3,_5) == 0
+	assert Diff(_3,-_5) == -8
 	assert Diff(x1+_2, x2+_5)==3
 	assert Diff(x1,x1)==0
 	assert Additive( (_1-_1)-(x1-(_5+x2)) ) == (5,None)
@@ -155,9 +158,10 @@ def test_diff():
 
 	assert Diff(x1*y, x2*y)==0
 
-	assert Equal(_2*x1/IF(y>_2, x1+y, _3), _2*x2/IF(y>_2, x1+y, _3))
+	assert Equal(_2*x1/IF(y>_2, x2+y, _3), _2*x2/IF(y>_2, x1+y, _3))
 	assert Diff(_2*x1-IF(y>_2, x1+y, _3), _2*x2-IF(y>_2, x1+y, _3))==0
 
+	assert Diff(x1, _5) is None
 
 
 def test_index():

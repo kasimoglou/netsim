@@ -31,7 +31,7 @@ class TypeInfo:
         '''
         for T in TYPES:
             if isinstance(x, T.pytype): return T
-        return Type.OBJ
+        return OBJ
 
     @staticmethod
     def forType(t):
@@ -208,10 +208,19 @@ class ExprNode:
     # relational
     def __lt__(self, other): return UFuncOperator('<', np.less, self, other)
     def __le__(self, other): return UFuncOperator('<=', np.less_equal, self, other)
-    def __eq__(self, other): return UFuncOperator('==', np.equal, self, other)
-    def __ne__(self, other): return UFuncOperator('!=', np.not_equal, self, other)
     def __gt__(self, other): return UFuncOperator('>', np.greater, self, other)
     def __ge__(self, other): return UFuncOperator('>=', np.greater_equal, self, other)
+
+    def __eq__(self, other):
+        if isinstance(other, ExprNode):
+            return UFuncOperator('==', np.equal, self, other)
+        else:
+            return False
+    def __ne__(self, other): 
+        if isinstance(other, ExprNode):
+            return UFuncOperator('!=', np.not_equal, self, other)
+        else:
+            return False
 
     # cast
     def cast(self, T):
@@ -592,22 +601,38 @@ IF = CondOperator
 
 
 # index expressions are like  A[idx]. We treat 'idx' as a separate kind of expression
-# called a 'strider'.
+# called a 'indexer'.
 
 @model
 class Indexer(ExprNode):
+    '''
+    An auxiliary type of expression node, containing the slice analysis
+    logic for the IndexOperator
+    '''
 
     def __init__(self, index):
         self.index = index
         assert isinstance(index, tuple)
 
+        self.impl_var=0         # counter used in getvar()
+        self.impl_arg = []      # argument named by getvar
+        self.impl_expr = []     # the expression fragments of the impl
+        self.new_shape = []     # the new shape of the array after indexing
+
+        self.type = OBJ
+        self.shape = None
+        self.const = None
+        self.lvalue = False
+
     def process_index(self,shape):
         idx = list(self.index)
         idx = self.normalize_index(shape, idx)
+        self.process_indices(shape, idx)
+        self.shape = tuple(self.new_shape)
 
     def normalize_index(self,shape, idx):
         '''
-        Remove ... and replace with sequence of :
+        Remove '...' and replace with sequence of ':'
         '''
         # (a) normalize: remove any ...
         n = idx.count(...)   # number of ellipses
@@ -634,8 +659,9 @@ class Indexer(ExprNode):
         assert len(idx)==len(shape)+d
         return idx
 
-    def getvar(self):
+    def getvar(self, arg):
         var = "a%d" % self.impl_var
+        self.impl_arg.append(arg)
         self.impl_val += 1
         return var
 
@@ -649,19 +675,20 @@ class Indexer(ExprNode):
         # (a) Compute shapes
         pos = 0
         self.impl_var=0
+        self.impl_arg = []
+
         self.impl_expr = []
         self.new_shape = []    # the new shape
-        self.impl_arg = []
         for S in idx:
             if S is None: 
                 # new dimension
-                nshape.append(1)
+                self.new_shape.append(1)
             elif isinstance(S, ExprNode):
                 # normal index
-                process_normal(S, shape[pos])
+                self.process_normal(S, shape[pos])
                 pos += 1
             elif isinstance(S, slice):
-                process_slice(S, shape[pos])
+                self.process_slice(S, shape[pos])
                 pos += 1
             else:
                 assert False
@@ -670,23 +697,76 @@ class Indexer(ExprNode):
         assert len(self.impl_expr) == len(self.new_shape)
 
 
-    def process_slice(S, s):
+    def process_slice(self, S, N):
         if S.start is not None: self.check_scalar_int(S.start)
         if S.stop is not None: self.check_scalar_int(S.stop)
         if S.step is not None: self.check_scalar_int_const(S.step)
 
-        D = Diff(S.start, S.stop)
-        if D is None:
-            raise ValueError("Cannot infer a size for array slice")
-        
-
         step = S.step.value if S.step is not None else 1
         if step==0: raise ValueError("Index step cannot be 0")
-        step = "%d" % step
+        expr_step = "%d" % step
 
-        # process start/stop
-        if S.start is None:
+        # preprocess start/stop
+        start = S.start if S.start is not None else Literal(0 if step>0 else -1)
+        stop = S.stop if S.stop is not None else Literal(N if step>0 else -N-1)
 
+        # compute the size from these arguments
+
+        # case (1): when constness differs, signal an error
+        if start.const != stop.const:
+            raise ValueError("Cannot determine slice size")
+
+        # case (2): when start and stop are both constant: use python's
+        # builtin slice facility to determine size
+        if start.const and stop.const:
+            size = len(range(* slice(start.value, stop.value, step).indices(N) ))
+            if size<1 or size > N: raise ValueError("Index out of range")
+            self.new_shape.append((size+abs(step)-1)//abs(step))
+            self.impl_expr.append("%d:%d:%d" % (start.value, stop.value, step))
+            return
+
+        # case(3): This is a complicated case. First, we try to determine whether
+        # the difference of start and stop (i.e.,  stop-start), is constant.
+        # See the Diff routine for the limited code analysis checks it performs.
+        #
+        # Then, we have to take into account negative indices (e.g. A[2:-2] same as
+        # the python slice syntax. 
+        # Let N be the dimension's size (parameter s above)
+        # 
+        # Then, p and p-N  (for 0<=p<N) refer to the same 'location' in the dimension
+        # (note: the 'past the end' location is just N and the 'before the start' is -N-1)
+        #
+        # Assume slice  x:y:step with step>0 corresponding to real locations p,q, 
+        # with total size S=q-p, where 1<=S<=N.
+        # 
+        # The algorithm takes D=y-x. There are 4 possibilities
+        #  [1] x=p   y=q               then  1<= D <=N     and S = D
+        #  [2] x=p-N y=q               then  N+1 <= D <=2N and S = D-N
+        #  [3] x=p   y=q-N             then  1-N <= D <=0  and S = D+N
+        #  [4] x=p-N y=q-N             then  1<= D <=N     and S = D
+        #
+        # Therefore, the algorithm checks to see which range D fall in (to assume a
+        # non-empty slice) and adjusts accordingly to compute S. Errors are handled by
+        # checking the result at runtime.
+        #
+        # The case where step<0 is handled similarly, with D = x-y. The cases are 
+        # the same. 
+        D = Diff(S.start, S.stop) if step>0 else Diff(S.stop, S.start)
+        if D is None:
+            raise ValueError("Cannot infer a size for array slice")
+
+        if -N<D<=0:
+            size = D+N
+        elif N<D<=2*N:
+            size = D-N
+        elif 1<= D <=N:
+            size = D
+        else:
+            raise ValueError("Slicing is out of range")
+        self.new_shape.append((size+abs(step)-1)//abs(step))
+
+        expr = "%s:%s:%d" % (self.getvar(S.start), self.getvar(S.stop), step)
+        self.impl_expr.append(expr)
 
 
     def process_normal(self, S, s):
@@ -697,8 +777,7 @@ class Indexer(ExprNode):
                 raise ValueError("Index out of range")
             self.impl_expr.append("%d" % pos)
         else:
-            self.impl_arg.append(S)
-            v = self.getvar()
+            v = self.getvar(S)
             self.impl_expr.append(v)
 
     def check_scalar_int(self, s):
@@ -712,9 +791,6 @@ class Indexer(ExprNode):
 
 
 
-
-
-
 @model
 class IndexOperator(Operator):
 
@@ -723,61 +799,30 @@ class IndexOperator(Operator):
         assert isinstance(array, ExprNode)
         super().__init__('index', array, indexer)
 
-    def impl(self, A, s):
+    @property
+    def array(self): return self.args[0]
+    @property
+    def indexer(self): return self.args[1]
+
+    def impl(self):
         def indexop(A, s):
             # numpy does all the magic!
             return A[s]
+        return indexop
 
-    def result_type(self, A, s):
-        return A.type
+    def result_type(self):
+        return self.array.type
 
-    @staticmethod
-    def normalize_strider(a, s):
-        # remove the ellipsis
-        if ... in s:
-            pos = s.index(...)
-            s1 = s[:pos]
-            s2 = s[pos+1:]
-            n = len(a)+s1.count('_') +s2.count('_') -len(s1)-len(s2)
-            if n<0:
-                raise ValueError("Too many dimensions in index")
-            s = s1+('_',)*n + s2
+    def result_shape(self):
+        if self.array.shape is None: return None
+        self.indexer.process_index(self.array.shape)
+        return self.indexer.shape
 
-        # add dimensions at the end, if needed
-        m = len(s)-s.count('_')
-        if m < len(a):
-            s = s + (slice(None,None,None),)*(len(a)-m)
-        return s
+    def result_const(self):
+        return all(a.const for a in self.args)
 
-    @staticmethod
-    def result_shape(A, strider):
-        s = strider.indexer
-        a = A.shape
-
-        # normalize
-        s = normalize_strider(a, s)
-
-        # ok, now compute the final size
-        result = []
-        i=0
-        for iop in s:
-            if iop == '_':
-                result.append(1)
-                continue
-            elif isinstance(iop, slice):
-                if iop.start is None and iop.stop is None:
-                    result.append(a[i])
-                elif iop.stop is None:
-                    result.append(1)
-                else:
-                    if not (0 <= iop.stop <= a[i]):
-                        raise IndexError("specified slice size is too large")
-                    result.append(iop.stop)
-                i += 1
-            else:
-                i+=1
-
-        return tuple(result)
+    def result_lvalue(self):
+        return self.array.lvalue
 
 
 
@@ -861,7 +906,7 @@ def Equal(a,b):
     '''
     A restricted notion of quality for expression trees: purely structural
     equality. 
-    ***This is actually false for cast and index operators***
+    ***This is actually wrong for index operators***
     '''
     if a is b: return True
     if a.const and b.const:
