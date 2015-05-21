@@ -3,9 +3,10 @@ define(['underscore',
     'angular',
     'ngDialog',
     'ngGrid',
+    'json-formatter',
     '../services/api_services'], function(_) {
 
-    var nsdControllers = angular.module('nsdControllers', ['apiServices', 'ngDialog', 'ngGrid']);
+    var nsdControllers = angular.module('nsdControllers', ['apiServices', 'ngDialog', 'ngGrid', 'jsonFormatter']);
 
     // New nsd form Controller
     nsdControllers.controller('newNsdFormController',
@@ -77,6 +78,11 @@ define(['underscore',
                     .success(function(response) {
                         $scope.nsd = response;
                         $scope.getProjectName($scope.nsd.project_id);
+                        
+                        if ($scope.nsd.plan_id) {
+                            $scope.fetchSelectedPlan($scope.nsd.plan_id);
+                        }
+                        
                         $scope.initializeParameters($scope.nsd);
                         $scope.initializeEnvironment($scope.nsd);
                         $scope.initializeOutput($scope.nsd);
@@ -171,7 +177,7 @@ define(['underscore',
             $location.search('tab', index);
         };
 
-        // ### Network tab related data and methods
+        /////////////////////// ### Network tab related data and methods
         
         $scope.plans = [];
         
@@ -188,7 +194,34 @@ define(['underscore',
             });
         };
         
-        // ### Environment related data and methods
+        $scope.selected_plan = {};
+        // Every time user selects a different plan for this project
+        // we have to update its details. So on select change this function
+        // is called and we fetch specific plan's details.
+        $scope.fetchSelectedPlan = function(plan_id) {
+            $scope.selected_plan = {};
+            if (plan_id) {
+                API.planRead(plan_id)
+                        .success(function(response) {
+                            $scope.selected_plan = _.omit(response, ['_id', '_rev']);
+                })
+                        .error(function() {
+                            console.log('Error fetching plan by id.');
+                            alert('Error fetching plan by id.');
+                });
+            }
+        };
+        
+        // Controls toggle button message (if it's gonna be 'Show' or 'Hide')
+        $scope.temp.planDetailsShown = false;
+        
+        // Controls `planDetailsShown` variable and is called every time user
+        // clicks `Show/Hide Plan Details` toggle button
+        $scope.togglePlanDetails = function() {
+            $scope.temp.planDetailsShown = !$scope.temp.planDetailsShown;
+        };
+        
+        /////////////////////// ### Environment related data and methods
         $scope.vectorls = [];
         
         // This method calls `projectVectorLFilesRead` api call and

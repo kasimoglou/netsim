@@ -61,9 +61,29 @@
                                                     </label>
                                                     <select class="form-control" id="planSelect"
                                                             ng-options="plan for plan in plans track by plan"
-                                                            ng-model="nsd.plan_id">
+                                                            ng-model="nsd.plan_id" ng-change="fetchSelectedPlan(nsd.plan_id)">
                                                         <option value="">-- select plan --</option>
                                                     </select>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div ng-show="nsd.plan_id">
+                                            <div class="row">
+                                                <div class="col-md-4">
+                                                    <button type="button" class="btn btn-info btn-block" 
+                                                            data-toggle="collapse" data-target="#showplan"
+                                                            aria-expanded="false" aria-controls="showplan"
+                                                            ng-click="togglePlanDetails()">
+                                                        <span ng-show="!temp.planDetailsShown">Show Plan Details</span>
+                                                        <span ng-show="temp.planDetailsShown">Hide Plan Details</span>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <div id="showplan" class="collapse">
+                                                <div class="row top20">
+                                                    <div class="col-md-6">
+                                                         <json-formatter class="json-formatter-div" open="1" json="selected_plan"></json-formatter>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
