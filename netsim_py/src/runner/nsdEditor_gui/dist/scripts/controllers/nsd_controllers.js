@@ -677,7 +677,7 @@ define(['underscore',
             // Open dialog in order to ask user to confirm view deletion
             ngDialog.openConfirm({
                 template: '<div class="ng-dialog-message">' +
-                            '<p>You are about to delete <i><strong>' + plot.name +'</strong></i> plot.</p>' +
+                            '<p>You are about to delete <i><strong>' + plot.title +'</strong></i> plot.</p>' +
                             '<p>Are you sure?</p>' +
                         '</div>' +
                         '<div class="ng-dialog-buttons row">' +
