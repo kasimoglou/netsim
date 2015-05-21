@@ -510,9 +510,8 @@ class Action:
 
 
 
-
 VECTORL_MODEL = {
-    ExprNode, VarRef, Constant, Operator,
+    ExprNode, VarRef, Literal, Operator,
 
     ModelFactory, Model, Named, Scope, Declaration, Event, Action, Function, Argument,
     FExpr, Variable, Statement, CodeBlock, Assignment, IfStatement, PrintStatement,
@@ -573,7 +572,7 @@ def transform_expression(ast, scope):
 
 @optype('literal')
 def transform_literal(ast, scope):
-    return Constant(ast[1])
+    return Literal(ast[1])
 
 
 @optype('id')
@@ -942,7 +941,7 @@ def p_emit_statement(p):
     p[0] = ('emit', p[2],p[4],p[7])
 
 def p_assignment(p):
-    " statement : expression ASSIGN expression SEMI "
+    " statement : concat_expression ASSIGN concat_expression SEMI "
     p[0] = ('assign', p[1], p[3])
 
 def p_fexpr_statement(p):
@@ -1017,12 +1016,12 @@ def p_qual_id(p):
         p[0] = ('id', p[1])
 
 def p_primary_expression_paren(p):
-    """ primary_expression :  LPAREN expression RPAREN  """
+    """ primary_expression :  LPAREN concat_expression RPAREN  """
     p[0] =  p[2]
 
-def p_primary_expression_concat(p):
+def p_primary_expression_array(p):
     """ primary_expression : LBRACKET expr_list RBRACKET """
-    p[0] = ('concat', p[2])
+    p[0] = ('array', p[2])
 
 def p_primary_expression_fcall(p):
     """ primary_expression : qual_id LPAREN expr_list_opt RPAREN """
@@ -1241,6 +1240,18 @@ def p_expression(p):
     else:
         p[0] = ('cond', p[1], p[3], p[5])
 
+def p_concat_expression(p):
+    """ concat_expression : expression
+                          | concat_expression COMMA expression
+    """
+    if len(p)==2:
+        p[0] = p[1]
+    else:
+        if isinstance(p[1], tuple) and p[1][0]=='concat':
+            p[1].append(p[3])
+            p[0] = p[1]
+        else:
+            p[0] = ('cat', [p[1], p[3]])
 
 
 
