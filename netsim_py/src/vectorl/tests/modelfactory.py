@@ -3,7 +3,7 @@
 # A model factory for tests
 #
 
-from vectorl.parser import ModelFactory
+from vectorl.model import ModelFactory
 
 class TestModelFactory(ModelFactory):
     '''

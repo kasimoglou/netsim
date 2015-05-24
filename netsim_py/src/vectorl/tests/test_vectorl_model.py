@@ -1,7 +1,7 @@
 
 
 from models.mf import validate_classes
-from vectorl.parser import VECTORL_MODEL
+from vectorl.model import VECTORL_MODEL
 
 
 def test_validate_vectorl_model():

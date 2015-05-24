@@ -7,76 +7,13 @@
 from collections import namedtuple
 import numpy as np
 from models.mf import *
-
-#
-# Types: We use types declared by numpy.
-#  
-#
-
-class TypeInfo:
-    '''
-    Model for a VectorL type.
-    '''
-    def __init__(self, name, pytype, make, rank):
-        self.name = name
-        self.pytype = pytype
-        self.make = make
-        self.dtype = make([0]).dtype #numpy type
-        self.rank=rank
-
-    @staticmethod
-    def forLiteral(x):
-        '''
-        Find the type for a literal
-        '''
-        for T in TYPES:
-            if isinstance(x, T.pytype): return T
-        return OBJ
-
-    @staticmethod
-    def forType(t):
-        return TypeInfo.bytype[t]
-
-    @staticmethod
-    def forName(n):
-        return TypeInfo.byname[n]
-
-    @staticmethod
-    def auto_castable(current, desired):
-        current_rank = TypeInfo.forType(current).rank
-        desired_rank = TypeInfo.forType(desired).rank
-        return current_rank <= desired_rank
-
-    def __str__(self):
-        return 'TypeInfo(%s)' % self.name
-    def __repr__(self):
-        return "<TypeInfo('%s')>" % self.name
-
-# static members
-BOOL = TypeInfo('bool', bool, np.bool_, 1)
-INT = TypeInfo('int', int, np.int_, 2)
-REAL = TypeInfo('real', float, np.float_, 3)
-TIME = TypeInfo('time', float, np.float_, 4)
-
-# Real types
-TYPES = (BOOL, INT, REAL, TIME)
-
-# This pseudo-type is used to manipulate internal data. There are no
-# variables of this type, only intermediate results.
-OBJ = TypeInfo('object', object, lambda x: np.array(x, dtype=object),5)
-ALL_TYPES = TYPES+(OBJ,)
-
-# Maps used to translate between type systems
-TypeInfo.byname = {t.name : t for t in TYPES}
-TypeInfo.bytype = {t.dtype : t  for t in TYPES if t is not TIME}
-
-
-
+from simgen.utils import docstring_template
+from vectorl.typeinfo import *
+from vectorl.parser import SourceItem
 
 #
 # Shape management routines
 #
-
 
 def compute_broadcast_shape(shapes):
     '''
@@ -127,7 +64,7 @@ def broadcast_shape(*args):
 ########################################################
 
 @model
-class ExprNode:
+class ExprNode(SourceItem):
     '''
     Base class for expression tree nodes.
 
@@ -153,7 +90,7 @@ class ExprNode:
         the size is 1.
         '''
         assert self.shape is not None
-        return self.shape in (tuple(), (1,))
+        return len(self.shape)==0
 
     def auto_castable(self, totype):
         '''
@@ -183,6 +120,16 @@ class ExprNode:
         '''
         return None not in (self.type, self.shape, 
             self.lvalue, self.const)
+
+    def bind(self, argmap):
+        '''
+        Bind (recursively down the tree) any unbound argument in the node's subtree
+        to the given arguments and then return a clone with the new binding.
+
+        This way Function objects are implemented.
+        '''
+        raise NotImplementedError()
+
 
     #
     # Define operators
@@ -228,7 +175,13 @@ class ExprNode:
         return CastOperator(T,self)
 
     def __getitem__(self, idx):
-        return IndexOperator(self, Indexer(idx))
+        return IndexOperator(self, Indexer(idx, self.shape))
+
+
+def LNOT(expr):  return UFuncOperator('!', np.logical_not, expr)
+def LAND(e1, e2): return UFuncOperator('&&', np.logical_and, e1, e2)
+def LOR(e1, e2): return UFuncOperator('||', np.logical_or, e1, e2)
+
 
 #################################################
 #
@@ -248,6 +201,11 @@ class VarRef(ExprNode):
         self.lvalue = True
         self.shape = self.var.initval.shape
 
+    def bind(self, argmap): return self
+
+    def description(self):
+        return self.var.name
+
 @model
 class Literal(ExprNode):
     '''
@@ -261,6 +219,12 @@ class Literal(ExprNode):
         self.shape = self.value.shape
         self.const = True
         self.lvalue = False
+
+    def bind(self, argmap): return self
+
+    def description(self):
+        return str(self.value)
+
 
 @model
 class Parameter(ExprNode):
@@ -278,6 +242,11 @@ class Parameter(ExprNode):
         self.const = const
         self.lvalue = False
 
+    def bind(self, argmap):
+        return argmap.get(self.name, self)
+
+    def description(self):
+        return "parameter '%s'" % self.name
 
 @model
 class Operator(ExprNode):
@@ -319,7 +288,6 @@ class Operator(ExprNode):
         self.args = args
         self.initialize()
 
-
     def initialize(self):
         # infer type
         if self.type is None:
@@ -337,12 +305,26 @@ class Operator(ExprNode):
         if self.lvalue is None:
             self.lvalue = self.result_lvalue()
 
-        self.value = None
+        self.value = self.const_value()
 
+    def const_value(self):
+        '''
+        The value of this node as a compile-time constant. If the
+        node is not const or proper, returns None.
+        '''
         if self.is_proper() and self.const:
-            # Compute the value eagerly!
             argvals = [a.value for a in self.args]
-            self.value = self.impl()(*argvals)
+            return self.impl()(* argvals)
+        return None
+
+
+    def bind_args(self, argmap):
+        '''
+        Helper method to recursively propagate a bind call to the arguments
+        and return a tuple with bound arguments.
+        '''
+        return tuple(arg.bind(argmap) for arg in self.args)
+
 
     def std_result_dtype(self):
         '''
@@ -352,17 +334,17 @@ class Operator(ExprNode):
         return np.result_type(* tuple(a.type.dtype for a in self.args))
 
     def operator_arity(self):
-        raise NotImplemented
+        raise NotImplementedError()
 
     @property
     def arity(self):
         return len(self.args)
 
     def result_type(self):
-        raise NotImplemented
+        raise NotImplementedError()
 
     def result_shape(self):
-        raise NotImplemented
+        raise NotImplementedError()
 
     def result_const(self):
         return all(a.const for a in self.args) if self.args_proper_const() else None
@@ -377,7 +359,7 @@ class Operator(ExprNode):
         values consistent with the arguments in terms
         of shape and type.
         '''
-        raise NotImplemented
+        raise NotImplementedError()
 
     # Helper methods
     def args_proper(self, attrname=None):
@@ -388,6 +370,9 @@ class Operator(ExprNode):
     def args_proper_shape(self): return self.args_proper('shape')
     def args_proper_lvalue(self): return self.args_proper('lvalue')
     def args_proper_const(self): return self.args_proper('const')
+
+    def description(self):
+        return "operator %s/%d" % (self.op, self.arity)
 
 
 @model
@@ -429,6 +414,11 @@ class UFuncOperator(Operator):
     def impl(self):
         return self.ufunc
 
+    def bind(self, argmap):
+        if self.is_proper(): return self
+        return UFuncOperator(self.op, self.ufunc, * self.bind_args(argmap))
+
+
 @model
 class CastOperator(Operator):
     '''Type casting operator'''
@@ -455,6 +445,13 @@ class CastOperator(Operator):
 
     def operator_arity(self):
         return 1
+
+    def bind(self, argmap):
+        if self.is_proper(): return self
+        return CastOperator(self.ctype, * self.bind_args(argmap))
+
+    def description(self):
+        return "cast(%s)" % self.ctype.name
 
 @model
 class ArrayOperator(Operator):
@@ -484,6 +481,11 @@ class ArrayOperator(Operator):
     def operator_arity(self):
         return None
 
+    def bind(self, argmap):
+        if self.is_proper(): return self
+        return ArrayOperator(* self.bind_args(argmap))
+
+
 # shorthand
 Array = ArrayOperator
 
@@ -497,7 +499,7 @@ class ConcatOperator(Operator):
 
     def __init__(self, *args):
         assert len(args)>1
-        super().__init__('array', *args)
+        super().__init__('concat', *args)
 
     @staticmethod
     def concat(*args):
@@ -540,6 +542,12 @@ class ConcatOperator(Operator):
 
     def operator_arity(self):
         return None
+
+
+    def bind(self, argmap):
+        if self.is_proper(): return self
+        return ConcatOperator(* self.bind_args(argmap))
+
 
 # convenience name
 Concat = ConcatOperator
@@ -587,48 +595,136 @@ class CondOperator(Operator):
     def operator_arity(self):
         return 3
 
+    def bind(self, argmap):
+        if self.is_proper(): return self
+        return CondOperator(* self.bind_args(argmap))
 
 #shorthand
 IF = CondOperator
-
-
-# funcall
-
-# function calls do not refer to Vectorl functions but to
-# 'builtin' functions (library, aggregate etc).
-
-# TBD
 
 
 # index expressions are like  A[idx]. We treat 'idx' as a separate kind of expression
 # called a 'indexer'.
 
 @model
-class Indexer(ExprNode):
+class Indexer(Operator):
     '''
     An auxiliary type of expression node, containing the slice analysis
     logic for the IndexOperator
     '''
 
-    def __init__(self, index):
-        self.index = index
-        assert isinstance(index, tuple)
+    index = attr(tuple)       # the original index tuple
+    array_shape = attr(tuple, default=None) # the shape of the indexed array
 
-        self.impl_var=0         # counter used in getvar()
-        self.impl_arg = []      # argument named by getvar
-        self.impl_expr = []     # the expression fragments of the impl
-        self.new_shape = []     # the new shape of the array after indexing
+    # used to create implementation function
+    impl_arg = attr(list)   # the non-const arguments from all_args
+    impl_expr = attr(list)  # list of strings to create impl
+    result_shape = attr(list)  # a list used to construct the new shape
+
+    def __init__(self, index, array_shape=None):
+        '''
+        Pass in an index tuple
+        '''
+        self.index = index
+        all_args = self.collect_args()
+        super().__init__('indexer', *all_args)
 
         self.type = OBJ
         self.shape = None
         self.const = None
         self.lvalue = False
 
-    def process_index(self,shape):
+        self.process_index(array_shape)
+        if self.array_shape is not None:
+            self.initialize()
+
+
+    # Operator definitions
+    def result_type(self): return OBJ
+    def result_const(self):
+        if self.array_shape is None:
+            return None
+        else:
+            return len(self.impl_arg)==0
+
+    def result_shape(self):
+        if self.array_shape is None:
+            return None
+        else:
+            return tuple(self.result_shape)
+    def operator_arity(self): return None
+
+    def is_proper(self):
+        return super().is_proper() and self.array_shape is not None
+
+    def bind(self, argmap, shape):
+        if self.is_proper(): return self
+        def bind_idx(idx):
+            if isinstance(idx, ExprNode):
+                return idx.bind(argmap)
+            elif isinstance(idx, slice):
+                return slice(bind_idx(idx.start), bind_idx(idx.stop),bind_idx(idx.step))
+            else:
+                return idx
+
+        return Indexer(tuple(bind_idx(i) for i in self.index), shape)
+
+    #
+    # getvar and __impl_code are collaborators
+    #
+    def get_arg_index(self, arg):
+        '''
+        Get the index of arg in self.args. 
+        Note: we cannot use self.args.index(arg), because of
+        the overloading of == for ExprNode
+        '''
+        for i,S in enumerate(self.args):
+            if S is arg: return i
+        raise ValueError("In get_arg_index: argument not in the list")
+
+    def getvar(self, arg):
+        ano = self.get_arg_index(arg)
+        var = "args[%d]" % ano
+        self.impl_arg.append(arg)
+        return var
+
+    @docstring_template
+    def __impl_code(self):
+        """\
+def IDX(*args):
+    return tuple([ {{! ','.join(self.impl_expr) }} ])
+"""
+        return locals()
+
+    def impl(self):
+        exec(self.__impl_code(), locals(), globals())
+        return IDX
+
+    #
+    # Return all the args of this indexer
+    #
+    def collect_args(self):
+        all_args = []
+        def collect_expr(e): 
+            if isinstance(e, ExprNode): all_args.append(e)
+        for S in self.index:
+            if isinstance(S, slice):
+                collect_expr(S.start)
+                collect_expr(S.stop)
+                collect_expr(S.step)
+            else:
+                collect_expr(S)
+        return all_args
+
+    def process_index(self, shape):
+        if shape is None or not self.args_proper_shape(): return
+
         idx = list(self.index)
         idx = self.normalize_index(shape, idx)
         self.process_indices(shape, idx)
-        self.shape = tuple(self.new_shape)
+
+        self.array_shape = shape
+        self.shape = tuple(self.result_shape)
 
     def normalize_index(self,shape, idx):
         '''
@@ -659,12 +755,6 @@ class Indexer(ExprNode):
         assert len(idx)==len(shape)+d
         return idx
 
-    def getvar(self, arg):
-        var = "a%d" % self.impl_var
-        self.impl_arg.append(arg)
-        self.impl_val += 1
-        return var
-
     def process_indices(self, shape, idx):
         #
         # Compute new shape and implementation
@@ -674,15 +764,15 @@ class Indexer(ExprNode):
 
         # (a) Compute shapes
         pos = 0
-        self.impl_var=0
         self.impl_arg = []
-
         self.impl_expr = []
-        self.new_shape = []    # the new shape
+        self.result_shape = []    # the new shape
+
         for S in idx:
             if S is None: 
                 # new dimension
-                self.new_shape.append(1)
+                self.result_shape.append(1)
+                self.impl_expr.append('None')
             elif isinstance(S, ExprNode):
                 # normal index
                 self.process_normal(S, shape[pos])
@@ -694,7 +784,7 @@ class Indexer(ExprNode):
                 assert False
 
         assert pos == len(shape)
-        assert len(self.impl_expr) == len(self.new_shape)
+        assert len(self.impl_expr) == len(idx)
 
 
     def process_slice(self, S, N):
@@ -721,8 +811,11 @@ class Indexer(ExprNode):
         if start.const and stop.const:
             size = len(range(* slice(start.value, stop.value, step).indices(N) ))
             if size<1 or size > N: raise ValueError("Index out of range")
-            self.new_shape.append((size+abs(step)-1)//abs(step))
-            self.impl_expr.append("%d:%d:%d" % (start.value, stop.value, step))
+            if start.value < -N-1 or start.value>N: raise ValueError("Index out of range")
+            if stop.value < -N-1 or stop.value>N: raise ValueError("Index out of range")
+
+            self.result_shape.append((size+abs(step)-1)//abs(step))
+            self.impl_expr.append("slice(%d,%d,%d)" % (start.value, stop.value, step))
             return
 
         # case(3): This is a complicated case. First, we try to determine whether
@@ -763,9 +856,9 @@ class Indexer(ExprNode):
             size = D
         else:
             raise ValueError("Slicing is out of range")
-        self.new_shape.append((size+abs(step)-1)//abs(step))
+        self.result_shape.append((size+abs(step)-1)//abs(step))
 
-        expr = "%s:%s:%d" % (self.getvar(S.start), self.getvar(S.stop), step)
+        expr = "slice(%s,%s,%d)" % (self.getvar(S.start), self.getvar(S.stop), step)
         self.impl_expr.append(expr)
 
 
@@ -773,7 +866,7 @@ class Indexer(ExprNode):
         self.check_scalar_int(S)
         if S.const:
             pos = S.value
-            if pos>=s or pos<-s-1:
+            if pos>s or pos<-s-1:
                 raise ValueError("Index out of range")
             self.impl_expr.append("%d" % pos)
         else:
@@ -807,8 +900,16 @@ class IndexOperator(Operator):
     def impl(self):
         def indexop(A, s):
             # numpy does all the magic!
-            return A[s]
+            ret = A[s]
+            if ret.shape != self.shape:
+                raise IndexError("Bad index. Expected shape = %s, got %s" 
+                    %(ret.shape, self.shape))
+            return ret
         return indexop
+
+    def bind(self, argmap):
+        A = self.args[0].bind(argmap)
+        return IndexOperator(A, self.args[1].bind(argmap, A.shape))
 
     def result_type(self):
         return self.array.type
@@ -822,7 +923,10 @@ class IndexOperator(Operator):
         return all(a.const for a in self.args)
 
     def result_lvalue(self):
-        return self.array.lvalue
+        return isinstance(self.array, VarRef)
+
+
+
 
 
 

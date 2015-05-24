@@ -76,6 +76,7 @@ def test_binary_simple():
 	assert x.const is None
 	assert not x.lvalue
 
+
 def test_type_promo():
 	assert (Literal(1)+Literal(0.0)).type is REAL
 	assert (Literal(True)+Literal(0.0)).type is REAL
@@ -88,13 +89,15 @@ def test_type_promo():
 	('-',np.negative, 3, -3),
 	('-',np.negative, 3.0, -3.0),
 	('-',np.negative, True, False),
-	('-',np.invert, 3, ~3),
-	('-',np.invert, True, False)
+	('~',np.invert, 3, ~3),
+	('~',np.invert, True, False)
 	])
 def test_unary_operator(op, ufunc, val, res):
 	expr = UFuncOperator(op, ufunc, Literal(val))
 	assert expr.const
 	assert expr.value == res
+
+
 
 @pytest.mark.parametrize("op,ufunc, a, b, res",[
 	('+', np.add, 2., 3, 5),
@@ -134,34 +137,145 @@ def test_concat():
 	assert Concat(a2, a2, a2).shape == (9,4)
 
 
-def test_diff():
-	xvar = DummyVar(2)
-	yvar = DummyVar(3)
+#
+#  Constants for synthesizing expressions
+#
 
-	x1 = VarRef(xvar)
-	x2 = VarRef(xvar)
-	y = VarRef(yvar)
+_0 = Literal(0)
+_1 = Literal(1)
+_2 = Literal(2)
+_3 = Literal(3)
+_4 = Literal(4)
+_5 = Literal(5)
+_6 = Literal(6)
+_7 = Literal(7)
+_8 = Literal(8)
+_9 = Literal(9)
 
-	_1 = Literal(1)
-	_2 = Literal(2)
-	_3 = Literal(3)
-	_5 = Literal(5)
+_m1 = Literal(-1)
+_m2 = Literal(-2)
+_m3 = Literal(-3)
+_m4 = Literal(-4)
+_m5 = Literal(-5)
 
-	assert Diff(_3,_5) == 2
-	assert Diff(_2 + _3,_5) == 0
-	assert Diff(_3,-_5) == -8
-	assert Diff(x1+_2, x2+_5)==3
-	assert Diff(x1,x1)==0
+xvar = DummyVar(2)
+yvar = DummyVar(3)
+
+x1 = VarRef(xvar)
+x2 = VarRef(xvar)
+y = VarRef(yvar)
+
+
+@pytest.mark.parametrize("p,q,D",[
+	(_3, _5, 2),
+	(_2 + _3,_5, 0),
+	(_3,-_5, -8),
+	(x1+_2, x2+_5 , 3),
+	(x1,x1, 0),
+	(x1-(_5+x2), _1-_1 , 5),
+	(x1 - x2 + x2, x1, 0),
+	(x1*y, x2*y, 0),
+	(_2*x1-IF(y>_2, x1+y, _3), _2*x2-IF(y>_2, x1+y, _3), 0),
+	(x1, _5, None)
+])
+def test_diff(p, q, D):
+	assert Diff(p,q) == D
+	if D is not None:
+		assert Diff(q,p) == -D
+	else:
+		assert Diff(q,p) is None
+ 
+def test_diff_funcs():
 	assert Additive( (_1-_1)-(x1-(_5+x2)) ) == (5,None)
-	assert Diff(x1-(_5+x2), _1-_1)==5
-	assert Diff(x1 - x2 + x2, x1 )==0
-
-	assert Diff(x1*y, x2*y)==0
-
 	assert Equal(_2*x1/IF(y>_2, x2+y, _3), _2*x2/IF(y>_2, x1+y, _3))
-	assert Diff(_2*x1-IF(y>_2, x1+y, _3), _2*x2-IF(y>_2, x1+y, _3))==0
 
-	assert Diff(x1, _5) is None
+
+@pytest.mark.parametrize("index, shape, rshape, tindex",
+	[
+	((_1,_2,_3), (5,5,5),
+		tuple(), (1,2,3)),
+
+	(tuple([...]), (3,3,3),
+		(3,3,3), (slice(0,3,1), slice(0,3,1), slice(0,3,1))),
+
+	(tuple([_1,slice(_1,None,_m1)]), (3,4,4,1) ,
+		(2, 4, 1), (1, slice(1,-5,-1), slice(0,4,1), slice(0,1,1))),
+
+	(tuple([_1,slice(_1,None,_m1),...]), (3,4,4,1),
+	 	(2, 4, 1), (1, slice(1,-5,-1), slice(0,4,1), slice(0,1,1))),
+
+	(tuple([_1,slice(_1,None,_m1),...,slice(None,None,None)]), (3,4,4,1),
+		(2, 4, 1), (1, slice(1,-5,-1), slice(0,4,1), slice(0,1,1))),
+
+	(tuple([_1,slice(_1,None,_m1),...,slice(None,None,None),slice(None,None,None)]), (3,4,4,1),
+		(2, 4, 1), (1, slice(1,-5,-1), slice(0,4,1), slice(0,1,1))),
+
+	(tuple([_1,slice(_1,None,_m1),...,slice(None,None,None),slice(None,None,None)]), (3,4,4,1),
+		(2, 4, 1), (1, slice(1,-5,-1), slice(0,4,1), slice(0,1,1))),
+
+	(tuple([...,_1,slice(_1,None,_m1),slice(None,None,None),slice(None,None,None)]), (3,4,4,1),
+		(2, 4, 1), (1, slice(1,-5,-1), slice(0,4,1), slice(0,1,1))),
+
+	(tuple([...,_1,slice(_1,None,-_1),slice(None,None,None),slice(None,None,None)]), (3,4,4,1),
+		(2, 4, 1), (1, slice(1,-5,-1), slice(0,4,1), slice(0,1,1))),
+
+	(tuple([_3]), (4,), tuple(), (3,))
+
+	])
+def test_const_indexer(index, shape, rshape, tindex):
+	I = Indexer(index, shape)
+	assert I.shape == rshape
+	assert I.const
+	assert I.impl()() == tindex
+
+
+@pytest.mark.parametrize("index, shape",
+	[
+	((_1,_2,_3), (5,5,2)),
+
+	(tuple([...,_4]), (3,3,3)),	
+
+	(tuple([_1,slice(_5,None,_m1)]), (3,2,4,1) ),
+
+	(tuple([_4,slice(_1,None,_m1),...]), (3,4,4,1)),
+
+	(tuple([_1,slice(_1,None,_m1),...,slice(None,None,None)]), (3,4)),
+
+	(tuple([_1,slice(_1,None,_m1),...,slice(None,None,None),slice(None,None,None)]), (3,)),
+
+	(tuple([_1,slice(_1,None,_m1),...,slice(None,None,None),slice(None,None,None)]), tuple()),
+
+	(tuple([...,_1,slice(_1,None,_m1),slice(None,None,None),slice(None,None,None)]), (3,4,4)),
+
+	(tuple([...,_1,slice(_1,None,-_1),slice(None,None,None),slice(None,None,None)]), (3,1)),
+
+	(tuple([_3]), (2,)),
+
+	(tuple([Literal(1.0)]), (2,)),
+
+	(tuple([Literal(False)]), (2,)),
+
+	])
+def test_bad_const_indexer(index, shape):
+	with pytest.raises(ValueError):
+		Indexer(index, shape)
+
+
+
+@pytest.mark.parametrize("index, shape, rshape, tindex",[
+	( (x1,), (1,2),
+		(2,), [((1,), (1,slice(0,2,1)))]),
+
+	( (x1,slice(x1+_3,x2-_1,-_1)), (3,5),
+		(4,), [((1,4,0,-1), (1,slice(4,0,-1)))])
+])
+def test_var_indexer(index, shape, rshape, tindex):
+	I = Indexer(index, shape)
+	assert I.shape == rshape
+	assert not I.const
+	impl = I.impl()
+	for v, z in tindex:
+		assert impl(*v) == z
 
 
 def test_index():
@@ -169,6 +283,11 @@ def test_index():
 	A = Array(arr,arr,arr)
 
 	assert A.shape == (3,4)	
+	A1 = A[_1,:]
+	assert A1.shape == (4,)
+	assert A1.const
+	assert not A1.lvalue
+	assert A1.type is INT
+	assert all(A1.value == np.array([1,2,3,4]))
 
-	assert A[Literal(1),:].shape == (4,)
 
