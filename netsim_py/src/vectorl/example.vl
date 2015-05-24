@@ -73,7 +73,7 @@ event measurement(int i, real val);
 on carOut {
     if( i < shapeof(carSpot)[0] ) {
         emit measurement(i, noisy_measurement(i)) after 1.0;
-        print("Emitted measurement");
+        print("Emitted measurement", noisy_measurement(i));
     }
     else
         print("We are done",10,20,"bye");

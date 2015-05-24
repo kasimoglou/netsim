@@ -144,6 +144,9 @@ class ModelFactory(Scope):
         return model
 
     def __parse(self, name, src):
+        '''
+        Parse src into the ast for a new model.
+        '''
         # Create a new lexer
         lexer = self.base_lexer.clone()
         lexer.factory = self
@@ -156,10 +159,10 @@ class ModelFactory(Scope):
 
     def __transform(self, name, ast):
         '''
-        Return an uninitialized model, with its namespace augmented by imports.
-        Subclasses can augment this model with more information.
+        Return a new model with the given name, initialized by the given 
+        ast.
         '''
-        model = Model(self)
+        model = Model(self, name)
         model.ast = ast
 
         transform_model(ast, model)
@@ -181,7 +184,7 @@ class ModelFactory(Scope):
 
     def init_system_model(self):
         # add the Init event
-        sysm = Model(self)
+        sysm = Model(self, 'sys')
         sysm.add_event('Init',[])
         for name, func in sys_builtins.items():
             sysm.bind(name, func)
@@ -232,9 +235,10 @@ class Model(Scope):
     events=refs()
     variables=ref_list()
 
-    def __init__(self, factory):
+    def __init__(self, factory, name):
         super().__init__(factory.sysmodel, init=builtins)
         self.factory = factory
+        self.name = name
 
     def __do_import(self, name):
         model = self.factory.get_model(name)
@@ -793,8 +797,9 @@ def transform_var(clause, model):
 
 @optype('action')
 def transform_action(clause, model):
-    evtname = clause[1][1] # ('id', 'a','b') -> ('a','b')
+    evtname = clause[1][1:] # ('id', 'a','b') -> ('a','b')
     event = model[evtname]                
+    assert isinstance(event, Event), "%s does not name an event" % evtname
     stmt = transform_statement(clause[2], event.action_scope(model))
     return model.add_action(event, stmt)
 
