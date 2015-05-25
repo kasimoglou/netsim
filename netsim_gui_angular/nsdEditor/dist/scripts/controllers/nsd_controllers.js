@@ -752,6 +752,8 @@ define(['underscore',
 
         $scope.filters = {};
 
+        // Fetches user's projects so that user can filter nsd files
+        // by the project they belong to.
         $scope.fetchProjects = function() {
             API.projectsRead()
                     .success(function(response) {
@@ -764,11 +766,15 @@ define(['underscore',
             });
         };
         
+        // This function searches `projects` and returns the name of the project
+        // with id `project_id`
         $scope.getProjectName = function(project_id) {
             var project = _.findWhere($scope.projects, {id: project_id});
             return project.name;
         };
 
+        // Read the list of user's nsds. For each nsd, find its project's name
+        // by the corresponding id.
         $scope.readNsds = function() {
             API.nsdsRead()
                     .success(function(response) {
@@ -784,12 +790,69 @@ define(['underscore',
             });
         };
 
+        // This function is called whenever user selects a project filter. We filter
+        // nsds locally and update the results in the listing
         $scope.filterNsds = function() {
             if ($scope.filters.project_id) {
                 $scope.shown_nsds = _.where($scope.nsds, {project_id: $scope.filters.project_id});
             } else {
                 $scope.shown_nsds = $scope.nsds;
             }
+        };
+        
+        // This function contains `cloneNsd` process.
+        // At first, it shows a dialog in which user is asked to enter a name for
+        // his new nsd file. Input is validated, and if validation is successful,
+        // we fetch nsd's to clone data, and then we call `nsdCreate` API call
+        // passing these data as parameters.
+        //
+        $scope.cloneNsd = function(nsd_id) {
+            var self = this;
+            ngDialog.openConfirm({
+                template: 'templates/clone_nsd.html',
+                className: 'ngdialog-theme-default clone-nsd-dialog',
+                closeByDocument: false,
+                controller: ['$scope', '$validator', function($scope, $validator) {
+                        
+                    $scope.clone = function() {
+                        // Validates nsd name input. In success fetch data to clone.
+                        $validator.validate($scope, 'new_nsd').success(function() {
+                            $scope.fetchNsdToClone();
+                        });
+                    };
+                    
+                    $scope.fetchNsdToClone = function() {
+                        API.nsdRead(nsd_id)
+                                .success(function(response) {
+                                    // Clone response, omitting `_id` and `_rev` fields
+                                    var existed_nsd_data = _.omit(response, ['_id', '_rev']);
+                                    // Also update nsd's name
+                                    existed_nsd_data.name = $scope.new_nsd.name;
+                                    // And create a new nsd from these data
+                                    $scope.saveClonedNsd(existed_nsd_data);
+                        })
+                                .error(function() {
+                                    console.log('Error reading nsd for cloning.');
+                                    alert('Error reading nsd for cloning.');
+                        });
+                    };
+                    
+                    $scope.saveClonedNsd = function(nsd) {
+                        API.nsdCreate(nsd)
+                                .success(function(response) {
+                                    $scope.closeThisDialog();
+                                    self.go(response._id);
+                        })
+                                .error(function() {
+                            
+                        });
+                    };
+                    
+                    $scope.dismissDialog = function() {
+                        $scope.closeThisDialog();
+                    };
+                }]
+            });
         };
         
         $scope.confirmDeleteNsd = function(nsd_id, nsd_name) {

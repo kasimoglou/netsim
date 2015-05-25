@@ -67,9 +67,12 @@ $icon-font-path: "../bower_components/bootstrap-sass-official/assets/fonts/boots
     .new-nsd-bottom-align,
     .new-vectorl-bottom-align {
         position: absolute;
-        margin-right: 15%;
         bottom: 0;
         right: 0;
+    }
+    
+    .new-vectorl-bottom-align {
+        margin-right: 15%;
     }
 }
 
@@ -142,6 +145,10 @@ $icon-font-path: "../bower_components/bootstrap-sass-official/assets/fonts/boots
 
 .new-plot-dialog .ngdialog-content, .new-view-dialog .ngdialog-content {
     min-width: 800px;
+}
+
+.clone-nsd-dialog .ngdialog-content {
+    min-width: 200px;
 }
 
 //// Multiselect dropdown customization
