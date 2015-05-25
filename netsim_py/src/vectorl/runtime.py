@@ -1,7 +1,6 @@
 
 from vectorl.builtins import SysBuiltin
 from vectorl.model import *
-from SimPy.Simulation import Simulation, Process
 
 import numpy as np
 import heapq

@@ -28,6 +28,8 @@ def checking():
     ctxstack.append(cc)
     try:
         yield 
+    except:
+        pass
 
 
 class CheckFailed(Exception):
