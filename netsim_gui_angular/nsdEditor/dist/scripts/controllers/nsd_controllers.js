@@ -32,23 +32,30 @@ define(['underscore',
                     });
         };
 
+        $scope.validateForm = function() {
+            $validator.validate($scope, 'nsd').success(function() {
+                if ($location.search().plan_id) {
+                    $scope.nsd.plan_id = $location.search().plan_id;
+                } 
+                
+                $scope.createNsd();
+                
+            });
+        };
+        
         // This method calls `createNsd` api call and creates a new
         // nsd file in the database. On success, the newly created object
         // is returned and we redirect user to nsd edit screen.
         // 
+        
         $scope.createNsd = function() {
-            $validator.validate($scope, 'nsd').success(function() {
-                if ($location.search().plan_id) {
-                    $scope.nsd.plan_id = $location.search().plan_id;
-                }
-                API.nsdCreate($scope.nsd)
-                        .success(function(response) {
-                            $window.location.href = '#!/nsd/' + response._id;
-                })
-                        .error(function() {
-                           console.log('Error creating nsd.');
-                           alert('Error creating nsd.'); 
-                });
+            API.nsdCreate($scope.nsd)
+                    .success(function(response) {
+                        $window.location.href = '#!/nsd/' + response._id;
+            })
+                    .error(function() {
+                       console.log('Error creating nsd.');
+                       alert('Error creating nsd.'); 
             });
         };
 
