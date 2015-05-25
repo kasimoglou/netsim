@@ -7,6 +7,7 @@
 from vectorl.model import ModelFactory
 import os.path
 
+
 class FileModelFactory(ModelFactory):
     def __init__(self):
         super().__init__()

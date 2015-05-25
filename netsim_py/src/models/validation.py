@@ -9,51 +9,43 @@ from traceback import extract_tb, format_exception_only
 from os.path import basename
 
 
+######################
+# Inline validation
+######################
+
+
+# A stack of contexts (may need this to be thread-local)
+ctxstack = []
+
+class Context:
+    def __init__(self):
+        self.success = True
+
+
+@contextmanager
+def checking():
+    cc = Context()
+    ctxstack.append(cc)
+    try:
+        yield 
+
+
+class CheckFailed(Exception):
+    def __init__(self, message, reraise=False):
+        self.message = message
+
+def fail(msg, *args, **kwargs):
+    message = msg.format(*args, **kwargs)
+    reraise = 'reraise' in kwargs and kwargs['reraise']
+    raise CheckFailed(message, reraise)
+
+
+
+
 
 #
 #  Model validation
 #
-
-
-class ValidationSection:
-    
-    @property
-    def key(self):
-        return self.__key
-    @key.setter
-    def key(self, newkey):
-        self.__key = newkey
- 
-    @property
-    def parent(self):
-        return self.__parent
-    @property
-    def children(self):
-        yield from self.__children
-    
-    @property
-    def validation(self):
-        return self.__validation
-    
-    
-    def initialize(self, key):
-        pass
-    def success(self): pass
-    def failure(self): pass
-    def exception(self, exc_type, exc_value, exc_tb): pass
-    def info(self): pass
-    
-    def close(self): pass
-    def abort(self): pass
-
-    def section(self, key=None): pass
-
-
-    def __enter__(self): pass
-    def __exit__(self, exc_type, exc_value, exc_tb):
-        pass
-    
-    
     
 class Validation:
     """This class is used to log a model validation.
