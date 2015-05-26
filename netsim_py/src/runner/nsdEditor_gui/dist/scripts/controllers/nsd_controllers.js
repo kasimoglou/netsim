@@ -295,6 +295,12 @@ define(['underscore',
                                 field:'groupby', 
                                 displayName:'Group By', 
                                 cellTemplate: 'templates/ng-grid_checkbox.html'
+                            },
+                            {
+                                field: 'delete',
+                                displayName: '',
+                                cellTemplate: 'templates/ng-grid_delete.html',
+                                cellClass: 'delete-field-cell'
                             }
                         ]
                     };
@@ -305,6 +311,12 @@ define(['underscore',
                     //
                     $scope.addField = function() {
                         $scope.myData.push({name: 'field' + $scope.myData.length, expression: '', groupby: false});
+                    };
+                    
+                    // This method is called when user clicks `Delete` button
+                    // in a ngGrid table row. It removes selected row.
+                    $scope.deleteField = function(row) {
+                        $scope.myData.splice(row.rowIndex, 1);
                     };
                     
                     $scope.available_fields = [];
@@ -392,6 +404,12 @@ define(['underscore',
                                 field:'groupby', 
                                 displayName:'Group By', 
                                 cellTemplate: 'templates/ng-grid_checkbox.html'
+                            },
+                            {
+                                field: 'delete',
+                                displayName: '',
+                                cellTemplate: 'templates/ng-grid_delete.html',
+                                cellClass: 'delete-field-cell'
                             }
                         ]
                     };
@@ -402,6 +420,12 @@ define(['underscore',
                     //
                     $scope.addField = function() {
                         $scope.myData.push({name: 'field' + $scope.myData.length, expression: '', groupby: false});
+                    };
+                    
+                    // This method is called when user clicks `Delete` button
+                    // in a ngGrid table row. It removes selected row.
+                    $scope.deleteField = function(row) {
+                        $scope.myData.splice(row.rowIndex, 1);
                     };
                     
                     $scope.available_fields = [];

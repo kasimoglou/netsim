@@ -8407,70 +8407,75 @@ input:focus {
   padding: 0 5px;
 }
 
-/* line 120, ../../app/styles/main.scss */
+/* line 119, ../../app/styles/main.scss */
+.delete-field-cell {
+  text-align: center;
+}
+
+/* line 124, ../../app/styles/main.scss */
 .animate-show {
   opacity: 1;
   padding: 10px;
 }
 
-/* line 125, ../../app/styles/main.scss */
+/* line 129, ../../app/styles/main.scss */
 .animate-show.ng-hide-add.ng-hide-add-active,
 .animate-show.ng-hide-remove.ng-hide-remove-active {
   -webkit-transition: all linear 0.5s;
   transition: all linear 0.5s;
 }
 
-/* line 131, ../../app/styles/main.scss */
+/* line 135, ../../app/styles/main.scss */
 .animate-show.ng-hide {
   line-height: 0;
   opacity: 0;
   padding: 0 10px;
 }
 
-/* line 137, ../../app/styles/main.scss */
+/* line 141, ../../app/styles/main.scss */
 .tab-content-custom {
   background-color: aliceblue;
   min-height: 400px;
 }
 
-/* line 142, ../../app/styles/main.scss */
+/* line 146, ../../app/styles/main.scss */
 .border-bottom {
   border-bottom: 1px solid black !important;
 }
 
-/* line 146, ../../app/styles/main.scss */
+/* line 150, ../../app/styles/main.scss */
 .new-plot-dialog .ngdialog-content, .new-view-dialog .ngdialog-content {
   min-width: 800px;
 }
 
-/* line 150, ../../app/styles/main.scss */
+/* line 154, ../../app/styles/main.scss */
 .clone-nsd-dialog .ngdialog-content {
   min-width: 200px;
 }
 
-/* line 155, ../../app/styles/main.scss */
+/* line 159, ../../app/styles/main.scss */
 multiselect.full-width .btn-group,
 multiselect.full-width .btn-group .dropdown-menu {
   width: 100%;
 }
 
-/* line 160, ../../app/styles/main.scss */
+/* line 164, ../../app/styles/main.scss */
 multiselect.full-width .btn-group .btn {
   width: 100%;
   display: block;
 }
 
-/* line 165, ../../app/styles/main.scss */
+/* line 169, ../../app/styles/main.scss */
 multiselect.hide-filter .dropdown-menu li input[ng-model="searchText.label"] {
   display: none;
 }
 
-/* line 169, ../../app/styles/main.scss */
+/* line 173, ../../app/styles/main.scss */
 multiselect.hide-check-buttons .dropdown-menu li[ng-show="multiple"] {
   display: none;
 }
 
-/* line 174, ../../app/styles/main.scss */
+/* line 178, ../../app/styles/main.scss */
 .gridStyle {
   border: 1px solid #d4d4d4;
   width: 100%;
@@ -8478,13 +8483,13 @@ multiselect.hide-check-buttons .dropdown-menu li[ng-show="multiple"] {
   margin: 10px 0;
 }
 
-/* line 181, ../../app/styles/main.scss */
+/* line 185, ../../app/styles/main.scss */
 .ngGrid input[type="checkbox"] {
   margin-top: 10px;
   margin-left: 30px;
 }
 
-/* line 187, ../../app/styles/main.scss */
+/* line 191, ../../app/styles/main.scss */
 .json-formatter-div {
   padding: 15px;
   border: 1px solid #dce4ec;
