@@ -17,7 +17,7 @@ on PlayerB {
 	catch := catch +1;
 	if(catch < 10) {
 		print("B got the ball");
-		emit PlayerB() after 1;		
+		emit PlayerA() after 1;		
 	} else {
 		print("B lost it");
 	}
@@ -28,3 +28,4 @@ on sys.Init {
 	// B serves
 	emit PlayerA() after 0;
 }
+
