@@ -110,11 +110,23 @@ def create_simoutput(xtor, prepo, nsdid):
 	# Get the PR database and check that the NSD exists
 	simdb = prepo.SIM
 	if nsdid not in simdb:
-		raise ValueError("Cannot find NSD with id = '%s'" % nsdid)
+		raise NotFound("Cannot find NSD with id = '%s'" % nsdid)
+
+	# Get the nsd
+	nsd = simdb.get(nsdid)
+	# extract project and plan id
+	try:
+		project_id = nsd['project_id']
+	except:
+		raise BadRequest('The specified NSD does not specify a project')
+	try:
+		plan_id = nsd['plan_id']
+	except:
+		raise BadRequest('The specified NSD does not specify a plan')
+
 
 	# Create the homedir
 	simhome = xtor.create_home_directory()
-
 
 	try:
 		# create sim id
@@ -133,7 +145,9 @@ def create_simoutput(xtor, prepo, nsdid):
 			'type' : 'simoutput',
 			'nsdid' : nsdid, 
 			'generator': 'Castalia',
-			'simulation_status': 'INIT'
+			'simulation_status': 'INIT',
+			'plan_id': plan_id,
+			'project_id': project_id			
 		})
 	except:
 		# we failed to create the sim object, delete the simhome and re-raise
