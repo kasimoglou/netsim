@@ -162,7 +162,6 @@ define(['underscore',
                     }
                 ];
             }
-            $scope.selected_view.view = nsd.views[0];
         };
         
         // Helps us recognize selected tab, so that we can persist
@@ -241,11 +240,12 @@ define(['underscore',
         
         // Used in order to determine which view's plots to show
         $scope.selected_view = {
-            view: {}
+            index: 0
         };
         
         $scope.setSelectedView = function(view) {
-            $scope.selected_view.view = view;
+            var index = _.indexOf($scope.nsd.views, view);
+            $scope.selected_view.index = index;
         };
         
         // This function is called when `create new view` button is clicked

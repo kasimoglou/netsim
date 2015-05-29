@@ -194,7 +194,7 @@
                                                             </tr>
                                                         </thead>
                                                         <tbody>
-                                                            <tr class="cursor-pointer" ng-class="{'selected-view-row': view === selected_view.view }" 
+                                                            <tr class="cursor-pointer" ng-class="{'selected-view-row': nsd.views.indexOf(view) === selected_view.index }" 
                                                                 ng-repeat="view in nsd.views" ng-click="setSelectedView(view)">
                                                                 <td>[[view.name]]</td>
                                                                 <td>
@@ -229,7 +229,7 @@
                                 <div class="col-md-5">
                                     <div class="panel panel-primary">
                                         <div class="panel-heading">
-                                            Plots of [[selected_view.view.name]]  
+                                            Plots of [[nsd.views[selected_view.index].name]]  
                                         </div>
                                         <div class="panel-body">
                                             <div class="row top20">
@@ -244,19 +244,19 @@
                                                             </tr>
                                                         </thead>
                                                         <tbody>
-                                                            <tr ng-repeat="plot in selected_view.view.plots">
+                                                            <tr ng-repeat="plot in nsd.views[selected_view.index].plots">
                                                                 <td>[[plot.title]]</td>
                                                                 <td>[[plot.model_type]]</td>
                                                                 <td>
                                                                     <a class="btn listing-edit-btn" 
-                                                                       ng-click="updatePlot(selected_view.view, plot)">
+                                                                       ng-click="updatePlot(nsd.views[selected_view.index], plot)">
                                                                          <span class="glyphicon glyphicon-edit"></span>
                                                                          Edit
                                                                      </a>
                                                                 </td>
                                                                 <td>
                                                                     <a class="btn listing-delete-btn" 
-                                                                       ng-click="deletePlot(selected_view.view, plot)">
+                                                                       ng-click="deletePlot(nsd.views[selected_view.index], plot)">
                                                                          <span class="glyphicon glyphicon-remove"></span>
                                                                          Delete
                                                                      </a>
