@@ -560,19 +560,14 @@ define(['underscore',
                         } else if (graph_type === 'node parameter') {
                             $scope.plot.model_type = 'parameter';
                             $scope.plot.stat_type = 'node';
-                            $scope.plot.x = 'node';
-                            $scope.plot.y = 'data';
                             _.extend($scope.plot, $scope.parameter);
                         } else if (graph_type === 'network parameter') {
                             $scope.plot.model_type = 'parameter';
                             $scope.plot.stat_type = 'network';
-                            $scope.plot.y = 'data';
                             _.extend($scope.plot, $scope.parameter);
                         } else if (graph_type === 'node2node parameter') {
                             $scope.plot.model_type = 'parameter';
                             $scope.plot.stat_type = 'node2node';
-                            $scope.plot.x = ['node', 'n_index'];
-                            $scope.plot.y = 'data';
                             _.extend($scope.plot, $scope.parameter);
                         }
                         
@@ -628,6 +623,9 @@ define(['underscore',
                         // Plot - parameter common attributes
                         $scope.plot.title = plot.title;
                         $scope.plot.select = plot.select;
+                        $scope.plot.x = plot.x;
+                        $scope.plot.y = plot.y;
+                        $scope.plot.x2 = plot.x2;
                         
                         // adjust graph type
                         if (plot.model_type === 'plot') {
@@ -648,7 +646,7 @@ define(['underscore',
                     };
                     $scope.readPlot(plot);
                     
-                    // Once user clicks `crete` in plot dialog
+                    // Once user clicks `create` in plot dialog
                     // depending on his selection on `graph type` field
                     $scope.adjustPlot = function (graph_type) {
                         for (var attr in plot) {
@@ -657,6 +655,8 @@ define(['underscore',
                         // Plot - parameter common attributes
                         plot.title = $scope.plot.title;
                         plot.select = $scope.plot.select;
+                        plot.x = $scope.plot.x;
+                        plot.y = $scope.plot.y;
                         
                         if (graph_type === 'plot') {
                             plot.model_type = 'plot';
@@ -665,19 +665,15 @@ define(['underscore',
                         } else if (graph_type === 'node parameter') {
                             plot.model_type = 'parameter';
                             plot.stat_type = 'node';
-                            plot.x = 'node';
-                            plot.y = 'data';
                             _.extend(plot, $scope.parameter);
                         } else if (graph_type === 'network parameter') {
                             plot.model_type = 'parameter';
                             plot.stat_type = 'network';
-                            plot.y = 'data';
                             _.extend(plot, $scope.parameter);
                         } else if (graph_type === 'node2node parameter') {
                             plot.model_type = 'parameter';
                             plot.stat_type = 'node2node';
-                            plot.x = ['node', 'n_index'];
-                            plot.y = 'data';
+                            plot.x2 = $scope.plot.x2;
                             _.extend(plot, $scope.parameter);
                         }
                     };

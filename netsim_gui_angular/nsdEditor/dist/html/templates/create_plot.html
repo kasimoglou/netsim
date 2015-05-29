@@ -53,6 +53,46 @@
                     </div>
                 </div>
             </div>
+            <div class="row">
+                <div class="col-md-6" ng-show="temp.graph_type !== 'network parameter'">
+                    <div class="form-group">
+                        <label for="xselect" class="control-label">
+                            x' axis:
+                        </label>
+                        <select class="form-control" id="xselect"
+                                ng-options="col.name as col.name for col in view.columns"
+                                ng-model="plot.x">
+                            <option value="">-- select x axis --</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label for="yselect" class="control-label">
+                            y' axis:
+                        </label>
+                        <select class="form-control" id="yselect"
+                                ng-options="col.name as col.name for col in view.columns"
+                                ng-model="plot.y">
+                            <option value="">-- select y axis --</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-6" ng-show="temp.graph_type === 'node2node parameter'">
+                    <div class="form-group">
+                        <label for="x2select" class="control-label">
+                            x'' axis:
+                        </label>
+                        <select class="form-control" id="x2select"
+                                ng-options="col.name as col.name for col in view.columns"
+                                ng-model="plot.x2">
+                            <option value="">-- select x axis --</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
             <div ng-show="temp.graph_type === 'plot'">
                 <div class="row">
                     <div class="col-md-6">
@@ -61,32 +101,6 @@
                             <multiselect multiple="true" ng-model="temp_plot.axes" 
                                          class="full-width hide-filter hide-check-buttons"
                                          options="col.name for col in view.columns"></multiselect>
-                        </div>
-                    </div>
-                </div>
-                <div class="row">
-                    <div class="col-md-6">
-                        <div class="form-group">
-                            <label for="xselect" class="control-label">
-                                x axis:
-                            </label>
-                            <select class="form-control" id="xselect"
-                                    ng-options="col.name as col.name for col in view.columns"
-                                    ng-model="temp_plot.x">
-                                <option value="">-- select x axis --</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="form-group">
-                            <label for="yselect" class="control-label">
-                                y axis:
-                            </label>
-                            <select class="form-control" id="yselect"
-                                    ng-options="col.name as col.name for col in view.columns"
-                                    ng-model="temp_plot.y">
-                                <option value="">-- select y axis --</option>
-                            </select>
                         </div>
                     </div>
                 </div>
