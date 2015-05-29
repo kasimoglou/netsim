@@ -1,9 +1,12 @@
 
 
 import ply.yacc as yacc
-from vectorl.lexer import tokens, get_lexer
 from models.mf import model, attr
 from ast import literal_eval
+from models.validation import fail, snafu
+
+from vectorl.base import AstNode
+from vectorl.lexer import tokens, get_lexer
 
 #
 # Parser for vectorl
@@ -16,39 +19,7 @@ def comperr(p, line, msg, *args, **kwargs):
 def lexerr(lex, line, msg, *args, **kwargs):
     name = lex.modelname
     errmsg = msg.format(*args, **kwargs)
-    print("error:", "{0}({1}): {2}".format(name, line, errmsg))
-
-
-
-#
-# Source location tracking
-#
-
-class AstNode(tuple):
-    def __repr__(self):
-        return "AstNode"+super().__repr__()+ ":%d:" % self.lineno +"[%d,%d]"%self.linespan
-
-@model
-class SourceItem:
-    ast = attr(AstNode, nullable=True, default=None)
-
-    @property
-    def lineno(self):
-        return self.ast.lineno if self.ast is not None else "??"
-
-    @property
-    def model_name(self):
-        return self.ast.model_name if self.ast is not None else "<unknown model>"
-    
-    @property
-    def origin(self):
-        return "%s(%s)" % (self.model_name, self.lineno)
-
-    def description(self):
-        return "%s" % self.__class__.__name__
-    
-    def __repr__(self):
-        return "%s at %s" % (self.description(), self.origin)
+    snafu("error:", "{0}({1}): {2}".format(name, line, errmsg))
 
 
 def post_advice(p):
@@ -64,13 +35,16 @@ def post_advice(p):
         p[0].lineno = p.lineno(0)
         p[0].linespan = p.linespan(0)
 
+
+
+
+
 # Rules
 def p_error(p):
     if p:
         comperr(p, p.lineno, "Syntax error near {0} token '{1}'", p.type, p.value)
     else:
-        raise SyntaxError("Error at end of source")
-
+        fail("Error at end of source")
 
 # Model declaration
 

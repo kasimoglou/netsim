@@ -8,8 +8,8 @@ from collections import namedtuple
 import numpy as np
 from models.mf import *
 from simgen.utils import docstring_template
+from vectorl.base import SourceItem
 from vectorl.typeinfo import *
-from vectorl.parser import SourceItem
 
 #
 # Shape management routines

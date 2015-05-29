@@ -15,25 +15,25 @@ def tmf():
 	return TestModelFactory()
 
 def test_create_model(tmf):
-	model = tmf.add_model(Model(tmf), 'test')
+	model = tmf.add_model(Model(tmf,'test'))
 	assert model is tmf.get_model('test')
 
 def test_import_self(tmf):
-	model = tmf.add_model(Model(tmf), 'test')
+	model = tmf.add_model(Model(tmf,'test'))
 	assert model is tmf.get_model('test')
 
 	model.add_import('test', 'test1')
 	assert model['test1'] is model
 
 def test_import_other(tmf):
-	model = tmf.add_model(Model(tmf), 'test')
+	model = tmf.add_model(Model(tmf,'test'))
 	assert model is tmf.get_model('test')
 
 	model.add_import('sys', 'sys1')
 	assert model['sys1'] is tmf.sysmodel
 
 def test_from(tmf):
-	model = tmf.add_model(Model(tmf), 'test')
+	model = tmf.add_model(Model(tmf,'test'))
 	assert model is tmf.get_model('test')
 
 	model.add_import('sys', 'sys1')
@@ -43,8 +43,8 @@ def test_from(tmf):
 	assert model['Init'] is tmf.sysmodel['Init']
 
 def test_add_action(tmf):
-	modelA = tmf.add_model(Model(tmf), 'A')
-	modelB = tmf.add_model(Model(tmf), 'B')
+	modelA = tmf.add_model(Model(tmf,'A'))
+	modelB = tmf.add_model(Model(tmf,'B'))
 	modelB.add_import('A', 'A')
 
 	E = modelA.add_event('E',[Parameter('a', type=INT)])

@@ -3,9 +3,10 @@
 from models.mf import *
 from models.constraints import is_legal_identifier, LEGAL_IDENTIFIER
 
+from vectorl.base import AstNode, SourceItem, AstContext
 from vectorl.lexer import tokens, get_lexer
+from vectorl.parser import parser
 from vectorl.expr import *
-from vectorl.parser import parser, AstNode, SourceItem
 from vectorl.builtins import builtins, sys_builtins, Builtin
 
 from functools import wraps
@@ -124,7 +125,7 @@ class ModelFactory(Scope):
             if model is None:
                 raise ValueError("Validation failed")
             else:
-                self.add_model(model, name, force=True)
+                self.add_model(model, force=True)
         elif model=='forward':
             raise ValueError("cyclical reference for module "+name)
             model = None
@@ -176,10 +177,9 @@ class ModelFactory(Scope):
         '''
         raise NotImplementedError("get_model_source() must be implemented in a subclass")
 
-    def add_model(self, model, name, force=False):
-        self.bind(name, model, force=force)
+    def add_model(self, model, force=False):
+        self.bind(model.name, model, force=force)
         self.model_order.append(model)
-        model.name = name
         return model
 
     def init_system_model(self):
@@ -215,7 +215,7 @@ class ModelFactory(Scope):
         self.model_order = []
         self.sysmodel = None  # this is NEEDED, because of a recursive access!
         self.sysmodel = self.init_system_model()
-        self.add_model(self.sysmodel, 'sys')
+        self.add_model(self.sysmodel)
 
 
 
@@ -506,9 +506,13 @@ def optype(*opt):
     def declare_transform(func):
         @wraps(func)
         def ast_advice(ast, scope):
-            retval = func(ast, scope)
-            if isinstance(ast, AstNode) and isinstance(retval, SourceItem):
-                retval.ast = ast
+            if isinstance(ast, AstNode):
+                with AstContext(ast):
+                    retval = func(ast, scope)
+                    if isinstance(retval, SourceItem):
+                        retval.ast = ast
+            else:
+                retval = func(ast, scope)                
             return retval
         for o in opt:
             _transform_map[o] = ast_advice
