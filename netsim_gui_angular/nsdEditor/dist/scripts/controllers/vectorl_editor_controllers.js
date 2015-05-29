@@ -82,7 +82,12 @@ define(['angular',
                         $scope.alerts.save_success = true;
                         success_alert_timeout = $timeout($scope.dismiss, 10000);
             })
-                    .error(function() {
+                    .error(function(error) {
+                        if (error.status == 409) {
+                            $scope.vectorl._rev = error.current_object._rev;
+                            $scope.saveVectorl();
+                            return;
+                        }
                         console.log('Error updating vectorl file.');
                         alert('Error updating vectorl file.');
             });
