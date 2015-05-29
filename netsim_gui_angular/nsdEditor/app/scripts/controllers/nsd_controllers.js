@@ -745,7 +745,14 @@ define(['underscore',
                         $scope.alerts.save_success = true;
                         success_alert_timeout = $timeout($scope.dismiss, 10000);
             })
-                    .error(function() {
+                    .error(function(error) {
+                        // in case of conflict get the returned `_rev`
+                        // and try again
+                        if (error.status == 409) {
+                            $scope.nsd._rev = error.current_object._rev;
+                            $scope.saveNsd();
+                            return;
+                        }
                         console.log('Error updating nsd.');
                         alert('Error updating nsd.');
             });
