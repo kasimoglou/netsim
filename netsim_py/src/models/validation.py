@@ -3,46 +3,320 @@ Created on Oct 24, 2014
 
 @author: vsam
 '''
-from contextlib import contextmanager
+from contextlib import contextmanager, ContextDecorator
 from sys import exc_info
 from traceback import extract_tb, format_exception_only
 from os.path import basename
-
+import logging
+import threading
 
 ######################
 # Inline validation
 ######################
 
 
-# A stack of contexts (may need this to be thread-local)
-ctxstack = []
+# A stack of scopes (contexts and processes)
+# N.B. may need this to be thread-local
 
-class Context:
+class CheckException(Exception):
+    '''
+    Base class for checking exceptions.
+    '''
+    pass
+    def __init__(self, scope=None):
+        self.scope = scope
+    def __repr__(self):
+        sc = "<%s>" % self.scope if self.scope else ""
+        return "%s(%s)" % (self.__class__.__name__, sc)
+
+class CheckFail(CheckException):
+    'Raised by fail(...)'
+    pass
+
+class CheckFatal(CheckException):
+    'Raised by fatal(...)'
+    pass
+
+
+class ScopeStack:
+    '''
+    A simple implementation of the scope stack. Suitable only for non-threaded
+    environments. Use ThreadLocalScopeStack for more thread-local scopes.
+    '''
     def __init__(self):
-        self.success = True
+        self.stack = []
+    def top(self):
+        return self.stack[-1]
+    def push(self, scope):
+        pos = len(self.stack)
+        self.stack.append(scope)
+        scope.stack_positions.append(pos)
+    def pop(self):
+        scope = self.stack.pop()
+        pos = scope.stack_positions.pop()
+        assert pos == len(self.stack)
+    def __getitem__(self, item):
+        return self.stack[item]
+    def __bool__(self):
+        return bool(self.stack)
+    def __len__(self): 
+        return len(self.stack)
+
+class ThreadLocalScopeStack(threading.local, ScopeStack):
+    '''
+    A thread-local scope stack
+    '''
+    pass
 
 
-@contextmanager
-def checking():
-    cc = Context()
-    ctxstack.append(cc)
-    try:
-        yield 
-    except:
-        pass
+scope_stack = ThreadLocalScopeStack()
 
 
-class CheckFailed(Exception):
-    def __init__(self, message, reraise=False):
-        self.message = message
+class CheckScope(ContextDecorator):
+    '''
+    Base class for Process and Context scopes. 
+
+    Scopes are contextually accessed objects which implement operation
+    tracing. There are two types of scopes: Process and Context. Scopes 
+    are nested within one another.
+
+    A Process scope is defined by a 'with' statement:
+
+    with Process(name='foo', logger='bar') as p:
+        <within scope 'foo'>
+
+    The purpose of a Proccess context is to (a) encapsulate a set of operations
+    and sub-scopes within it (b) provide a logger to operations within its scope.
+    Typically one would have only a few Process scopes. (c) suppress the propagation
+    of some exceptions.
+
+    A Context scope is also defined by a 'with' statement:
+
+    with Context(ipadd='127.0.0.1', current_user='vsam'):
+        <within context scope (unnamed)>
+
+    The purpose of context scopes is to (a) encapsulate a set of operations
+    and sub-scopes within it (b) encapsulate scope-level information that should
+    appear in messages, (c) suppress the propagation of some exceptions.
+
+    The attributes passed at context construction are passed to the logger when
+    messages are logged, via a LoggerAdapter. 
+
+    Contexts are fine-grained and one may have many short ones.
+
+    '''
+    def __init__(self, name=None):
+        '''
+        Initialize scope, possibly with a name
+        '''
+        self.name = name       # name of the scope
+        self.success = True    # record success
+        self.logger_adapter = None  # the adapter to this logger, or None
+        self.suppression = set()    # the set of exception classes to suppress
+        self.stack_positions = []  # The positions this Scope appears in the stack
+
+    __std_logger = None
+
+    def suppress(self, exc_type):
+        '''
+        Add an expression type to the suppression list. If an expression of
+        this type is caught, it will be logged and then suppressed. 
+
+        Note that adding Exception suppresses most, but not all exceptions. Add
+        BaseException to suppress everything.
+        '''
+        self.suppression.add(exc_type)
+
+
+    @property
+    def logger(self):
+        '''The current logger.'''
+        if hasattr(self, 'own_logger'):
+            # return your own logger
+            return self.own_logger
+        elif self.stack_positions and self.stack_positions[-1]:
+            return self.parent.logger
+        else:
+            return logging.getLogger()
+
+    @property
+    def log(self):
+        '''A logger or adapter to use inside this scope.'''
+        return self.logger_adapter if self.logger_adapter is not None else self.logger
+
+    @property
+    def parent(self):
+        if self.stack_positions and self.stack_positions[-1] > 0:
+            return scope_stack[self.stack_positions[-1] - 1]
+        else:
+            return None
+
+    @property
+    def process(self):
+        if self.stack_positions:
+            if isinstance(self, Process):
+                return self
+            else:
+                return self.parent.process
+        else:
+            return None
+
+
+    def __enter__(self):
+        # push yourself on the stack (check that if the stack is empty then we must be
+        scope_stack.push(self)
+        return self
+
+    suppress_types = ()
+
+    def catches(self, exc_type, exc):
+        '''
+        Return True if the passed exception type and value should be caught at
+        this scope, or propagated down the scope stack.
+        '''
+        return (
+                (exc_type in self.suppress_types
+                    and 
+                    (
+                        exc.scope is None or 
+                        exc.scope == self.name or 
+                        exc.scope is self
+                    ))
+            or 
+                any(isinstance(exc, exct) for exct in self.suppression)
+            )
+
+    def __exit__(self, exc_type, exc, tb):
+        try:
+            if exc_type is not None:
+                self.success = False
+                catch = self.catches(exc_type, exc)
+
+                if catch and exc_type not in self.suppress_types:
+                    self.log.exception("an unexpected error occurred")
+
+                return catch
+        finally:
+            # just pop from the stack
+            if self.parent: self.parent.success = self.success
+            assert scope_stack[-1] is self
+            me = scope_stack.pop()
+
+
+class Process(CheckScope):
+    '''
+    A process is a scope which may contain a logger for subscopes.
+    The top-level scope has to be a Process.
+
+    See the documentation of class CheckScope for details.
+    '''
+    suppress_types = (CheckFatal,CheckFail)
+
+    def __init__(self, name=None, logger=None):
+        super().__init__(name)
+        if logger is not None:    
+            if isinstance(logger, logging.Logger):
+                self.logger = logger
+            elif isinstance(logger, str):
+                self.logger = logging.getLogger(logger)
+            else: 
+                assert False
+            self.logger.setLevel(logging.INFO)
+            self.logger.propagate = False
+
+        self.handlers = set()
+
+    def addScopeHandler(self, handler):
+        '''
+        Add a handler to the underlying logger (which may be the parent's)
+        logger. This handler will be removed when the scope exits
+        '''
+        self.handlers.add(handler)
+        self.logger.addHandler(handler)
+
+    def __exit__(self, exc_type, exc, tb):
+        try:
+            return super().__exit__(exc_type, exc, tb)
+        finally:
+            for handler in self.handlers:
+                self.logger.removeHandler(handler)
+
+    @CheckScope.logger.setter
+    def logger(self, logger):
+        self.own_logger = logger
+
+
+class Context(CheckScope):
+    '''
+    Contexts provide extra arguments to messages, via 
+    keyword arguments given at the constructor.
+
+    See the documentation of class CheckScope for details.
+    '''
+    suppress_types = (CheckFail,)
+
+    def __init__(self, name=None, **extra):
+        super().__init__(name)
+        self.extra = extra if extra else None
+
+    def __enter__(self):
+        super().__enter__()
+        if self.extra:
+            self.logger_adapter = logging.LoggerAdapter(self.logger, self.extra)
+        return self
+
+
+
+#
+# functions
+#
+
+def _check_scope(kwargs):
+    scope = kwargs['scope'] if 'scope' in kwargs else None
+    return scope
 
 def fail(msg, *args, **kwargs):
-    message = msg.format(*args, **kwargs)
-    reraise = 'reraise' in kwargs and kwargs['reraise']
-    raise CheckFailed(message, reraise)
+    '''
+    Raise to abort this context or process, or the context named
+    in the keyword argument 'scope'.
+    All the scopes upt to the top-level process are marked as failed.
 
+    E.g. fail('bad situation in %s', place, scope='myloc')
+    '''
+    scope_stack[-1].log.critical(msg, *args, extra=kwargs)
+    raise CheckFail(scope=_check_scope(kwargs))
 
+def fatal(msg, *args, **kwargs):
+    '''
+    Raise to abort the nearest process, or the process named
+    in the keyword argument 'scope'.
+    All the scopes upt to the top-level process are marked as failed.
 
+    E.g. fatal('bad situation in %s', place, scope='myloc')    
+    '''
+    scope_stack[-1].log.error(msg, *args, extra=kwargs)
+    raise CheckFatal(scope=_check_scope(kwargs))
+
+def inform(msg, *args, **kwargs):
+    '''
+    Issue an informational message and continue.
+    '''
+    scope_stack[-1].log.info(msg, *args, extra=kwargs)
+    
+def warn(msg, *args, **kwargs):
+    '''
+    Issue a warning message and continue.
+    '''
+    scope_stack[-1].log.warning(msg, *args, extra=kwargs)
+
+def snafu(msg, *args, **kwargs):
+    '''
+    Issue an error message and continue.
+    All the scopes upt to the top-level process are marked as failed.
+    However, processing continues normally.
+    '''
+    scope_stack[-1].log.error(msg, *args, extra=kwargs)
+    scope_stack[-1].success = False
 
 
 #
