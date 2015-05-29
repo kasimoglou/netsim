@@ -232,7 +232,14 @@ class Process(CheckScope):
         logger. This handler will be removed when the scope exits
         '''
         self.handlers.add(handler)
-        self.logger.addHandler(handler)
+        if self.stack_positions:
+            self.logger.addHandler(handler)
+
+    def __enter__(self):
+        super().__enter__()
+        for handler in self.handlers:
+            self.logger.addHandler(handler)
+        return self
 
     def __exit__(self, exc_type, exc, tb):
         try:
