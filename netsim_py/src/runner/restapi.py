@@ -131,7 +131,14 @@ def get_plans(prjid):
 		try:
 			project = api.project_dao.read(prjid)
 			logging.root.debug('Project=%s', json.dumps(project, indent=4) )
-			return { 'results': project.get('plans',[]) }
+			plan_ids = project.get('plans',[])
+			plans = []
+			for plan_id in plan_ids:
+				resp = list(api.plan_dao.findBy('all', key=plan_id))
+				if resp:
+					assert len(resp)==1
+					plans.append(resp[0])
+			return { 'results': plans }
 		except:
 			logging.exception('in getting projects from the PR')
 			json_abort(500, "Cannot get project plans from the Project Repository")
