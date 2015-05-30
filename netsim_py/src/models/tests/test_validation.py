@@ -141,11 +141,15 @@ def test_decorator():
 
 
 def test_use_logger():
-    with pytest.raises(Exception):
-        inform("Hi there")
+    with pytest.raises(KeyError):
+        fail("Hi there", ooc=KeyError)
 
-    with Process():
-        inform("Hello world")
+    with pytest.raises(ValueError):
+        fail("Hi there", ooc=ValueError)
+
+    with pytest.raises(RuntimeError):
+        fail("Hi there")
+
 
 
 def test_logger():

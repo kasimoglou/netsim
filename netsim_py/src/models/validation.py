@@ -282,47 +282,75 @@ def _check_scope(kwargs):
     scope = kwargs['scope'] if 'scope' in kwargs else None
     return scope
 
-def fail(msg, *args, **kwargs):
+def _out_of_context(msg, args, kwargs):
+    "Called when fail() or fatal() are called without context"
+    if 'ooc' in kwargs\
+        and isinstance(kwargs['ooc'], type)\
+        and issubclass(kwargs['ooc'], BaseException):
+        raise kwargs['ooc'](msg, args, kwargs)
+    else:
+        raise RuntimeError(msg, args, kwargs)
+
+def fail(msg=None, *args, **kwargs):
     '''
     Raise to abort this context or process, or the context named
     in the keyword argument 'scope'.
+    If message evaluates to False, do not issue a message.
     All the scopes upt to the top-level process are marked as failed.
 
     E.g. fail('bad situation in %s', place, scope='myloc')
     '''
-    scope_stack[-1].log.critical(msg, *args, extra=kwargs)
+    if not scope_stack:
+        return _out_of_context(msg, args, kwargs)
+    if msg:
+        scope_stack[-1].log.critical(msg, *args, extra=kwargs)
     raise CheckFail(scope=_check_scope(kwargs))
 
-def fatal(msg, *args, **kwargs):
+def fatal(msg=None, *args, **kwargs):
     '''
     Raise to abort the nearest process, or the process named
     in the keyword argument 'scope'.
+    If message evaluates to False, do not issue a message.
     All the scopes upt to the top-level process are marked as failed.
 
     E.g. fatal('bad situation in %s', place, scope='myloc')    
     '''
-    scope_stack[-1].log.error(msg, *args, extra=kwargs)
+    if not scope_stack:
+        return _out_of_context(msg, args, kwargs)
+    if msg:
+        scope_stack[-1].log.error(msg, *args, extra=kwargs)
     raise CheckFatal(scope=_check_scope(kwargs))
 
 def inform(msg, *args, **kwargs):
     '''
     Issue an informational message and continue.
     '''
+    if not scope_stack:
+        logging.getLogger().info(msg, args, extra=kwargs)
+        return
     scope_stack[-1].log.info(msg, *args, extra=kwargs)
     
 def warn(msg, *args, **kwargs):
     '''
     Issue a warning message and continue.
     '''
+    if not scope_stack:
+        logging.getLogger().warning(msg, args, extra=kwargs)
+        return
     scope_stack[-1].log.warning(msg, *args, extra=kwargs)
 
-def snafu(msg, *args, **kwargs):
+def snafu(msg=None, *args, **kwargs):
     '''
-    Issue an error message and continue.
-    All the scopes upt to the top-level process are marked as failed.
+    Issue an error message and continue. 
+    If message evaluates to False, do not issue a message.
+    All scopes up to the top-level are marked as failed.
     However, processing continues normally.
     '''
-    scope_stack[-1].log.error(msg, *args, extra=kwargs)
+    if not scope_stack:
+        logging.getLogger().error(msg, args, extra=kwargs)
+        return
+    if msg:
+        scope_stack[-1].log.error(msg, *args, extra=kwargs)
     scope_stack[-1].success = False
 
 
