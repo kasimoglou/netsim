@@ -397,7 +397,7 @@ num-rngs = 11
 sim-time-limit = {{param.sim_time_limit}}s
 simtime-scale = {{param.simtime_scale}}
 % if param.cpu_time_limit is not None:
-cpu-time-limit = {{param.cpu_time_limit}}
+cpu-time-limit = {{param.cpu_time_limit}}s
 % end
 
 """
