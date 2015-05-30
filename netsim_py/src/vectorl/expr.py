@@ -7,7 +7,9 @@
 from collections import namedtuple
 import numpy as np
 from models.mf import *
+from models.validation import fail, warn, inform, snafu
 from simgen.utils import docstring_template
+
 from vectorl.base import SourceItem
 from vectorl.typeinfo import *
 
@@ -398,7 +400,7 @@ class UFuncOperator(Operator):
             if m.startswith(tt): 
                 rt=m[len(tt):]
                 return np.dtype(rt)
-        raise ValueError("Cannot find legal operator combination")
+        fail("error: illegal operand types")
 
     def result_type(self):
         return TypeInfo.forType(self.result_dtype()) \
@@ -519,7 +521,7 @@ class ConcatOperator(Operator):
             if shape is None:
                 return None
             if shape == tuple():
-                raise ValueError("Concatenation of scalars is an error")
+                fail("concatenation of scalars is not supported")
             D += shape[0]
             shapes.add(shape[1:])
         if len(shapes)==1:
@@ -625,6 +627,7 @@ class Indexer(Operator):
         '''
         Pass in an index tuple
         '''
+
         self.index = index
         all_args = self.collect_args()
         super().__init__('indexer', *all_args)
@@ -734,7 +737,7 @@ def IDX(*args):
         n = idx.count(...)   # number of ellipses
         d = idx.count(None)  # number of new dims
         if n>1:
-            raise ValueError("Index contains more than one ellipse (...)")
+            fail("error: index contains more than one ellipse (...)")
 
         if n==1:
             # replace ellipse
@@ -749,7 +752,7 @@ def IDX(*args):
 
         l = len(shape)+d-len(before)-len(after)
         if l<0:
-            raise ValueError("Too many coordinates in index")
+            fail("error: too many coordinates in index")
         idx = before+[slice(None,None,None)]*l+after
 
         assert len(idx)==len(shape)+d
@@ -792,9 +795,9 @@ def IDX(*args):
         if S.stop is not None: self.check_scalar_int(S.stop)
         if S.step is not None: self.check_scalar_int_const(S.step)
 
+        # get the step
         step = S.step.value if S.step is not None else 1
-        if step==0: raise ValueError("Index step cannot be 0")
-        expr_step = "%d" % step
+        if step==0: fail("error: index step cannot be 0")
 
         # preprocess start/stop
         start = S.start if S.start is not None else Literal(0 if step>0 else -1)
@@ -804,17 +807,18 @@ def IDX(*args):
 
         # case (1): when constness differs, signal an error
         if start.const != stop.const:
-            raise ValueError("Cannot determine slice size")
+            fail("error: cannot determine slice size")
 
         # case (2): when start and stop are both constant: use python's
         # builtin slice facility to determine size
         if start.const and stop.const:
             size = len(range(* slice(start.value, stop.value, step).indices(N) ))
-            if size<1 or size > N: raise ValueError("Index out of range")
-            if start.value < -N-1 or start.value>N: raise ValueError("Index out of range")
-            if stop.value < -N-1 or stop.value>N: raise ValueError("Index out of range")
+            if size==0: fail("error: index selects 0 elements")
+            if size > N: fail("error: index out of range")
+            if start.value < -N-1 or start.value>N: fail("error: index out of range")
+            if stop.value < -N-1 or stop.value>N: fail("error: index out of range")
 
-            self.result_shape.append((size+abs(step)-1)//abs(step))
+            self.result_shape.append(size)
             self.impl_expr.append("slice(%d,%d,%d)" % (start.value, stop.value, step))
             return
 
@@ -846,17 +850,19 @@ def IDX(*args):
         # the same. 
         D = Diff(S.start, S.stop) if step>0 else Diff(S.stop, S.start)
         if D is None:
-            raise ValueError("Cannot infer a size for array slice")
+            fail("cannot infer a size for array slice")
 
         if -N<D<=0:
-            size = D+N
+            wsize = D+N
         elif N<D<=2*N:
-            size = D-N
+            wsize = D-N
         elif 1<= D <=N:
-            size = D
+            wsize = D
         else:
-            raise ValueError("Slicing is out of range")
-        self.result_shape.append((size+abs(step)-1)//abs(step))
+            fail("slice is out of range")
+        # wsize is just the difference between start and stop
+        # but the actual shape is ceil(wsize/abs(step))
+        self.result_shape.append((wsize+abs(step)-1)//abs(step))
 
         expr = "slice(%s,%s,%d)" % (self.getvar(S.start), self.getvar(S.stop), step)
         self.impl_expr.append(expr)
@@ -867,7 +873,7 @@ def IDX(*args):
         if S.const:
             pos = S.value
             if pos>s or pos<-s-1:
-                raise ValueError("Index out of range")
+                fail("Index out of range")
             self.impl_expr.append("%d" % pos)
         else:
             v = self.getvar(S)
@@ -875,10 +881,10 @@ def IDX(*args):
 
     def check_scalar_int(self, s):
         if s.type is not INT or not s.is_scalar():
-            raise ValueError("Error in index, not a (scalar) integer")
+            fail("error: index is not a (scalar) integer")
     def check_scalar_int_const(self, s):
         if s.type is not INT or not s.is_scalar() or not s.const:
-            raise ValueError("Error in index, not a constant integer")
+            fail("error: index is not a constant integer")
 
 
 

@@ -59,15 +59,15 @@ class CompilerErrorLine(logging.Formatter):
 			return super().format(record)
 
 class AstHandler(logging.StreamHandler):
-	def __init__(self, stream):
-		super().__init__(stream=sys.stderr)
+	def __init__(self, stream=sys.stderr):
+		super().__init__(stream)
 		self.setFormatter(CompilerErrorLine())
 
 
 class Compiler(val.Process):
 	def __init__(self, name=None):
 		super().__init__(name=name, logger=logging.getLogger('vectorl'))
-		self.addHandler(AstHandler())
+		self.addScopeHandler(AstHandler())
 
 class AstContext(val.Context):
 	def __init__(self, ast):

@@ -46,6 +46,8 @@ def main():
     if not args.compile:
         Runner(fmf).start()
 
+    return fmf
 
 if __name__=='__main__':
-    main()
+    factory = main()
+

@@ -2,8 +2,9 @@
 
 from models.mf import *
 from models.constraints import is_legal_identifier, LEGAL_IDENTIFIER
+from models.validation import fail, snafu, fatal, inform, warn
 
-from vectorl.base import AstNode, SourceItem, AstContext
+from vectorl.base import AstNode, SourceItem, AstContext, Compiler
 from vectorl.lexer import tokens, get_lexer
 from vectorl.parser import parser
 from vectorl.expr import *
@@ -53,7 +54,7 @@ class Scope:
         if not is_legal_identifier(name):
             raise KeyError("Name {0} is not a legal identifier".format(name))
         if not force and name in self.symtab:
-            raise KeyError("Name '%s' bound in scope." % name)
+            fail("Name '%s' bound in scope." % name, ooc=KeyError)
         self.symtab[name] = obj
 
     def binds(self, name):
@@ -72,8 +73,7 @@ class Scope:
             if len(seq)==1:
                 obj = self.lookup(name)
                 if obj is None:
-                    print("scope = ",self.symtab)
-                    raise KeyError("Name '{0}' does not exist in scope".format(name))
+                    fail("error: name '{0}' undefined in scope".format(name), ooc=KeyError)
                 return obj
             else:
                 return self[tuple(seq)]
@@ -93,7 +93,7 @@ class Named(SourceItem):
 
     def __init__(self, scope, name):
         if name in scope.symtab:
-            raise NameError("Name '%s' already used in this scope" % name)
+            fail("Name '%s' already used in this scope" % name, ooc=NameError)
         self.scope = scope
         self.name = name
 
@@ -115,20 +115,20 @@ class ModelFactory(Scope):
         '''
         model = self.lookup(name)
         if model is None:
+            with Compiler() as c:
+                # May throw
+                src = self.get_model_source(name)
 
-            # May throw
-            src = self.get_model_source(name)
-
-            # insert a dummy entry into the symtab, (used to check for cycles)
-            self.bind(name, 'forward')
-            model = self.__compile(name, src)
-            if model is None:
-                raise ValueError("Validation failed")
-            else:
-                self.add_model(model, force=True)
+                # insert a dummy entry into the symtab, (used to check for cycles)
+                self.bind(name, 'forward')
+                model = self.__compile(name, src)
+                if not c.success or model is None:
+                    warn("Compilation failed for model %s", name)
+                else:
+                    inform("Model %s is compiled successfully", model.name)
+                    self.add_model(model, force=True)
         elif model=='forward':
-            raise ValueError("cyclical reference for module "+name)
-            model = None
+            fatal("cyclical reference for module %s",name)
         return model
 
     def __compile(self, name, src):
@@ -254,9 +254,9 @@ class Model(Scope):
     def add_from(self, modelname, *names):
         model = self.__do_import(modelname)
         for name in names:
-            # note: obj should be searched in symtab, not using model.lookup
-            obj = model.symtab[name]
+            obj = model[name]
             self.bind(name, obj)
+        return model
 
     def add_event(self, name, params):
         e = Event(self, name, params)
@@ -280,7 +280,7 @@ class Model(Scope):
 
     def add_action(self, event, stmt):
         if not isinstance(event, Event):
-            raise ValueError('the first argument is not an event')
+            fail('error: the first argument is not an event')
         e = Action(self, event, stmt)
         return e
 
@@ -323,15 +323,15 @@ class Function(Named):
 
         # check no. of arguments
         if len(args)!=len(self.params):
-            raise ValueError("no. of arguments==%d does not match no. of parameters==%d", 
-                (len(args), len(self.params)))
+            fail("error: in call to '%s', expected %d arguments, got %d",
+                self.name, len(self.params), len(args))
 
         argmap = {}
 
         for param,arg in zip(self.params, args):
             if not arg.type.auto_castable(param.type):
-                raise TypeError("wrong type for parameter %s, expected %s, got %s" 
-                    % (param.name, param.type.name, arg.type.name))
+                fail("error: in call to '%s', wrong type for parameter %s, expected %s, got %s",
+                    self.name, param.name, param.type.name, arg.type.name)
             argmap[param.name] = arg
 
         return self.expression.bind(argmap)
@@ -352,7 +352,7 @@ class FExpr(Named):
         self.rtype = rtype
         self.expr = expr
         if constdecl > expr.const:
-            raise ValueError("exprected a constant expression")
+            fail("error: expected a constant expression for '%s'", name)
         self.constdecl = constdecl
 
 @model
@@ -370,8 +370,18 @@ class Variable(Named):
 
     def __init__(self, scope, name, type, initval):
         super().__init__(scope, name)
-        self.type = type
-        self.initval = initval
+        try:
+            self.type = type
+            self.initval = initval
+        except:
+            fail()
+
+        (initval.is_proper() and initval.const) or \
+          fail("error: variable '%s' initialized by non-constant", name)
+
+        initval.auto_castable(type) or \
+         fail("error: cannot assign to '%s' from incopatible type '%s'",
+            type.name, initval.type.name)
 
         # Find the model you belong to
         self.model = scope
@@ -402,11 +412,14 @@ class Event(Named):
         self.variables = []
         for param in self.params:
             pvar = Variable(model, param.name, param.type, Literal(0, param.type))
+            pvar.ast = param.ast
             self.variables.append(pvar)
 
     def action_scope(self, model):
-        """Create a new subscope of model, to use for actions on that 
-        model."""
+        """
+        Create a new subscope of model, to use in actions declared in the
+        model.
+        """
         scope = Scope(model)
         for p in self.variables:
             scope.bind(p.name, p)
@@ -428,8 +441,19 @@ class Assignment(Statement):
     lhs = attr(ExprNode, nullable=False)
     rhs = attr(ExprNode, nullable=False)
     def __init__(self, lhs, rhs):
-        self.lhs = lhs
-        self.rhs = rhs
+        try:
+            self.lhs = lhs
+            self.rhs = rhs
+        except:
+            fail()
+
+        (lhs.is_proper() and lhs.lvalue) or fail("error: the left side of the assignment is not an lvalue")
+        rhs.is_proper() or fail("error: the right side of the assignment is not well-defined")
+
+        rhs.auto_castable(lhs.type) or \
+         fail("error: cannot assign to '%s' from incopatible type '%s'",
+            lhs.type.name, rhs.type.name)
+        lhs.broadcastable(rhs) or fail("error: cannot assign from an incompatible shape")
 
 @model
 class EmitStatement(Statement):
@@ -437,9 +461,31 @@ class EmitStatement(Statement):
     args = attr(list, nullable=False)
     after = attr(ExprNode, nullable=False)
     def __init__(self, event, args, after):
-        self.event = event
-        self.args = args
-        self.after = after
+        try:
+            self.event = event
+            self.args = args
+            self.after = after
+        except:
+            fail()
+
+        # check parameters
+        nep = len(event.params)
+        np = len(args)
+        if nep!=np:
+            fail("error: event takes {0} parameters ({1} given)".format(nep,np))
+        for i in range(nep):
+            ep = event.params[i]
+            p = args[i]
+            if not p.type.auto_castable(ep.type):
+                fail("parameter {0} is {1} ({2} given)".format(ep.name, ep.type, p.type))
+            if not p.is_scalar():
+                fail("parameter {0} is not scalar".format(ep.name))
+
+        # check after
+        if not after.auto_castable(TIME):
+            fail("error: cannot cast {0} to time in 'after' clause".format(after.type))
+        after.is_scalar() or fail("error: the expression in 'after' is not scalar")
+
 
 
 @model
@@ -448,9 +494,19 @@ class IfStatement(Statement):
     then_statement = attr(Statement, nullable=False)
     else_statement = attr(Statement, nullable=True)
     def __init__(self, c, t, e=None):
-        self.condition = c
-        self.then_statement = t 
-        self.else_statement = e 
+        try:
+            self.condition = c
+            self.then_statement = t 
+            self.else_statement = e 
+        except:
+            fail()
+
+        # check 
+        if not c.is_scalar():
+            fail("error: 'if' condition must be a scalar")
+        if c.type != BOOL:
+            fail("error: 'if' condition must be boolean (use a cast)")
+
 
 
 @model
@@ -458,6 +514,12 @@ class PrintStatement(Statement):
     args = attr(list)  # list of strings and ExprNodes
     def __init__(self, *args):
         self.args = list(args)
+
+        for arg in self.args:
+            if not isinstance(arg, (str, ExprNode)):
+                fail("Illegal argument list (only strings and expressions are allowed", 
+                    ooc=ValueError)
+
 
 @model
 class CodeBlock(Statement):
@@ -480,10 +542,12 @@ class Action(SourceItem):
     statement = attr(Statement, nullable=False)
 
     def __init__(self, model, evt, stmt):
-        self.model = model
-        self.event = evt
-        self.statement = stmt
-
+        try:
+            self.model = model
+            self.event = evt
+            self.statement = stmt
+        except:
+            fail()
 
 
 VECTORL_MODEL = {
@@ -501,43 +565,71 @@ VECTORL_MODEL = {
 #  AST transformation
 #
 
+ops_expression = ('literal', 'array', 'id', 'concat', 'fcall', 
+        'index', 'cond', 'cast', 'unary', 'binary')
+ops_statement = ('block', 'assign', 'emit', 'print', 'if', 'fexpr', 'const')
+ops_declaration = ('import', 'from', 'event', 'func', 'fexpr', 'const', 'var', 'action')
+
+ops_decl = set().union(ops_declaration).union(ops_statement)
+ops_all = ops_decl.union(ops_expression)
+
 _transform_map = {}
-def optype(*opt):
-    def declare_transform(func):
-        @wraps(func)
-        def ast_advice(ast, scope):
-            if isinstance(ast, AstNode):
-                with AstContext(ast):
+
+def ast_node(*opt):
+    assert len(opt)
+    assert all(o in ops_all for o in opt)
+
+    if all(o in ops_decl for o in opt):
+        # declarations and statements transformed with context
+        def transform_decorator(func):
+            @wraps(func)
+            def ast_advice(ast, scope):
+                retval = None  # in case func throws
+                with AstContext(ast) as ctx:
                     retval = func(ast, scope)
                     if isinstance(retval, SourceItem):
                         retval.ast = ast
-            else:
-                retval = func(ast, scope)                
-            return retval
-        for o in opt:
-            _transform_map[o] = ast_advice
-        return ast_advice
-    return declare_transform
+                return retval
+            for o in opt:
+                _transform_map[o] = ast_advice
+            return ast_advice
+    else:
+        def transform_decorator(func):
+            # expressions transformed without context
+            @wraps(func)
+            def ast_advice(ast, scope):
+                retval = func(ast, scope)
+                if isinstance(retval, SourceItem):
+                    retval.ast = ast
+                return retval
+            for o in opt:
+                _transform_map[o] = ast_advice
+            return ast_advice
+
+
+    return transform_decorator
 
 def transform_expression(ast, scope):
     '''
     Main switch for expressions
     '''
     optype = ast[0]
-    assert optype in ('literal', 'array', 'id', 'concat', 'fcall', 
-        'index', 'cond', 'unary', 'binary')
+    assert optype in ops_expression
     return _transform_map[optype](ast, scope)
 
 
-@optype('literal')
+@ast_node('literal')
 def transform_literal(ast, scope):
     return Literal(ast[1])
 
 
-@optype('id')
+@ast_node('id')
 def transform_id(ast, scope):
     qual_id = ast[1:]
-    obj = scope[qual_id] 
+    try:
+        obj = scope[qual_id] 
+    except KeyError:
+        fail("error: name %s does not exist in scope" % ('.'.join(qual_id)))
 
     # Found object, now make it into an expression, 
     # if applicable.
@@ -548,17 +640,16 @@ def transform_id(ast, scope):
     elif isinstance(obj, Parameter):
         return obj
 
-    raise ValueError("Name '%s' is not an expression",
-        '.'.join(qual_id))
+    fail("error: name '%s' is not an expression, it is a %s", '.'.join(qual_id), obj)
 
-@optype('concat')
+@ast_node('concat')
 def transform_concat(ast, scope):
     ast_expr_list = ast[1]
     expr_list = [transform_expression(e, scope)
         for e in ast_expr_list]
     return Concat(*expr_list)
 
-@optype('array')
+@ast_node('array')
 def transform_concat(ast, scope):
     ast_expr_list = ast[1]
     expr_list = [transform_expression(e, scope)
@@ -566,7 +657,7 @@ def transform_concat(ast, scope):
     return Array(*expr_list)
 
 
-@optype('fcall')
+@ast_node('fcall')
 def transform_fcall(ast, scope):
     # find Function def
     assert ast[1][0]=='id'
@@ -584,7 +675,7 @@ def transform_fcall(ast, scope):
 
     assert False
 
-@optype('unary')
+@ast_node('unary')
 def transform_unary(ast, scope):
     uop = ast[1]
 
@@ -599,7 +690,7 @@ def transform_unary(ast, scope):
     if uop=='!': return LNOT(expr)
     assert False
 
-@optype('binary')
+@ast_node('binary')
 def transform_binary(ast, scope):
     bop = ast[1]
 
@@ -627,8 +718,20 @@ def transform_binary(ast, scope):
     if bop=='>': return lhs > rhs
     if bop=='>=': return lhs >= rhs
 
+    if bop=='&&': return LAND(lhs, rhs)
+    if bop=='||': return LOR(lhs, rhs)
 
-@optype('cond')
+    assert False, "internal error: unrecognized binary operator: %s"%bop
+
+
+@ast_node('cast')
+def transform_cast(ast, scope):
+    ctype = TypeInfo.forName(ast[1])
+    expr = transform_expression(ast[2], scope)
+    return expr.cast(ctype)
+
+
+@ast_node('cond')
 def transform_cond(ast, scope):
     sel = transform_expression(ast[1], scope)
     lhs = transform_expression(ast[2], scope)
@@ -637,7 +740,7 @@ def transform_cond(ast, scope):
     # create an operator
     return IF(sel, lhs, rhs)
 
-@optype('index')
+@ast_node('index')
 def transform_index(ast, scope):
     base = transform_expression(ast[1], scope)
 
@@ -649,7 +752,9 @@ def transform_index(ast, scope):
               if op.start is not None else None
             stop = transform_expression(op.stop, scope) \
               if op.stop is not None else None
-            return slice(start, stop)
+            step = transform_expression(op.step, scope) \
+              if op.step is not None else None
+            return slice(start, stop, step)
         # simple indexing
         return transform_expression(op, scope)
 
@@ -666,67 +771,36 @@ def transform_index(ast, scope):
 
 def transform_statement(stmt, scope):
     optype = stmt[0]
-    assert optype in ('block', 'assign', 'emit', 'print', 'if', 'fexpr', 'const')
+    assert optype in ops_statement
     return _transform_map[optype](stmt, scope)
 
 
 
 
-@optype('assign')
+@ast_node('assign')
 def transform_assignment(stmt, scope):
     lhs = transform_expression(stmt[1], scope)
     rhs = transform_expression(stmt[2], scope)
 
-    # check lvalue
-    if not lhs.lvalue:
-        raise ValueError("The left-hand side of assignment is not an lvalue")
-
-    # check compatibility
-    if not lhs.broadcastable(rhs):
-        raise ValueError("The right-hand side of assignment is not broadcastable to the left-hand side")
-
     return Assignment(lhs, rhs)
 
-@optype('if')
+@ast_node('if')
 def transform_if(stmt, scope):
     cond = transform_expression(stmt[1],scope)
     ts = transform_statement(stmt[2], scope)
     es = transform_statement(stmt[3], scope) if stmt[3] is not None else None
 
-    # check 
-    if not cond.is_scalar():
-        raise ValueError("'if' condition must be scalar")
-    if cond.type != BOOL:
-        raise TypeError("'if' condition must be boolean (use a cast)")
-
     return IfStatement(cond,ts,es)
 
-@optype('emit')
+@ast_node('emit')
 def transform_emit(stmt, scope):
     event = scope[stmt[1][1:]]
     params = [transform_expression(p,scope) for p in stmt[2]]
     after = transform_expression(stmt[3], scope)
 
-    # check parameters
-    nep = len(event.params)
-    np = len(params)
-    if nep!=np:
-        raise TypeError("event takes {0} parameters ({1} given)".format(nep,np))
-    for i in range(nep):
-        ep = event.params[i]
-        p = params[i]
-        if not p.type.auto_castable(ep.type):
-            raise TypeError("parameter {0} is {1} ({2} given)".format(ep.name, ep.type, p.type))
-        if not p.is_scalar():
-            raise ValueError("parameter {0} is not scalar".format(ep.name))
-
-    # check after
-    if not after.auto_castable(TIME):
-        raise TypeError("Cannot cast {0} to time in 'after' clause".format(after.type))
-
     return EmitStatement(event, params, after)
 
-@optype('print')
+@ast_node('print')
 def transform_print(stmt, scope):
     params = []
     for p in stmt[1]:
@@ -738,7 +812,7 @@ def transform_print(stmt, scope):
 
     return PrintStatement(* params)
 
-@optype('block')
+@ast_node('block')
 def transform_block(stmt, scope):
     statements = []
     for s in stmt[1]:
@@ -746,7 +820,7 @@ def transform_block(stmt, scope):
     return CodeBlock(statements)
 
 
-@optype('fexpr','const')
+@ast_node('fexpr','const')
 def transform_fexpr(stmt, scope):
     constdecl = stmt[0]=='const'
     name = stmt[1]
@@ -763,35 +837,40 @@ def transform_fexpr(stmt, scope):
 
 def transform_params(plist, scope, shape=None):
     params = []
-    for t,n in plist:
-        p = Parameter(name=n, type=TypeInfo.forName(t), shape=shape)
-        scope.bind(n, p)
-        params.append(p)
+    for p in plist:
+        assert isinstance(p, AstNode)
+        _, typename, name = p
+        param = Parameter(name=name, type=TypeInfo.forName(typename), shape=shape)
+        try:
+            scope.bind(name, param)
+        except KeyError:
+            fail("error: multiple uses of name '%s' in parameter list", name)            
+        param.ast = p
+        params.append(param)
     return params
 
-@optype('import')
+@ast_node('import')
 def transform_import(clause, model):
     assert isinstance(model, Model)
     assert clause[0]=='import'
 
-    model.add_import(clause[1], clause[2])
+    return model.add_import(clause[1], clause[2])
 
-@optype('from')
+@ast_node('from')
 def transform_import(clause, model):
     assert isinstance(model, Model)
     assert clause[0]=='from'
 
-    model.add_from(clause[1], *clause[2])
+    return model.add_from(clause[1], *clause[2])
 
 
-@optype('event')
+@ast_node('event')
 def transform_event(clause, model):
-    params = [Parameter(name=n,type=TypeInfo.forName(t), 
-        shape=tuple()) for t,n in clause[2]]
+    params = transform_params(clause[2], Scope(), tuple())
     return model.add_event(clause[1], params)
 
 
-@optype('var')
+@ast_node('var')
 def transform_var(clause, model):
     name = clause[1]
     vtype = TypeInfo.forName(clause[2])
@@ -799,7 +878,7 @@ def transform_var(clause, model):
     return model.add_variable(name, vtype, initval)
 
 
-@optype('action')
+@ast_node('action')
 def transform_action(clause, model):
     evtname = clause[1][1:] # ('id', 'a','b') -> ('a','b')
     event = model[evtname]                
@@ -808,7 +887,7 @@ def transform_action(clause, model):
     return model.add_action(event, stmt)
 
 
-@optype('func')
+@ast_node('func')
 def transform_function(clause, scope):
     name = clause[1]
     rtype = TypeInfo.forName(clause[2])
@@ -829,8 +908,7 @@ def transform_model(ast, model):
 
     # Process imports
     for clause in ast:
-        assert clause[0] in ('import', 'from', 'event', 'func',
-            'fexpr', 'const', 'var', 'action')
+        assert clause[0] in ops_declaration
         optype = clause[0]
         _transform_map[optype](clause, model)
 

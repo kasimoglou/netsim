@@ -126,7 +126,7 @@ def test_concat():
 	assert arr.shape == (4,)
 	assert np.all(arr.value == np.array([1,2,3,4]))
 
-	with pytest.raises(ValueError):
+	with pytest.raises(RuntimeError):
 		Concat(Literal(1), Array(Literal(2))).value.shape == (1,)
 
 	assert Concat(arr,arr).shape == (8,)
@@ -257,7 +257,7 @@ def test_const_indexer(index, shape, rshape, tindex):
 
 	])
 def test_bad_const_indexer(index, shape):
-	with pytest.raises(ValueError):
+	with pytest.raises(RuntimeError):
 		Indexer(index, shape)
 
 
