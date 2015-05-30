@@ -34,7 +34,7 @@ def json_abort(code, msg=None, details=None, **kwargs):
 	body = {
 		'status':code, 
 		'message': bottle.HTTP_CODE[code] if msg is None else str(msg),
-		'details': 'No information' if details is None else str(details)
+		'details': 'No information is available for this problem' if details is None else str(details)
 	}
 	body.update(kwargs)
 	logging.error("json_abort: body=%s\n     kwargs=%s", json.dumps(body, indent=4), str(kwargs))
@@ -51,11 +51,15 @@ def process_api_error(ex):
 	if code is None:
 		logging.debug("In process_api_error: http code unknown, ex.cls = %s", ex.__class__, exc_info=1)
 		json_abort(500, 'An unexpected error occurred.',
-			'An unanticipated error occurred. This is a bug in the server.')
+			'An unanticipated error occurred. '
+			'This is a problem that the server is unable to describe.')
 	else:
 		msg = bottle.HTTP_CODES[code]
-		details = ' '.join(str(arg) for arg in ex.args)
-		json_abort(code, msg, details, ** ex.kwargs)
+		if 'details' not in ex.kwargs:
+			details = ' '.join(str(arg) for arg in ex.args)
+			json_abort(code, msg, details, ** ex.kwargs)
+		else:
+			json_abort(code, msg, ** ex.kwargs)
 
 
 

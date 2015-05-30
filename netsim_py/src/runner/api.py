@@ -48,12 +48,18 @@ def apierror(func):
 	return wrapper
 
 _repoerror_map = [
-	(dpcmrepo.GenericError , Forbidden),
-	(dpcmrepo.Conflict , Conflict),
-	(dpcmrepo.NotFound , NotFound),
-	(dpcmrepo.BadRequest , BadRequest),
-	(dpcmrepo.AuthenticationFailed , Unauthorized),
-	(dpcmrepo.Error, ServerError)	
+	(dpcmrepo.GenericError , Forbidden, '''The project repository has forbidden this \
+operation'''),
+	(dpcmrepo.Conflict , Conflict, '''There is a conflict in the project repository, \
+which implies that someone is editing the same data.'''),
+	(dpcmrepo.NotFound , NotFound, '''An object by this name does not exist in the \
+project repository.'''),
+	(dpcmrepo.BadRequest , BadRequest, '''Something was wrong with the request, in general. \
+Unfortunately there are no more details.'''),
+	(dpcmrepo.AuthenticationFailed , Unauthorized, '''You are not authorized to perform \
+this operation.'''),
+	(dpcmrepo.Error, ServerError, '''There was a server error during the operation. Please
+try again the operation, or check with the administrator.''')	
 ]
 
 def map_repository_error(e):
@@ -62,9 +68,9 @@ def map_repository_error(e):
 	of api.Error and raise it.
 	"""
 	assert isinstance(e, dpcmrepo.Error)
-	for repocls, apicls in _repoerror_map:
+	for repocls, apicls, apidetails in _repoerror_map:
 		if isinstance(e, repocls):
-			raise apicls(* e.args)
+			raise apicls(* e.args, details = apidetails)
 	assert False
 
 def repoerror(func):
@@ -110,19 +116,21 @@ def create_simoutput(xtor, prepo, nsdid):
 	# Get the PR database and check that the NSD exists
 	simdb = prepo.SIM
 	if nsdid not in simdb:
-		raise NotFound("Cannot find NSD with id = '%s'" % nsdid)
+		raise NotFound(nsdid, details= "Cannot find the spcified NSD in the project")
 
 	# Get the nsd
 	nsd = simdb.get(nsdid)
 	# extract project and plan id
 	try:
 		project_id = nsd['project_id']
-	except:
-		raise BadRequest('The specified NSD does not specify a project')
+	except KeyError:
+		raise BadRequest('The specified NSD does not reference a project!'
+		' This is definitely a malformed NSD, and a simulation cannot be created for it.')
 	try:
 		plan_id = nsd['plan_id']
-	except:
-		raise BadRequest('The specified NSD does not specify a plan')
+	except KeyError:
+		raise BadRequest('The specified NSD does not specify a plan. Therefore, the ' 
+			'simulation cannot be created. Try to edit the NSD in the NSD editor.')
 
 
 	# Create the homedir
