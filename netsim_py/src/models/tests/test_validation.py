@@ -96,6 +96,14 @@ def test_success():
         assert b.success
     assert p.success
 
+    with Process('a') as p:
+        with Context('b') as b:
+            fail('bad')
+        with Context('c') as c:
+            inform('ok')
+        assert c.success
+        assert not b.success        
+    assert not p.success
 
 def test_parents():
     with Process('a') as a:

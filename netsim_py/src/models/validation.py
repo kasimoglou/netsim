@@ -198,7 +198,7 @@ class CheckScope(ContextDecorator):
                 return catch
         finally:
             # just pop from the stack
-            if self.parent: self.parent.success = self.success
+            if self.parent: self.parent.success = self.parent.success and self.success
             assert scope_stack[-1] is self
             me = scope_stack.pop()
 
