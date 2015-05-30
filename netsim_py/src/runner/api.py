@@ -257,10 +257,34 @@ class RepoDao:
 
 		self.unique = entity.unique
 
-
 	def __db(self):
 		return repo().database(cfg[self.db])
 
+	def join_fetch_fields(self, obj):
+		for ff in self.entity.fetch_fields:
+			try:
+				logging.error("Fetch field %s", ff.name)
+				if ff.fkey.name not in obj:
+					continue
+				fid = obj[ff.fkey.name]
+				dao = globals()[ff.fkey.references.dao_name]
+				fobj = list(dao.findBy('all', key=fid, reduced=True, fetch=False))
+				assert len(fobj)<=1
+				if len(fobj):
+					obj[ff.name] = fobj[0]
+				else:
+					logging.warn("Foreign key is stale for %s", obj.get('_id', "<unknown>"))
+			except:
+				# log but otherwise ignore errors
+				logging.exception("Failed to fetch join field '%s' for %s", 
+					ff.name, obj.get('_id', "<unknown>"))
+		return obj
+
+	def drop_fetch_fields(self, obj):
+		for ff in self.entity.fetch_fields:
+			if ff.name in obj:
+				del obj[ff.name]
+		return obj
 
 	def findAll(self, reduced = True):
 		'''
@@ -272,7 +296,7 @@ class RepoDao:
 		return self.findBy('all',reduced=reduced)
 
 	@repoerror
-	def findBy(self, view, key=None, reduced=True):
+	def findBy(self, view, key=None, reduced=True, fetch=True):
 		if view not in self.views:
 			raise BadRequest('View does not exist')
 		resource = self.views[view].resource
@@ -284,7 +308,10 @@ class RepoDao:
 		qry = self.__db().query(resource, **kwds)
 		attr = 'value' if reduced else 'doc'
 		for rec in qry:
-			yield rec[attr]
+			if fetch:
+				yield self.join_fetch_fields(rec[attr])
+			else:
+				yield rec[attr]
 
 	@repoerror
 	def create(self, obj):
@@ -302,20 +329,21 @@ class RepoDao:
 			details="The exception was: %s" % str(e)
 			raise BadRequest(message=message, details=details)
 
-		return self.__db().save(obj)		
+		return self.join_fetch_fields(self.__db().save(obj))
 
 	@repoerror
 	def read(self, oid):
 		obj = self.__db().get(oid)
 		if obj.get('type', None) != self.type:
 			raise NotFound('Object of wrong type was passed')
-		return obj
+		return self.join_fetch_fields(obj)
 
 	@repoerror
 	def update(self, oid, obj):
 		# Couchdb does not have the concept of update, but we
 		# still need to check consistency.
-		obj['_id'] = oid
+		obj = self.drop_fetch_fields(obj)
+		obj['_id'] = oid		
 		try:
 			# check primary key change
 			if self.entity.primary_key:
@@ -324,7 +352,7 @@ class RepoDao:
 			return self.__db().save(obj)
 		except dpcmrepo.Conflict as e:
 			# try to read the current object
-			cur = self.__db().get(oid)
+			cur = self.read(oid)
 			raise Conflict(current_object = cur) from e
 
 	@repoerror
