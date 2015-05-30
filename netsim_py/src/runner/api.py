@@ -268,10 +268,13 @@ class RepoDao:
 	def __db(self):
 		return repo().database(cfg[self.db])
 
-	def join_fetch_fields(self, obj):
+	def join_fetch_fields_for_object(self, obj):
+		'''
+		This is used only for one object.
+		'''
 		for ff in self.entity.fetch_fields:
 			try:
-				logging.error("Fetch field %s", ff.name)
+				logging.debug("Fetch field %s", ff.name)
 				if ff.fkey.name not in obj:
 					continue
 				fid = obj[ff.fkey.name]
@@ -288,20 +291,58 @@ class RepoDao:
 					ff.name, obj.get('_id', "<unknown>"))
 		return obj
 
+	def join_fetch(self, objiter):
+		objects = list(objiter)
+		if len(objects)==0: return
+		# "Threshold" == 2
+		if len(objects)<2:
+			for obj in objects:
+				yield self.join_fetch_fields_for_object(obj)
+			return
+		# more than "Threshold" objects, we should do a join.
+		# (a) build indices over all joined sets
+
+		join_obj = {}
+		for ff in self.entity.fetch_fields:
+			# for each ff create a map id->obj and put the map in 
+			# join_obj, under the ff name
+			try:
+				dao = globals()[ff.fkey.references.dao_name]
+				fobj_list = dao.findAll(reduced=True, fetch=False)
+				idx_fobj = {}
+				for fobj in fobj_list:
+					idx_fobj[fobj['_id']] = fobj
+				join_obj[ff.name] = idx_fobj
+			except:
+				# log but otherwise ignore errors
+				logging.exception("Failed to fetch join field '%s' for %s", 
+					ff.name, obj.get('_id', "<unknown>"))
+
+		# (b) Generate an index-loop join result
+		for obj in objects:
+			for ff in self.entity.fetch_fields:
+				if ff.name not in join_obj: continue
+				if ff.fkey.name not in obj: continue
+				fkey = obj[ff.fkey.name]
+				if fkey in join_obj[ff.name]:
+					obj[ff.name] = join_obj[ff.name][fkey]
+			yield obj
+
+
 	def drop_fetch_fields(self, obj):
 		for ff in self.entity.fetch_fields:
 			if ff.name in obj:
 				del obj[ff.name]
 		return obj
 
-	def findAll(self, reduced = True):
+	def findAll(self, reduced = True, fetch=True):
 		'''
 		Return a list of all documents.
 
 		If reduced is given, return an iterator of 'reduced' documents.
 		Else, return an iterator returning the full documents.
 		'''
-		return self.findBy('all',reduced=reduced)
+		return self.findBy('all',reduced=reduced, fetch=fetch)
 
 	@repoerror
 	def findBy(self, view, key=None, reduced=True, fetch=True):
@@ -315,10 +356,10 @@ class RepoDao:
 			kwds['key'] = str(key)
 		qry = self.__db().query(resource, **kwds)
 		attr = 'value' if reduced else 'doc'
-		for rec in qry:
-			if fetch:
-				yield self.join_fetch_fields(rec[attr])
-			else:
+		if fetch:
+			yield from self.join_fetch(rec[attr] for rec in qry)
+		else:
+			for rec in qry:
 				yield rec[attr]
 
 	@repoerror
@@ -337,14 +378,14 @@ class RepoDao:
 			details="The exception was: %s" % str(e)
 			raise BadRequest(message=message, details=details)
 
-		return self.join_fetch_fields(self.__db().save(obj))
+		return self.join_fetch_fields_for_object(self.__db().save(obj))
 
 	@repoerror
 	def read(self, oid):
 		obj = self.__db().get(oid)
 		if obj.get('type', None) != self.type:
 			raise NotFound('Object of wrong type was passed')
-		return self.join_fetch_fields(obj)
+		return self.join_fetch_fields_for_object(obj)
 
 	@repoerror
 	def update(self, oid, obj):
