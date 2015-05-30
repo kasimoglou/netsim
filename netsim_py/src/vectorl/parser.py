@@ -1,9 +1,12 @@
 
 
 import ply.yacc as yacc
-from vectorl.lexer import tokens, get_lexer
 from models.mf import model, attr
 from ast import literal_eval
+from models.validation import fail, snafu
+
+from vectorl.base import AstNode
+from vectorl.lexer import tokens, get_lexer
 
 #
 # Parser for vectorl
@@ -16,61 +19,33 @@ def comperr(p, line, msg, *args, **kwargs):
 def lexerr(lex, line, msg, *args, **kwargs):
     name = lex.modelname
     errmsg = msg.format(*args, **kwargs)
-    print("error:", "{0}({1}): {2}".format(name, line, errmsg))
-
-
-
-#
-# Source location tracking
-#
-
-class AstNode(tuple):
-    def __repr__(self):
-        return "AstNode"+super().__repr__()+ ":%d:" % self.lineno +"[%d,%d]"%self.linespan
-
-@model
-class SourceItem:
-    ast = attr(AstNode, nullable=True, default=None)
-
-    @property
-    def lineno(self):
-        return self.ast.lineno if self.ast is not None else "??"
-
-    @property
-    def model_name(self):
-        return self.ast.model_name if self.ast is not None else "<unknown model>"
-    
-    @property
-    def origin(self):
-        return "%s(%s)" % (self.model_name, self.lineno)
-
-    def description(self):
-        return "%s" % self.__class__.__name__
-    
-    def __repr__(self):
-        return "%s at %s" % (self.description(), self.origin)
+    snafu("{0}({1}): error: {2}".format(name, line, errmsg))
 
 
 def post_advice(p):
     if (not isinstance(p[0], AstNode)) and isinstance(p[0], tuple) and len(p[0])>0 and p[0][0] in {
-        'literal', 'array', 'id', 'concat', 'fcall', 
+        'literal', 'array', 'id', 'concat', 'fcall', 'cast',
         'index', 'cond', 'unary', 'binary',
         'block', 'assign', 'emit', 'print', 'if', 
         'import', 'from', 'event', 'func',
-            'fexpr', 'const', 'var', 'action'
+            'fexpr', 'const', 'var', 'action',
+            'param'
     }:
         p[0] = AstNode(p[0])
         p[0].model_name = p.lexer.modelname
         p[0].lineno = p.lineno(0)
         p[0].linespan = p.linespan(0)
 
+
+
+
+
 # Rules
 def p_error(p):
     if p:
         comperr(p, p.lineno, "Syntax error near {0} token '{1}'", p.type, p.value)
     else:
-        raise SyntaxError("Error at end of source")
-
+        fail("Error at end of source")
 
 # Model declaration
 
@@ -137,7 +112,8 @@ def p_arglist(p):
 
 def p_argdef(p):
     "argdef : typename ID"
-    p[0] = (p[1], p[2])
+    p[0] = ('param', p[1], p[2])
+    post_advice(p)
 
 def p_argdefs(p):
     """argdefs : argdef 
@@ -391,6 +367,10 @@ def p_index_op_range(p):
     " index_op : expr_opt COLON expr_opt"
     p[0] = slice(p[1],p[3])
 
+def p_index_op_range_step(p):
+    " index_op : expr_opt COLON expr_opt COLON expr_opt"
+    p[0] = slice(p[1],p[3], p[5])
+
 def p_index_op_newdim(p):
     " index_op : SUB "
     p[0] = '_'
@@ -570,9 +550,8 @@ def p_concat_expression(p):
             p[1].append(p[3])
             p[0] = p[1]
         else:
-            p[0] = ('cat', [p[1], p[3]])
+            p[0] = ('concat', [p[1], p[3]])
     post_advice(p)
-
 
 
 parser = yacc.yacc()

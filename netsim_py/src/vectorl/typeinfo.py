@@ -62,9 +62,9 @@ class TypeInfo:
 
 # static members
 BOOL = TypeInfo('bool', bool, np.bool_, 1)
-INT = TypeInfo('int', int, np.int_, 2)
-REAL = TypeInfo('real', float, np.float_, 3)
-TIME = TypeInfo('time', float, np.float_, 4)
+INT = TypeInfo('int', int, np.int_, 1)
+REAL = TypeInfo('real', float, np.float_, 1)
+TIME = TypeInfo('time', float, np.float_, 1)
 
 # Real types
 TYPES = (BOOL, INT, REAL, TIME)

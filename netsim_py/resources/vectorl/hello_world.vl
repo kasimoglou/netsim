@@ -2,6 +2,6 @@
 from sys import Init;
 
 on Init {
-	print('Hello world!');
+	print("Hello world!");
 }
 
