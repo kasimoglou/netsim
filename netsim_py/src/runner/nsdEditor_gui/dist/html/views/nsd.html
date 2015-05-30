@@ -60,7 +60,7 @@
                                                         Please, select a plan:
                                                     </label>
                                                     <select class="form-control" id="planSelect"
-                                                            ng-options="plan for plan in plans track by plan"
+                                                            ng-options="plan._id as plan.name for plan in plans"
                                                             ng-model="nsd.plan_id" ng-change="fetchSelectedPlan(nsd.plan_id)">
                                                         <option value="">-- select plan --</option>
                                                     </select>
