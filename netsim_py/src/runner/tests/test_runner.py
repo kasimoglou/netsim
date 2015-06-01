@@ -7,13 +7,14 @@ Created on Mar 4, 2014
 @author: vsam
 '''
 
-from runner.DAO import check_database, JobDao, JobStatus, ExecutorDao
+from runner.DAO import check_database, JobDao, JobStatus, ExecutorDao, UserDao
 from psycopg2 import IntegrityError, InternalError
 from psycopg2.pool import ThreadedConnectionPool
+from models.aaa import User
 
 import pytest
 from simgen.executor import LocalExecutor
-
+from runner.config import cfg
 
 #
 # We are assuming that the user has created a local postgresql database
@@ -22,23 +23,20 @@ from simgen.executor import LocalExecutor
 
 pg_testdb = "dbname=dpcmtest"
 
-pg_pool = None
-
-def setup_module():
+@pytest.fixture(scope='module', autouse=True)
+def pg_pool(request, setup_configuration):
     class Args: pass
     args = Args()
     args.initdb = "YES"
     check_database(args, pg_testdb)
-    global pg_pool
-    pg_pool = ThreadedConnectionPool(1,10, pg_testdb)
+    pool = ThreadedConnectionPool(1,10, pg_testdb)
+    def fin():
+        pool.closeall()
+    request.addfinalizer(fin)
+    return pool
 
 
-def teardown_module():
-    pg_pool.closeall()
-
-
-
-def test_JobDao():
+def test_JobDao(pg_pool):
     assert pg_pool is not None
     dao = JobDao(pg_pool)    
     assert list(dao.get_jobs()) == []
@@ -98,7 +96,7 @@ def test_JobDao():
 
 
 
-def test_ExecutorDao():
+def test_ExecutorDao(pg_pool):
     dao = ExecutorDao(pg_pool)
     
     ex = list(dao.get_executors())
@@ -111,4 +109,25 @@ def test_ExecutorDao():
     
     dao.release()
     
-    
+def test_UserDao(pg_pool):
+    dao = UserDao(pg_pool)
+
+    assert len(list(dao.get_users())) == 0
+
+    dao.create_user(User('foo', 'bar', False))
+    assert len(list(dao.get_users())) == 1
+
+    u = dao.get_user('foo')
+    assert u.username == 'foo'
+    assert u.password == 'bar'
+    assert u.is_admin == False
+
+    dao.update_user('foo', password='baz')
+    u = dao.get_user('foo')
+    assert u.username == 'foo'
+    assert u.password == 'baz'
+    assert u.is_admin == False
+
+    dao.delete_user('foo')
+    assert len(list(dao.get_users())) == 0
+

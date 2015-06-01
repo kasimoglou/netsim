@@ -15,11 +15,13 @@ import os.path
 from shutil import copyfile
 
 from runner.dpcmrepo import repo
-from runner.DAO import JobDao, ExecutorDao, JobStatus, SimJob
+from runner.DAO import JobDao, ExecutorDao, JobStatus, SimJob, UserDao
 from runner.config import monitor_init
+from runner.apierrors import *
 from subprocess import CalledProcessError
 from simgen.executor import Executor
 
+from models.aaa import User
 
 class Manager:
     """A singleton class managing the whole execution engine.
@@ -160,7 +162,8 @@ class Manager:
             else:
                 job = Manager.get_job_by_simid(job)
         if job.state != 'PASSIVE':
-            raise ValueError('Cannot delete a job which is not passive')
+            raise Forbidden(message='Bad job status', 
+                details='Cannot delete a job which is still executing')
         xtor = Manager.executor(job.executor)        
         xtor.delete_simulation(job)
         Manager.getDao().delete_job(job)
@@ -204,7 +207,7 @@ class Manager:
         '''Return the simulation PR id for the given simhome and executor'''
         name = xtor.name if isinstance(xtor, Executor) else xtor
         if name not in Manager.SINGLETON.execs:
-            raise ValueError('Executor cannot be determined')
+            raise NotFound(details='Executor cannot be determined')
         return SimJob.make_simid(name, simhome)
 
 
@@ -214,6 +217,41 @@ class Manager:
         xtor,  bname = SimJob.break_simid(simid)
         homedir = Manager.executor(xtor).homedir
         return os.path.join(homedir, bname)
+
+    @staticmethod
+    def create_user(user):
+        '''Create a system system user for the given object'''
+        assert isinstance(user, User)
+        dao = UserDao(Manager.SINGLETON.pool)
+        dao.create_user(user)
+
+    @staticmethod
+    def get_user(username):
+        '''Return a system system user by this name, or None.'''
+        assert isinstance(username, str)
+        dao = UserDao(Manager.SINGLETON.pool)
+        return dao.get_user(username)
+
+    @staticmethod
+    def get_users():
+        '''Return an iterator over all system users.'''
+        dao = UserDao(Manager.SINGLETON.pool)
+        yield from dao.get_users()
+
+    @staticmethod
+    def update_user(username, **kwargs):
+        '''Update the system user with the given username, setting
+        the passed keyword arguments to the passed values.'''
+        dao = UserDao(Manager.SINGLETON.pool)
+        dao.update_user(username, **kwargs)
+
+    @staticmethod
+    def delete_user(username):
+        '''Delete the system user with the given username.'''
+        dao = UserDao(Manager.SINGLETON.pool)
+        dao.delete_user(username)
+
+
 
 
 

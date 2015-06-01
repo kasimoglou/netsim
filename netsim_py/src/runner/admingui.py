@@ -11,10 +11,14 @@ Created on Mar 3, 2014
 @author: vsam
 '''
 
-from runner.monitor import Manager
+import runner.api as api
+import runner.AAA as AAA
 from runner.config import gui_file_path
-#from runner.SimPreparator import *
-from runner import api
+from runner.monitor import Manager
+from runner.AAA import User
+
+from models.constraints import ConstraintViolation
+
 import sys
 import logging, os
 import bottle
@@ -26,8 +30,6 @@ import json
 from bottle import run, route, view, static_file, post, \
 					request, HTTPError, redirect, abort
 from threading import Thread
-
-from runner import AAA
 
 
 #
@@ -53,7 +55,7 @@ def page_shutdown():
 @app.get("/logout")
 @AAA.logged_in
 def dologout():
-	AAA.logout()
+	api.logout()
 	redirect("/admin/login.html")
 
 
@@ -71,7 +73,7 @@ def do_login():
 	password = request.forms.password
 	remember_me = request.forms.remember_me
 
-	if AAA.login(user, password):
+	if api.login(user, password):
 		redirect("/admin")
 	failure = True
 	return locals()
@@ -251,6 +253,143 @@ def show_nsd_table():
 	refresh_page = True
 	thispage = "/admin/nsd_table.html"
 	return locals()
+
+
+@app.get('/users.html')
+@view('users.html')
+@AAA.logged_in
+def show_users():
+	refresh_page = False
+	thispage = "/admin/users.html"
+	return locals()
+
+@app.get('/create_user.html')
+@view('create_user.html')
+@AAA.logged_in
+def create_user_dialog():
+	username = request.query.get('username', '')
+	is_admin = request.query.get('is-admin', False)
+	return locals()
+
+@app.get('/change_pass.html')
+@view('change_pass.html')
+@AAA.logged_in
+def change_pass_dialog():
+	username=request.query.get('username')
+	return locals()
+
+@app.get('/delete_user.html')
+@view('delete_user.html')
+@AAA.logged_in
+def delete_user_dialog():
+	username = request.query.get('username')
+	return locals()
+
+@app.post('/user_create')
+@AAA.logged_in
+def action_user_create():
+	username = request.forms['new-username']
+	password = request.forms['new-password']
+	check_password = request.forms['check-password']
+	is_admin = 'is-admin' in request.forms and request.forms['is-admin']=="yes"
+
+	if password != check_password:
+		return show_alert("Failed to create user", 
+			"The passwords did not match", 
+			"/admin/create_user.html?username=%s%s" % 
+				(username,  "&is-admin=yes" if is_admin else ""))
+
+
+	try:
+		user = User(username, password, is_admin)
+		api.create_user(user)
+	except ConstraintViolation as e:
+		logging.info("User creation failed because of bad username '%s'", username, exc_info=1)
+		return show_alert("Failed to create user",
+			"The user name '%s' is not valid. </p><p>"
+			"User names must begin with a letter and <br/>"
+			"have up to 24 characters. The first character must be a latin letter <br/>"
+			"and the rest can be letters, numbers, underscore, dash or @" % username,
+			"/admin/create_user.html"
+			)
+	except Exception as e:
+		logging.exception("Manager failed to create user")
+		return show_alert("Failed to create user",
+			"The server encountered an internal error",
+			"/admin/users.html"
+			)
+
+	redirect('/admin/users.html')
+
+
+@app.post('/user_change_pass')
+@AAA.logged_in
+def action_change_pass():
+	username = request.forms.username
+	new_password = request.forms['new-password']
+	check_password = request.forms['check-password']
+
+	if not AAA.current_user_is_admin():
+		old_password = request.forms['old-password']
+		if not api.verify_password(AAA.create_user(), old_password):
+			return show_alert("Operation failed",
+				"Old password could not be verified",
+				"/admin/change_pass.html?username=%s" % username)
+
+	if new_password != check_password:
+		return show_alert("Operation failed",
+			"The new password did not check, retype it.",
+			"/admin/change_pass.html?username=%s" % username)
+
+	try:
+		api.change_user_password(username, new_password)
+	except api.Unauthorized:
+		return show_alert("Operation failed",
+			"You do not have permission to perform this operation",
+			"/admin/users.html")
+
+	redirect('/admin/users.html')
+
+@app.get('/user_change_admin')
+@AAA.logged_in
+def action_change_admin():
+	username = request.query.username
+	is_admin = bool(int(request.query.is_admin))
+	api.change_admin_status(username, is_admin)
+	redirect('/admin/users.html')
+
+@app.post('/user_delete')
+@AAA.logged_in
+def action_user_delete():
+	username = request.forms.username
+	api.delete_user(username)	
+	redirect('/admin/users.html')
+
+
+@view("alert.html")
+def show_alert(title, message, link):
+	'''This can be used in actions to show an alert.'''
+	return locals()
+
+@app.get("/acl.html")
+@view("acl.html")
+@AAA.logged_in
+def show_acl():
+	# compute the tree of entities
+	from models.aaa import EClass
+
+	ectree = []
+
+	def visit(eclass, level):
+		ectree.append((level, eclass))
+		for ec in eclass.subclasses:
+			visit(ec, level+1)
+
+	for eclass in EClass.by_name.values():
+		if not eclass.superclass: visit(eclass,0)
+
+	return locals()
+
 
 @app.error(400)
 @app.error(500)

@@ -2,16 +2,16 @@
 --  Create the schema for the job driver
 --
 
-DROP SCHEMA IF EXISTS monitor CASCADE;
+-- DROP SCHEMA IF EXISTS monitor CASCADE;
 
-CREATE SCHEMA monitor;
+CREATE SCHEMA IF NOT EXISTS monitor;
 SET search_path TO monitor,public;
 
 
 --
 -- Executors
 --
-CREATE TABLE monitor.executor
+CREATE TABLE IF NOT EXISTS monitor.executor
 (
 	name    text primary key,
 	pyclass text not null,
@@ -20,7 +20,7 @@ CREATE TABLE monitor.executor
 );
 
 
-CREATE FUNCTION  monitor.new_executor(name text, pyclass text, home text, args json) RETURNS void AS '
+CREATE OR REPLACE FUNCTION monitor.new_executor(name text, pyclass text, home text, args json) RETURNS void AS '
   INSERT INTO monitor.executor(name,pyclass,home,args) VALUES($1, $2, $3, $4);
 ' LANGUAGE SQL;
 
@@ -28,14 +28,14 @@ CREATE FUNCTION  monitor.new_executor(name text, pyclass text, home text, args j
 --
 --  Monitors
 -- 
-CREATE TABLE monitor.monitor_engine
+CREATE TABLE IF NOT EXISTS monitor.monitor_engine
 (
 	name     text  primary key,
 	workers integer  CHECK(workers >= 0)
 );
 
 
-CREATE FUNCTION  monitor.new_monitor_engine(name text, workers integer) RETURNS void AS '
+CREATE OR REPLACE FUNCTION monitor.new_monitor_engine(name text, workers integer) RETURNS void AS '
   INSERT INTO monitor.monitor_engine(name,workers) VALUES($1, $2);
 ' LANGUAGE SQL;
 
@@ -54,7 +54,7 @@ CREATE TYPE monitor.State as ENUM('PASSIVE', 'READY', 'ACTIVE');
 --
 -- The main job table
 --
-CREATE TABLE monitor.simjob
+CREATE TABLE IF NOT EXISTS monitor.simjob
 (
 	jobid bigserial primary key,
 	executor text references monitor.executor(name),
@@ -73,7 +73,7 @@ CREATE TABLE monitor.simjob
 -- Change the state on a job and return the whole tuple. An error is raised if jid is
 -- not the jobid of an actual job 
 --
-CREATE FUNCTION monitor.set_job_state(jid bigint, newstate monitor.State) RETURNS monitor.simjob AS $$
+CREATE OR REPLACE FUNCTION monitor.set_job_state(jid bigint, newstate monitor.State) RETURNS monitor.simjob AS $$
 	DECLARE
 		r   monitor.simjob%rowtype;
 	BEGIN
@@ -87,7 +87,7 @@ $$ LANGUAGE plpgsql;
 --
 -- Activate and return all READY jobs.
 --
-CREATE FUNCTION monitor.activate_ready_jobs() RETURNS SETOF simjob AS
+CREATE OR REPLACE FUNCTION monitor.activate_ready_jobs() RETURNS SETOF simjob AS
 $$
 	UPDATE monitor.simjob SET state='ACTIVE' WHERE state='READY'
 	RETURNING *;
@@ -97,7 +97,7 @@ $$ LANGUAGE SQL;
 --
 -- Make all active jobs ready
 --
-CREATE FUNCTION monitor.ready_active_jobs() RETURNS SETOF simjob AS
+CREATE OR REPLACE FUNCTION monitor.ready_active_jobs() RETURNS SETOF simjob AS
 $$
 	UPDATE monitor.simjob SET state='READY' WHERE state='ACTIVE'
 	RETURNING *;
@@ -108,7 +108,7 @@ $$ LANGUAGE SQL;
 --
 -- Create a new job for the given file location. The job starts at INIT status and READY state
 --
-CREATE FUNCTION  monitor.new_job(exec text, floc text) RETURNS bigint AS '
+CREATE OR REPLACE FUNCTION monitor.new_job(exec text, floc text) RETURNS bigint AS '
   INSERT INTO monitor.simjob(executor, fileloc, tscreated, tsinstatus) VALUES($1, $2, NOW(), NOW()) RETURNING jobid;
 ' LANGUAGE SQL;
 
@@ -116,7 +116,7 @@ CREATE FUNCTION  monitor.new_job(exec text, floc text) RETURNS bigint AS '
 --
 -- Delete a job for the given file location. The job must be in 'PASSIVE' state
 --
-CREATE FUNCTION monitor.delete_job(floc text) RETURNS void AS $$
+CREATE OR REPLACE FUNCTION monitor.delete_job(floc text) RETURNS void AS $$
 	DECLARE
 		ctime timestamp := current_timestamp;
 		jstate monitor.State;
@@ -134,7 +134,7 @@ $$ LANGUAGE plpgsql;
 --
 -- Remove all dead and passive jobs that have been dead for more than 1 minute
 --
-CREATE FUNCTION monitor.cleanup_old_jobs() RETURNS void AS $$
+CREATE OR REPLACE FUNCTION monitor.cleanup_old_jobs() RETURNS void AS $$
 	DECLARE
 		ctime timestamp := current_timestamp;
 	BEGIN
@@ -149,7 +149,7 @@ $$ LANGUAGE plpgsql;
 -- Change the status of a job.
 -- If the current status is FINISHED or ABORTED an error is raised
 --
-CREATE FUNCTION monitor.change_job_status(jid bigint, newstatus monitor.JobStatus) RETURNS void AS $$
+CREATE OR REPLACE FUNCTION monitor.change_job_status(jid bigint, newstatus monitor.JobStatus) RETURNS void AS $$
 	DECLARE
 		ctime timestamp := current_timestamp;		
 		oldstatus monitor.JobStatus;		
@@ -174,7 +174,7 @@ $$ LANGUAGE plpgsql;
 --
 -- On failure an exception is raised. 
 --
-CREATE FUNCTION monitor.transition_job_status(jid bigint, oldstatus monitor.JobStatus, newstatus monitor.JobStatus) 
+CREATE OR REPLACE FUNCTION monitor.transition_job_status(jid bigint, oldstatus monitor.JobStatus, newstatus monitor.JobStatus) 
   RETURNS void AS 
 $$
 	DECLARE 
@@ -203,4 +203,14 @@ $$
 $$ LANGUAGE plpgsql;
 
 
+--
+-- User mgmt
+--
+
+CREATE TABLE IF NOT EXISTS monitor.user
+(
+	username varchar(24) NOT NULL PRIMARY KEY,
+	password text,
+	is_admin boolean	
+);
 

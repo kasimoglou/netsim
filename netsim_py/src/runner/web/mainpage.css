@@ -79,6 +79,7 @@ table,td {
     display: block;
     text-decoration: none;
    	min-width: 60px;
+    max-width: 100px;
     text-align: center;    
 }
 

@@ -8,55 +8,12 @@ from runner.DAO import SimJob
 from runner.monitor import Manager
 from runner import dpcmrepo
 from runner.dpcmrepo import repo
-import os, logging, functools
 from runner.config import cfg
+from runner.apierrors import *
 
+import runner.AAA as AAA
 
-# Exceptions thrown by the API. These resemble HTTP errors closely.
-
-class Error(Exception):
-    def __init__(self, *args, **kwargs):
-        super().__init__(self, args)
-        self.kwargs = kwargs
-        if 'details' not in kwargs:
-            self.kwargs['details'] = self.details
-        if args and 'hint' not in kwargs:
-            self.kwargs['hint'] = ','.join(args)
-
-    def __repr__(self):
-        return "%s(%s , %s)" % (self.__class__.__name__, self.args, self.kwargs)
-
-class ClientError(Error):   # These correspond to 4xx status codes
-    httpcode = 400
-
-class BadRequest(ClientError):
-    httpcode = 400
-    details = 'Something was wrong with your request.' \
-        ' Unfortunately there are no more details.'
-
-class NotFound(ClientError):
-    httpcode = 404
-    details = 'The requested object does not exist in the '\
-            'project repository.'
-
-class Unauthorized(ClientError):
-    httpcode = 401
-    details = 'You are not authorized to perform this operation.'\
-
-class Forbidden(ClientError):
-    httpcode = 403
-    details = 'The project repository has forbidden this operation'\
-
-class Conflict(ClientError):
-    httpcode = 409
-    details = 'There is a conflict in the project repository, '\
-        'maybe someone is also editing the same data.'
-
-class ServerError(Error): # These correspond to 500 
-    httpcode = 500
-    details = 'There was a server error during the operation. Please '\
-        'retry the operation, or consult the system administrator.'
-
+import os, logging, functools
 
 _repoerror_map = {
     dpcmrepo.GenericError : Forbidden,
@@ -248,8 +205,71 @@ def get_nsds():
 
 
 #
-# Pass-through CRUD API
+# User management
 #
+
+def create_user(user):
+    '''Create a new system user.'''
+    roles = AAA.session_roles()
+    if not AAA.UserRecord.authorize(roles, AAA.Create):
+        raise Unauthorized(details="Not authorized to create users")
+    Manager.create_user(user)
+    logging.info("New system user: %s", user.username)
+
+def delete_user(username):
+    '''Delete a system user.'''
+    roles = AAA.session_roles()
+    if AAA.current_user()==username:
+        roles.add(AAA.Owner)
+    if not AAA.UserRecord.authorize(roles, AAA.Delete):
+        raise Unauthorized(details="Not authorized to delete users")
+    Manager.delete_user(username)
+    logging.info("Deleted user: %s", username)
+
+def change_user_password(username, password):
+    '''Change the password for a user.'''
+    roles = AAA.session_roles()
+    if AAA.current_user()==username:
+        roles.add(AAA.Owner)
+    if not AAA.UserRecord.authorize(roles, AAA.ChangeUserPassword):
+        raise Unauthorized(details="Not authorized to change the password for this user")
+    Manager.update_user(username, password=password)
+    logging.info("Changed password for user: %s", username)
+
+def change_admin_status(username, is_admin):
+    '''Change the admin status of a user.'''
+    roles = AAA.session_roles()
+    if AAA.current_user()==username:
+        roles.add(AAA.Owner)
+    if not AAA.UserRecord.authorize(roles, AAA.ChangeAdminStatus):
+        raise Unauthorized(details="Not authorized to change the admin flag for this user")
+    Manager.update_user(username, is_admin=is_admin)
+    logging.info("Changed admin status for user '%s' to %s", username, is_admin)
+
+def verify_password(username, password):
+    return Manager.get_user(username).password==password
+
+def login(username, password):
+    # No password at this time
+    success = username and verify_password(username, password)
+
+    if success:
+        AAA.set_current_user(username)
+        logging.info('User %s logged in', username)
+    else:
+        logging.info('Login failure')
+    return success
+
+def logout():
+    AAA.clear_current_user()
+
+
+
+
+#
+# Pass-through CRUD API for project repository
+#
+
 class RepoDao:
     '''
     This class implements a set of methods that provide a standard CRUD api
