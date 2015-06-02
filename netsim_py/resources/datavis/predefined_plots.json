@@ -1,47 +1,476 @@
 {"views":
 [
-    {
-        "name": "dataTable",
-        "plots": [
-            {
-                "model_type": "plot",
-                "stat_type": "network",
-                "unit": "",
-                "x": ["node"],
-                "y": ["data"],
-                "select": "name: \"RX pkt breakdown\"", 
-                "title": "RX pkt breakdown",
-                "axes": ["label"],
-                "style": "histogram",
-                "legend": "DEFAULT",
-                "xlabel": "Node",
-                "ylabel": "Packets",
-                "x_range": null,
-                "y_range": "[0:]",
-                "logscale": "",
-                "grid": "",
-                "key": ""
-            },
-            {
-                "model_type": "plot",
-                "stat_type": "network",
-                "unit": "",
-                "x": ["node"],
-                "y": ["data"],
-                "select": "name: \"TunableMAC packet breakdown\"",
-                "title": "TunableMAC packet breakdown",
-                "axes": ["label"],
-                "style": "histogram",
-                "legend": "DEFAULT",
-                "xlabel": "Node",
-                "ylabel": "Packets",
-                "x_range": null,
-                "y_range": "[0:]",
-                "logscale": "",
-                "grid": "",
-                "key": ""
-            }
-        ]
-    }
+    	{
+           "table_filter": "name = \"Consumed Energy\"",
+           "plots": [
+               {
+                   "title": "Total Consumed Energy",
+                   "stat_type": "network",
+                   "model_type": "parameter",
+                   "rel": "total_energy",
+                   "unit": "joule",
+                   "y": "data"
+               }
+           ],
+           "groupby": [
+           ],
+           "columns": [
+               {
+                   "name": "data",
+                   "expression": "SUM(dataTable.data)"
+               }
+           ],
+           "base_tables": [
+               "dataTable"
+           ],
+           "name": "TotalEnergy"
+       },
+       {
+           "table_filter": "module = \"ResourceManager\"",
+           "plots": [
+               {
+                   "y": "data",
+                   "stat_type": "node",
+                   "select": "",
+                   "title": "Energy/Node",
+                   "x": "node",
+                   "unit": "joule",
+                   "model_type": "parameter"
+               },
+               {
+                   "y": "data",
+                   "stat_type": "network",
+                   "rel": "energy",
+                   "xlabel": "nodes",
+                   "select": "",
+                   "title": "Energy/Node",
+                   "ylabel": "energy",
+                   "x": "node",
+                   "style": "",
+                   "model_type": "plot"
+               },
+               {
+                   "style": "histogram",
+                   "x": "node",
+                   "stat_type": "network",
+                   "xlabel": "nodes",
+                   "axes": [
+                   ],
+                   "title": "Energy/None",
+                   "ylabel": "energy",
+                   "y": "data",
+                   "rel": "energy",
+                   "model_type": "plot"
+               }
+           ],
+           "groupby": [
+           ],
+           "columns": [
+               {
+                   "name": "node",
+                   "expression": "dataTable.node"
+               },
+               {
+                   "name": "name",
+                   "expression": "dataTable.name"
+               },
+               {
+                   "name": "data",
+                   "expression": "dataTable.data"
+               }
+           ],
+           "base_tables": [
+               "dataTable"
+           ],
+           "name": "ResourceManager"
+       },
+       {
+           "table_filter": "module = \"Communication.TunableMAC\"",
+           "plots": [
+               {
+                   "style": "histogram",
+                   "x": "node",
+                   "stat_type": "network",
+                   "xlabel": "Node",
+                   "select": "name: \"TunableMAC packet breakdown\"",
+                   "model_type": "plot",
+                   "title": "TunableMAC Packet Breakdown",
+                   "ylabel": "Packets",
+                   "axes": [
+                       "label"
+                   ],
+                   "rel": "TunableMAC",
+                   "y": "data"
+               }
+           ],
+           "groupby": [
+           ],
+           "columns": [
+               {
+                   "name": "node",
+                   "expression": "dataTable.node"
+               },
+               {
+                   "name": "name",
+                   "expression": "dataTable.name"
+               },
+               {
+                   "name": "label",
+                   "expression": "dataTable.label"
+               },
+               {
+                   "name": "data",
+                   "expression": "dataTable.data"
+               }
+           ],
+           "base_tables": [
+               "dataTable"
+           ],
+           "name": "TunableMAC"
+       },
+       {
+           "table_filter": "module = \"Communication.Radio\"",
+           "plots": [
+               {
+                   "y": "data",
+                   "style": "histogram",
+                   "stat_type": "network",
+                   "select": "name: \"TXed pkts\", label: \"TX pkts\"",
+                   "model_type": "plot",
+                   "title": "Transmitted Packets",
+                   "ylabel": "Packets",
+                   "x": "node",
+                   "rel": "Radio",
+                   "xlabel": "Node"
+               },
+               {
+                   "y": "data",
+                   "stat_type": "node2node",
+                   "select": "name: \"Buffer overflow\"",
+                   "title": "Buffer Overflow",
+                   "x": [
+                       "node",
+                       "n_index"
+                   ],
+                   "rel": "Radio",
+                   "unit": "Packets",
+                   "model_type": "parameter"
+               },
+               {
+                   "style": "histogram",
+                   "x": "node",
+                   "stat_type": "network",
+                   "xlabel": "Node",
+                   "select": "name: \"RX pkt breakdown\"",
+                   "model_type": "plot",
+                   "title": "RX Packet Breakdown",
+                   "ylabel": "Packets",
+                   "axes": [
+                       "label"
+                   ],
+                   "rel": "Radio",
+                   "y": "data"
+               }
+           ],
+           "groupby": [
+           ],
+           "columns": [
+               {
+                   "groupby": false,
+                   "name": "node",
+                   "expression": "dataTable.node"
+               },
+               {
+                   "groupby": false,
+                   "name": "name",
+                   "expression": "dataTable.name"
+               },
+               {
+                   "groupby": false,
+                   "name": "label",
+                   "expression": "dataTable.label"
+               },
+               {
+                   "groupby": false,
+                   "name": "n_index",
+                   "expression": "dataTable.n_index"
+               },
+               {
+                   "groupby": false,
+                   "name": "data",
+                   "expression": "dataTable.data"
+               }
+           ],
+           "base_tables": [
+               "dataTable"
+           ],
+           "name": "Radio"
+       },
+       {
+           "table_filter": "module = \"Communication.BaselineBANMac\"",
+           "plots": [
+               {
+                   "style": "histogram",
+                   "x": "node",
+                   "stat_type": "network",
+                   "xlabel": "Node",
+                   "select": "name: \"Mgmt & Ctrl pkt breakdown\"",
+                   "model_type": "plot",
+                   "title": "Mgmt & Ctrl pkt breakdown",
+                   "ylabel": "Packets",
+                   "axes": [
+                       "label"
+                   ],
+                   "rel": "BaselineBANMac",
+                   "y": "data"
+               },
+               {
+                   "y": "data",
+                   "style": "histogram",
+                   "stat_type": "network",
+                   "xlabel": "Node",
+                   "select": "name: \"Polls given\"",
+                   "title": "Polls Given",
+                   "ylabel": "Polls",
+                   "x": "node",
+                   "rel": "BaselineBANMac",
+                   "model_type": "plot"
+               },
+               {
+                   "style": "histogram",
+                   "x": "node",
+                   "stat_type": "network",
+                   "xlabel": "node",
+                   "select": "name: \"var stats\"",
+                   "model_type": "plot",
+                   "title": "var stats",
+                   "ylabel": "Packets",
+                   "axes": [
+                       "label"
+                   ],
+                   "rel": "BaselineBANMac",
+                   "y": "data"
+               },
+               {
+                   "style": "histogram",
+                   "x": "node",
+                   "stat_type": "network",
+                   "xlabel": "Node",
+                   "select": "name: \"pkt TX state breakdown\"",
+                   "model_type": "plot",
+                   "title": "pkt TX state breakdown",
+                   "ylabel": "Packets",
+                   "axes": [
+                       "label"
+                   ],
+                   "rel": "BaselineBANMac",
+                   "y": "data"
+               },
+               {
+                   "style": "histogram",
+                   "x": "node",
+                   "stat_type": "network",
+                   "xlabel": "Node",
+                   "select": "name: \"Data pkt breakdown\"",
+                   "model_type": "plot",
+                   "title": "Data pkt breakdown",
+                   "ylabel": "Packets",
+                   "axes": [
+                       "label"
+                   ],
+                   "rel": "BaselineBANMac",
+                   "y": "data"
+               }
+           ],
+           "groupby": [
+           ],
+           "columns": [
+               {
+                   "groupby": false,
+                   "name": "node",
+                   "expression": "dataTable.node"
+               },
+               {
+                   "groupby": false,
+                   "name": "name",
+                   "expression": "dataTable.name"
+               },
+               {
+                   "groupby": false,
+                   "name": "label",
+                   "expression": "dataTable.label"
+               },
+               {
+                   "groupby": false,
+                   "name": "data",
+                   "expression": "dataTable.data"
+               }
+           ],
+           "base_tables": [
+               "dataTable"
+           ],
+           "name": "BaselineBANMac"
+       },
+       {
+           "table_filter": "module = \"Communication.TMAC\"",
+           "plots": [
+               {
+                   "style": "histogram",
+                   "x": "node",
+                   "stat_type": "network",
+                   "xlabel": "Node",
+                   "select": "name: \"Sent packets breakdown\"",
+                   "model_type": "plot",
+                   "title": "Sent Packets Breakdown",
+                   "ylabel": "Packets",
+                   "axes": [
+                       "label"
+                   ],
+                   "rel": "TMAC",
+                   "y": "data"
+               }
+           ],
+           "groupby": [
+           ],
+           "columns": [
+               {
+                   "name": "node",
+                   "expression": "dataTable.node"
+               },
+               {
+                   "name": "name",
+                   "expression": "dataTable.name"
+               },
+               {
+                   "name": "label",
+                   "expression": "dataTable.label"
+               },
+               {
+                   "name": "data",
+                   "expression": "dataTable.data"
+               }
+           ],
+           "base_tables": [
+               "dataTable"
+           ],
+           "name": "TMAC"
+       },
+       {
+           "table_filter": "module = \"Communication.Mac802154\"",
+           "plots": [
+               {
+                   "y": "data",
+                   "style": "histogram",
+                   "stat_type": "network",
+                   "xlabel": "Node",
+                   "select": "name: \"Number of beacons sent\"",
+                   "title": "Number of beacons sent",
+                   "ylabel": "Beacons",
+                   "x": "node",
+                   "rel": "Mac802154",
+                   "model_type": "plot"
+               },
+               {
+                   "style": "histogram",
+                   "x": "node",
+                   "stat_type": "network",
+                   "xlabel": "Node",
+                   "select": "name: \"Packet breakdown\"",
+                   "model_type": "plot",
+                   "title": "Packet breakdown",
+                   "ylabel": "Packets",
+                   "axes": [
+                       "label"
+                   ],
+                   "rel": "Mac802154",
+                   "y": "data"
+               },
+               {
+                   "y": "data",
+                   "style": "histogram",
+                   "stat_type": "network",
+                   "xlabel": "Node",
+                   "select": "name: \"Number of beacons received\"",
+                   "title": "Number of Beacons Received",
+                   "ylabel": "Beacons",
+                   "x": "node",
+                   "rel": "Mac802154",
+                   "model_type": "plot"
+               },
+               {
+                   "y": "data",
+                   "style": "histogram",
+                   "stat_type": "network",
+                   "xlabel": "Node",
+                   "select": "name: \"Fraction of time without PAN connection\"",
+                   "title": "Fraction of time without PAN connection",
+                   "ylabel": "Fraction of time",
+                   "x": "node",
+                   "rel": "Mac802154",
+                   "model_type": "plot"
+               }
+           ],
+           "groupby": [
+           ],
+           "columns": [
+               {
+                   "name": "node",
+                   "expression": "dataTable.node"
+               },
+               {
+                   "name": "name",
+                   "expression": "dataTable.name"
+               },
+               {
+                   "name": "label",
+                   "expression": "dataTable.label"
+               },
+               {
+                   "name": "data",
+                   "expression": "dataTable.data"
+               }
+           ],
+           "base_tables": [
+               "dataTable"
+           ],
+           "name": "Mac802154"
+       },
+       {
+           "table_filter": "module = \"VirtualRouting\"",
+           "plots": [
+               {
+                   "y": "data",
+                   "style": "histogram",
+                   "stat_type": "network",
+                   "xlabel": "Node",
+                   "select": "name: \"Buffer overflow\"",
+                   "title": "Buffer overflow",
+                   "ylabel": "Packets",
+                   "x": "node",
+                   "rel": "VirtualRouting",
+                   "model_type": "plot"
+               }
+           ],
+           "groupby": [
+           ],
+           "columns": [
+               {
+                   "name": "node",
+                   "expression": "dataTable.node"
+               },
+               {
+                   "name": "name",
+                   "expression": "dataTable.name"
+               },
+               {
+                   "name": "data",
+                   "expression": "dataTable.data"
+               }
+           ],
+           "base_tables": [
+               "dataTable"
+           ],
+           "name": "VirtualRouting"
+       }
 ]
 }
