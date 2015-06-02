@@ -136,8 +136,9 @@ def t_comment(t):
 def t_error(t):
     #print("Illegal character %s" % repr(t.value[0]))
     #t.lexer.skip(1)
-    fatal("%s(%s): lexical error: Illegal character %s", t.lexer.modelname, 
-        t.lexer.lineno, repr(t.value[0]))
+    fatal("%s(%s): lexical error: Illegal character %s", 
+        t.lexer.modelname if hasattr(t.lexer, 'modelname') else "<unknown>", 
+        t.lexer.lineno, repr(t.value[0]), ooc=ValueError)
 
 def get_lexer():
     return lex.lex()
