@@ -647,7 +647,9 @@ def transform_id(ast, scope):
     elif isinstance(obj, Parameter):
         return obj
 
-    fail("error: name '%s' is not an expression, it is a %s", '.'.join(qual_id), obj)
+    fail("error: name '%s' is not an expression, it is a %s", 
+        '.'.join(qual_id), 
+        obj if isinstance(obj, SourceItem) else 'builtin')
 
 @ast_node('concat')
 def transform_concat(ast, scope):

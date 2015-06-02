@@ -6,6 +6,7 @@
 
 
 import ply.lex as lex
+from models.validation import fail, fatal
 
 # Reserved words
 reserved = (
@@ -135,7 +136,8 @@ def t_comment(t):
 def t_error(t):
     #print("Illegal character %s" % repr(t.value[0]))
     #t.lexer.skip(1)
-    raise ValueError("Illegal character %s" % repr(t.value[0]))
+    fatal("%s(%s): lexical error: Illegal character %s", t.lexer.modelname, 
+        t.lexer.lineno, repr(t.value[0]))
 
 def get_lexer():
     return lex.lex()
