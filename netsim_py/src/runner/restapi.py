@@ -155,6 +155,22 @@ def get_plans(prjid):
 				plans.append(resp[0])
 		return { 'results': plans }
 
+#
+# vectorl execution
+#
+
+@app.get("/vectorl/<vlid>/compile")
+def compile_vectorl(vlid):
+	return api.process_vectorl(vlid, run=False)
+
+@app.get("/vectorl/<vlid>/run")
+def run_vectorl(vlid):
+	return api.process_vectorl(vlid, run=True)
+
+
+#
+# ReST api for project repository
+#
 
 class RestApi:
 	def __init__(self, dao):

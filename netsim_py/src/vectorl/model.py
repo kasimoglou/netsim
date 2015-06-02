@@ -107,6 +107,8 @@ class ModelFactory(Scope):
     models = refs()
     model_order = attr(list)
 
+    process_factory = attr(object, nullable=False, default=Compiler)
+
     base_lexer = get_lexer()
 
     def get_model(self, name):
@@ -115,7 +117,8 @@ class ModelFactory(Scope):
         '''
         model = self.lookup(name)
         if model is None:
-            with Compiler() as c:
+
+            with self.process_factory(name=name) as c:
                 # May throw
                 src = self.get_model_source(name)
 
@@ -208,8 +211,12 @@ class ModelFactory(Scope):
             for var in model.variables:
                 yield var
 
-    def __init__(self):
+    def __init__(self, process_factory=None):
         super().__init__()
+
+        # set the compiler process
+        if process_factory is not None:
+            self.process_factory = process_factory
 
         # create the system model
         self.model_order = []

@@ -49,29 +49,39 @@ class SourceItem:
 #
 
 class CompilerErrorLine(logging.Formatter):
-	def format(self, record):
-		if hasattr(record, 'ast'):
-			ast = record.ast
-			model = ast.model_name
-			line = ast.lineno
-			return "%s(%s): %s" % (model, line, record.getMessage())
-		else:
-			return super().format(record)
+    def format(self, record):
+        if hasattr(record, 'ast'):
+            ast = record.ast
+            model = ast.model_name
+            line = ast.lineno
+            return "%s(%s): %s" % (model, line, record.getMessage())
+        else:
+            return super().format(record)
 
 class AstHandler(logging.StreamHandler):
-	def __init__(self, stream=sys.stderr):
-		super().__init__(stream)
-		self.setFormatter(CompilerErrorLine())
+    def __init__(self, stream=sys.stderr):
+        super().__init__(stream)
+        self.setFormatter(CompilerErrorLine())
 
 
 class Compiler(val.Process):
-	def __init__(self, name=None):
-		super().__init__(name=name, logger=logging.getLogger('vectorl'))
-		self.addScopeHandler(AstHandler())
+    def __init__(self, name=None, handler=None):
+        '''
+        A tracing scope for the vectorl compiler.
+        '''
+        super().__init__(name=name, logger=logging.getLogger('vectorl'))
+
+        if handler is not ...:        
+            if handler is None:
+                handler = AstHandler()
+            assert isinstance(handler, logging.Handler)
+            self.addScopeHandler(handler)
+
+
 
 class AstContext(val.Context):
-	def __init__(self, ast):
-		super().__init__(ast=ast)
+    def __init__(self, ast):
+        super().__init__(ast=ast)
 
 
 

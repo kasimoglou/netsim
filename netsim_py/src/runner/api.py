@@ -208,6 +208,7 @@ def get_nsds():
 # User management
 #
 
+@apierror
 def create_user(user):
     '''Create a new system user.'''
     roles = AAA.session_roles()
@@ -216,6 +217,7 @@ def create_user(user):
     Manager.create_user(user)
     logging.info("New system user: %s", user.username)
 
+@apierror
 def delete_user(username):
     '''Delete a system user.'''
     roles = AAA.session_roles()
@@ -226,6 +228,7 @@ def delete_user(username):
     Manager.delete_user(username)
     logging.info("Deleted user: %s", username)
 
+@apierror
 def change_user_password(username, password):
     '''Change the password for a user.'''
     roles = AAA.session_roles()
@@ -236,6 +239,7 @@ def change_user_password(username, password):
     Manager.update_user(username, password=password)
     logging.info("Changed password for user: %s", username)
 
+@apierror
 def change_admin_status(username, is_admin):
     '''Change the admin status of a user.'''
     roles = AAA.session_roles()
@@ -246,9 +250,11 @@ def change_admin_status(username, is_admin):
     Manager.update_user(username, is_admin=is_admin)
     logging.info("Changed admin status for user '%s' to %s", username, is_admin)
 
+@apierror
 def verify_password(username, password):
     return Manager.get_user(username).password==password
 
+@apierror
 def login(username, password):
     # No password at this time
     success = username and verify_password(username, password)
@@ -260,6 +266,7 @@ def login(username, password):
         logging.info('Login failure')
     return success
 
+@apierror
 def logout():
     AAA.clear_current_user()
 
@@ -463,5 +470,21 @@ def _create_crud_api():
 _create_crud_api()
 
 
+#
+# Vectorl compilation and running
+#
 
+from vectorl.repofactory import proc_vectorl_model
 
+@apierror
+def process_vectorl(vectorl_id, run=False):
+    vlres = list(vectorl_dao.findBy('all', key=vectorl_id))
+    if len(vlres)==0:
+        raise NotFound(details="The given vectorl object does not exist")
+    assert len(vlres)==1
+
+    vlobj = vlres[0]
+    project_id = vlobj['project_id']
+    name = vlobj['name']
+
+    return proc_vectorl_model(project_id, name, run)

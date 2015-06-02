@@ -163,10 +163,14 @@ class ApiEntity(Entity):
 			raise ValueError("Primary key already exists: %s" % self.primary_key.names())
 		self.primary_key = ConstraintUnique("%s_pk" % self.name, self, args, primary_key=True)
 
+	def id_for_primary_key(self, obj):
+		assert self.primary_key
+		body = ":".join(str(obj[f.name]) for f in self.primary_key.fields)
+		return "%s:%s" % (self.name, body)
+
 	def create_id(self, obj):
 		if self.primary_key:
-			body = ":".join(str(obj[f.name]) for f in self.primary_key.fields)
-			return "%s:%s" % (self.name, body)
+			return self.id_for_primary_key(obj)
 		else:
 			if '_id' in obj:
 				return obj['_id']
