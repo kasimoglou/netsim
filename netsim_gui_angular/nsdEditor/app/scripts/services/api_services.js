@@ -144,6 +144,34 @@ define(['underscore', 'angular'], function(_) {
             
             return httpPromise(config);
         }
+        
+        function apiVectorlCompile(id) {
+            var config = {
+                url: '/vectorl/' + id + '/compile',
+                method: 'GET'
+            };
+            
+            return httpPromise(config);
+        }
+        
+        function apiVectorlRun(id, params) {
+            var url = '/vectorl/' + id + '/run';
+            if (params.until) {
+                url += '?until=' + params.until;
+            }
+            
+            if (params.steps) {
+                var prefix = params.until ? '&' : '?';
+                url += (prefix + 'steps=' + params.steps);
+            }
+            
+            var config = {
+                url: url,
+                method: 'GET'
+            };
+            
+            return httpPromise(config);
+        }
 
         // Lists all vectorl files stored to the system
         function apiVectorlsRead() {
@@ -182,6 +210,8 @@ define(['underscore', 'angular'], function(_) {
             vectorlRead: apiVectorlRead,
             vectorlUpdate: apiVectorlUpdate,
             vectorlDelete: apiVectorlDetele,
+            vectorlCompile: apiVectorlCompile,
+            vectorlRun: apiVectorlRun,
             vectorlsRead: apiVectorlsRead,
             projectVectorLFilesRead: apiProjectVectorLFilesRead
         };

@@ -40,10 +40,13 @@ define(['angular',
     }]);
 
     vectorlEditorControllers.controller('vectorlController',
-        ['$scope', '$routeParams', 'API', '$timeout',
-        function($scope, $routeParams, API, $timeout) {
+        ['$scope', '$routeParams', 'API', '$timeout', '$validator',
+        function($scope, $routeParams, API, $timeout, $validator) {
 
         $scope.vectorl = {};
+        $scope.output = [
+            { level: '', message: 'No output messages'}
+        ];
         $scope.temp = {
             load_finished: false
         };
@@ -78,22 +81,88 @@ define(['angular',
         };
 
         var success_alert_timeout = null;
-        $scope.saveVectorl = function() {
+        $scope.saveVectorl = function(next_action) {
             API.vectorlUpdate($routeParams.id, $scope.vectorl)
                     .success(function(response) {
                         $scope.vectorl = response;
-                        $scope.alerts.save_success = true;
-                        success_alert_timeout = $timeout($scope.dismiss, 10000);
+                        if (next_action === 'compile') {
+                            $scope.compileVectorl();
+                        } else if (next_action === 'run') {
+                            $scope.runVectorl();
+                        } else {
+                            $scope.alerts.save_success = true;
+                            success_alert_timeout = $timeout($scope.dismiss, 10000);
+                        }
             })
                     .error(function(error) {
                         if (error.status === 409) {
                             $scope.vectorl._rev = error.current_object._rev;
-                            $scope.saveVectorl();
+                            $scope.saveVectorl(next_action);
                             return;
                         }
                         console.log(error.details);
                         alert(error.details);
             });
+        };
+        
+        $scope.compileVectorl = function() {
+            $scope.output = [{ level: 'INFO', message: 'Compilation started... Please Wait...'}];
+            API.vectorlCompile($routeParams.id)
+                .success(function(response) {
+                    $scope.output = response.compiler_output;
+                })
+                .error(function(error) {
+                    console.log(error.details);
+                    alert(error.details);
+                });
+        };
+        
+        $scope.run_params = {
+            steps: 1000
+        };
+        
+        // This function is called whenever user clicks `Run` button in vectorl screen.
+        // When we get the response, we show at first compiler's output and then 
+        // if run failed, `stderr` output, otherwise `stdout` output. 
+        $scope.runVectorl = function() {
+            $validator.validate($scope, 'run_params').success(function() {
+                $scope.output = [{ level: 'INFO', message: 'Running... Please Wait...'}];
+                API.vectorlRun($routeParams.id, $scope.run_params)
+                    .success(function(response) {
+                        //console.log(response);
+
+                        // Show compiler output at first
+                        var output = [{level: '', message: 'Compiler output'}];
+                        output = output.concat(response.compiler.compiler_output);
+
+                        // If stdout message exists, show it
+                        if (response.stdout !== '') {
+                            output.push({level: '', message: 'Stdout output'});
+                            output.push({level: 'INFO', message: response.stdout});
+                        }
+
+                        // If stderr message exists show it
+                        if (response.stderr !== '') {
+                            output.push({level: '', message: 'Stderr output'});
+                            output.push({level: 'ERROR', message: response.stderr});
+                        }
+
+                        // print end_time and processes events
+                        if (response.compiler.success) {
+                            output.push({level: 'RUN_STATS', message: 'End time: ' 
+                                + response.end_time + ' , Processed events: ' + response.run_steps});
+                        }
+
+                        $scope.output = output;
+                    })
+                    .error(function(error) {
+                        console.log(error.details);
+                        alert(error.details);
+                    });
+                })
+                .error(function() {
+                    $scope.output = [{ level: '', message: 'Please fix your errors and try again.'}];
+                });
         };
 
         $scope.dismiss = function() {
