@@ -44,7 +44,9 @@ define(['angular',
         function($scope, $routeParams, API, $timeout) {
 
         $scope.vectorl = {};
-        $scope.temp = {};
+        $scope.temp = {
+            load_finished: false
+        };
 
         $scope.alerts = {
             save_success: false
@@ -55,6 +57,7 @@ define(['angular',
                     .success(function(response) {
                         $scope.vectorl = response;
                         $scope.getProjectName($scope.vectorl.project_id);
+                        $scope.temp.load_finished = true;
             })
                     .error(function() {
                         console.log('Error reading vectorl file.');
@@ -134,6 +137,11 @@ define(['angular',
             return project.name;
         };
 
+        $scope.temp = {
+            load_finished: false
+        };
+        
+        
         $scope.readVectorls = function() {
             API.vectorlsRead()
                     .success(function(response) {
@@ -142,6 +150,7 @@ define(['angular',
                             vectorl.project_name = $scope.getProjectName(vectorl.project_id);
                         });
                         $scope.shown_vectorls = $scope.vectorls;
+                        $scope.temp.load_finished = true;
             })
                     .error(function() {
                         console.log('Error fetching vectorl files.');

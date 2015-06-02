@@ -70,7 +70,9 @@ define(['underscore',
         // ### Initializations
         
         $scope.nsd = {};
-        $scope.temp = {};
+        $scope.temp = {
+            load_finished: false
+        };
         $scope.temp.environment = {};
         
         $scope.alerts = {
@@ -96,6 +98,7 @@ define(['underscore',
 
                         $scope.loadProjectPlans($scope.nsd.project_id);
                         $scope.loadProjectVectorlFiles($scope.nsd.project_id);
+                        $scope.temp.load_finished = true;
             })
                     .error(function() {
                         console.log('Error loading nsd.');
@@ -810,6 +813,10 @@ define(['underscore',
             var project = _.findWhere($scope.projects, {id: project_id});
             return project.name;
         };
+        
+        $scope.temp = {
+            load_finished: false
+        };
 
         // Read the list of user's nsds. For each nsd, find its project's name
         // by the corresponding id.
@@ -821,6 +828,7 @@ define(['underscore',
                             nsd.project_name = $scope.getProjectName(nsd.project_id);
                         });
                         $scope.shown_nsds = $scope.nsds;
+                        $scope.temp.load_finished = true;
             })
                     .error(function() {
                         console.log('Error fetching nsds.');
