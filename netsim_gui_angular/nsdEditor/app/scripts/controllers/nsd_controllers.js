@@ -26,9 +26,9 @@ define(['underscore',
                     .success(function(response) {
                         $scope.projects = response.results;
                     })
-                    .error(function() {
-                        console.log('Error during fetching projects from repository.');
-                        alert('Error during fetching projects from repository.');
+                    .error(function(error) {
+                        console.log(error.details);
+                        alert(error.details);
                     });
         };
 
@@ -53,9 +53,9 @@ define(['underscore',
                     .success(function(response) {
                         $window.location.href = '#!/nsd/' + response._id;
             })
-                    .error(function() {
-                       console.log('Error creating nsd.');
-                       alert('Error creating nsd.'); 
+                    .error(function(error) {
+                       console.log(error.details);
+                       alert(error.details); 
             });
         };
 
@@ -100,9 +100,9 @@ define(['underscore',
                         $scope.loadProjectVectorlFiles($scope.nsd.project_id);
                         $scope.temp.load_finished = true;
             })
-                    .error(function() {
-                        console.log('Error loading nsd.');
-                        alert('Error loading nsd.');
+                    .error(function(error) {
+                        console.log(error.details);
+                        alert(error.details);
             });
         };
         
@@ -112,9 +112,9 @@ define(['underscore',
                         var project = _.findWhere(response.results, {id: project_id});
                         $scope.temp.project_name = project.name;
             })
-                    .error(function() {
-                        console.log('Error reading project name');
-                        alert('Error reading project name.');
+                    .error(function(error) {
+                        console.log(error.details);
+                        alert(error.details);
             });
         };
 
@@ -197,9 +197,9 @@ define(['underscore',
                     .success(function(response) {
                         $scope.plans = response.results;
             })
-                    .error(function() {
-                        console.log('Error fetching project\'s plans.');
-                        alert('Error fetching project\'s plans.');
+                    .error(function(error) {
+                        console.log(error.details);
+                        alert(error.details);
             });
         };
         
@@ -214,9 +214,9 @@ define(['underscore',
                         .success(function(response) {
                             $scope.selected_plan = _.omit(response, ['_id', '_rev']);
                 })
-                        .error(function() {
-                            console.log('Error fetching plan by id.');
-                            alert('Error fetching plan by id.');
+                        .error(function(error) {
+                            console.log(error.details);
+                            alert(error.details);
                 });
             }
         };
@@ -240,9 +240,9 @@ define(['underscore',
                     .success(function(response) {
                         $scope.vectorls = response.results;
             })
-                    .error(function() {
-                        console.log('Error fetching project\'s plans.');
-                        alert('Error fetching project\'s plans.');
+                    .error(function(error) {
+                        console.log(error.details);
+                        alert(error.details);
             });
         };
         
@@ -797,9 +797,9 @@ define(['underscore',
                         $scope.projects = response.results;
                         $scope.readNsds();
             })
-                    .error(function() {
-                        console.log('Error during fetching projects from repository.');
-                        alert('Error during fetching projects from repository.');
+                    .error(function(error) {
+                        console.log(error.details);
+                        alert(error.details);
             });
         };
         
@@ -826,9 +826,9 @@ define(['underscore',
                         $scope.shown_nsds = $scope.nsds;
                         $scope.temp.load_finished = true;
             })
-                    .error(function() {
-                        console.log('Error fetching nsds.');
-                        alert('Error fetching nsds.');
+                    .error(function(error) {
+                        console.log(error.details);
+                        alert(error.details);
             });
         };
 
@@ -873,9 +873,9 @@ define(['underscore',
                                     // And create a new nsd from these data
                                     $scope.saveClonedNsd(existed_nsd_data);
                         })
-                                .error(function() {
-                                    console.log('Error reading nsd for cloning.');
-                                    alert('Error reading nsd for cloning.');
+                                .error(function(error) {
+                                    console.log(error.details);
+                                    alert(error.details);
                         });
                     };
                     
@@ -885,8 +885,9 @@ define(['underscore',
                                     $scope.closeThisDialog();
                                     self.go(response._id);
                         })
-                                .error(function() {
-                            
+                                .error(function(error) {
+                                    console.log(error.details);
+                                    alert(error.details);
                         });
                     };
                     
@@ -928,9 +929,9 @@ define(['underscore',
                     .success(function() {
                         $scope.readNsds();
             })
-                    .error(function() {
-                        console.log('Error deleting nsd.');
-                        alert('Error deleting nsd.');
+                    .error(function(error) {
+                        console.log(error.details);
+                        alert(error.details);
             });
         };
 

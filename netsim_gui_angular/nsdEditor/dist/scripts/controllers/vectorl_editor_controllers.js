@@ -17,9 +17,9 @@ define(['angular',
                     .success(function(response) {
                         $scope.projects = response.results;
             })
-                    .error(function() {
-                        console.log('Error during fetching projects from repository.');
-                        alert('Error during fetching projects from repository.');
+                    .error(function(error) {
+                        console.log(error.details);
+                        alert(error.details);
             });
         };
 
@@ -29,9 +29,9 @@ define(['angular',
                         .success(function(response) {
                             $location.path('/vectorl/' + response._id);
                 })
-                        .error(function() {
-                            console.log('Error creating vectorl.');
-                            alert('Error creating vectorl.');
+                        .error(function(error) {
+                            console.log(error.details);
+                            alert(error.details);
                 });
             });
         };
@@ -59,9 +59,9 @@ define(['angular',
                         $scope.getProjectName($scope.vectorl.project_id);
                         $scope.temp.load_finished = true;
             })
-                    .error(function() {
-                        console.log('Error reading vectorl file.');
-                        alert('Error reading vectorl file.');
+                    .error(function(error) {
+                        console.log(error.details);
+                        alert(error.details);
             });
         };
         
@@ -71,9 +71,9 @@ define(['angular',
                         var project = _.findWhere(response.results, {id: project_id});
                         $scope.temp.project_name = project.name;
             })
-                    .error(function() {
-                        console.log('Error reading project name');
-                        alert('Error reading project name.');
+                    .error(function(error) {
+                        console.log(error.details);
+                        alert(error.details);
             });
         };
 
@@ -86,13 +86,13 @@ define(['angular',
                         success_alert_timeout = $timeout($scope.dismiss, 10000);
             })
                     .error(function(error) {
-                        if (error.status == 409) {
+                        if (error.status === 409) {
                             $scope.vectorl._rev = error.current_object._rev;
                             $scope.saveVectorl();
                             return;
                         }
-                        console.log('Error updating vectorl file.');
-                        alert('Error updating vectorl file.');
+                        console.log(error.details);
+                        alert(error.details);
             });
         };
 
@@ -126,9 +126,9 @@ define(['angular',
                         $scope.projects = response.results;
                         $scope.readVectorls();
             })
-                    .error(function() {
-                        console.log('Error during fetching projects from repository.');
-                        alert('Error during fetching projects from repository.');
+                    .error(function(error) {
+                        console.log(error.details);
+                        alert(error.details);
             });
         };
         
@@ -152,9 +152,9 @@ define(['angular',
                         $scope.shown_vectorls = $scope.vectorls;
                         $scope.temp.load_finished = true;
             })
-                    .error(function() {
-                        console.log('Error fetching vectorl files.');
-                        alert('Error fetching vectorl files.');
+                    .error(function(error) {
+                        console.log(error.details);
+                        alert(error.details);
             });
         };
 
@@ -197,9 +197,9 @@ define(['angular',
                     .success(function() {
                         $scope.readVectorls();
             })
-                    .error(function() {
-                        console.log('Error deleting vectorl file.');
-                        alert('Error deleting vectorl file.');
+                    .error(function(error) {
+                        console.log(error.details);
+                        alert(error.details);
             });
         };
 
