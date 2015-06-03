@@ -224,7 +224,7 @@ class StatBreakdownSum(PredefinedPlot):
         # filter --> name = stat_name
         c_node = Column("node")
         c_data = ColumnExpr("data", Operator(SUM, [ColumnRef(DATA_TABLE.col["data"])]))
-        f = Operator(EQ, [ColumnRef(DATA_TABLE.col["name"]), ConstantExpr(stat_name)])
+        f = Operator(EQ, [ColumnRef(DATA_TABLE.col["name"]), ConstantExpr("'"+stat_name+"'")])
         dt = DerivedTable("%s_stat_breakdown" % stat_name.replace(" ", "_"), [c_node, c_data], [DATA_TABLE], f, groupby=[DATA_TABLE.col["node"]])
         self.add_view(dt)
 

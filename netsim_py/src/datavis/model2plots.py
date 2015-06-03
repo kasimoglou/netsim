@@ -41,7 +41,7 @@ def expression2sql(expr, prec_table=False):
     transforms an expression to the corresponding sql
     """
     if isinstance(expr, ConstantExpr):
-        return str(expr.value) if not " " in str(expr.value) else "'" + str(expr.value) + "'"
+        return str(expr.value)
     elif isinstance(expr, ColumnRef):
         if prec_table:
             return expr.column.table.name + "." + expr.column.name

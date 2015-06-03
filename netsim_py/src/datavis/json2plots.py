@@ -307,7 +307,7 @@ class ExprGenNodeVisitor(ast.NodeVisitor):
         return ConstantExpr(num)
 
     def visit_Str(self, node):
-        s = str(node.s)
+        s = "'"+str(node.s)+"'"
         return ConstantExpr(s)
 
     @staticmethod
