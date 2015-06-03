@@ -8,7 +8,7 @@ from models.nsdplot import PlotModel, DATA_TABLE, DerivedTable, Table,  Column, 
     PLUS, MINUS, DIV, MULT
 from datavis.database import less_equal, less_than, greater_than, greater_equal, not_equal, like, not_like, between
 from datavis.create_plot import pm_defaults
-import json
+from models.validation import warn
 import re
 
 
@@ -176,7 +176,8 @@ class ViewsPlotsDecoder:
             for c in self.derived_tables:
                 if c.name == name:
                     return c
-        raise Exception("Table name: \"%s\" does not exist" % name)
+            raise ValueError("Table name: \"%s\" does not exist" % name)
+
 
 
 def gen_types(columns=None, tables=None):
@@ -243,7 +244,7 @@ def col_str2col_obj(col_str, col_obj):
         if c:
             cols.append(c)
         else:  # this should never happen
-            raise Exception("column name: \"%s\" does not exist" % s)
+            raise ValueError("column name: \"%s\" does not exist" % s)
     return cols
 
 
@@ -300,7 +301,8 @@ class ExprGenNodeVisitor(ast.NodeVisitor):
             elif self.types[name] == "table":
                 return name
         else:
-            raise Exception("Unknown Name: \"%s\"" % name)
+            return name
+            # raise Exception("Unknown Name: \"%s\"" % name)
 
     def visit_Num(self, node):
         num = str(node.n)
@@ -337,7 +339,7 @@ class ExprGenNodeVisitor(ast.NodeVisitor):
         elif name == "Div":
             return DIV
 
-        raise Exception("func \"%s\" unknown" % name)
+        raise ValueError("func \"%s\" unknown" % name)
 
 
 class SelectorParser():
@@ -413,7 +415,6 @@ class SelectorParser():
             namespace.update({name:name for name in colnames})
             selector = eval("{"+selector_text+"}", {}, SelectorParser.StrictDict(namespace))
         except Exception as e:
-            print(e)
             raise ValueError("The selector {%s} is malformed" % selector_text)
         return selector
 

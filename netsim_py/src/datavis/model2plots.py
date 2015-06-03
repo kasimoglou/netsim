@@ -7,6 +7,9 @@ from models.nsdplot import PlotModel, Table, DerivedTable, ColumnExpr, \
 from datavis.database import StatsDatabase
 from datavis.create_plot import make_plot, PNG, default_title
 from datavis.results2json import plot2json, JsonOutput, parameter2json
+from models.validation import Context, warn, inform, fail, fatal
+import logging
+import traceback
 
 
 def collect_tables(tables, tlol, table):
@@ -39,6 +42,7 @@ def collect_tables_for_pml(pml):
 def expression2sql(expr, prec_table=False):
     """
     transforms an expression to the corresponding sql
+    returns None if some error occurred
     """
     if isinstance(expr, ConstantExpr):
         return str(expr.value)
@@ -56,14 +60,38 @@ def expression2sql(expr, prec_table=False):
             x = expr.operands[0]
             sql = func.name + "(" + (expression2sql(x, prec_table) if not isinstance(x, str) else x) + ")"
         else:
-            raise Exception("Operator should be either inline or aggregate")
+            try:
+                raise Exception("Operator should be either inline or aggregate")
+            except Exception:
+                logging.critical(traceback.format_exc())
+            return None
         return sql
     elif isinstance(expr, ColumnExpr):
         return expression2sql(expr.expr, prec_table) + " AS " + expr.alias
     elif expr is None:
         return ""
     else:
-        raise Exception("unknown expression type")
+        try:
+            raise Exception("unknown expression type")
+        except Exception:
+                logging.critical(traceback.format_exc())
+        return None
+
+
+def get_select_columns(col):
+
+    if isinstance(col, ColumnExpr):
+        ret = expression2sql(col, prec_table=True)
+        if ret is None:
+            # This should only happen if there was some error in expression parsing, and the expression passed to
+            # expression2sql is malformed
+            fatal("error in views generation")
+    else:
+        if col.parent:
+            ret = col.parent.name + "." + col.name
+        else:
+            ret = col.name
+    return ret
 
 
 def derived2sql(dt):
@@ -72,10 +100,15 @@ def derived2sql(dt):
     SELECT ... FROM ... WHERE ... GROUPBY
     """
     assert isinstance(dt, DerivedTable)
-    sql = "SELECT " + ",".join(list(map(lambda x: expression2sql(x, prec_table=True) if isinstance(x, ColumnExpr) else (x.parent.name + "." + x.name if x.parent else x.name), dt.columns)))
+    sql = "SELECT " + ",".join(list(map(get_select_columns, dt.columns)))
     sql += " FROM " + ",".join(list(map(lambda x: x.name, dt.base_tables)))
     if dt.table_filter:
-        sql += " WHERE " + expression2sql(dt.table_filter)
+        where_expr = expression2sql(dt.table_filter)
+        if where_expr is None:
+            # This should only happen if there was some error in expression parsing, and the expression passed to
+            # expression2sql is malformed
+            fatal("error in views generation")
+        sql += " WHERE " + where_expr
     if dt.groupby:
         sql += " GROUP BY " + ",".join(list(map(lambda x: x.name, dt.groupby)))
 
@@ -87,7 +120,11 @@ def create_view_for_derived(ds, dt):
     Create an SQL view in ds for given DerivedTable dt.
     """
     sql = derived2sql(dt)
-    ds.create_view(dt.name, sql)
+    try:
+        ds.create_view(dt.name, sql)
+    except BaseException as ex:
+        logging.critical(traceback.format_exc())
+        fatal("error in views generation: \n{}".format(ex))
 
 
 def create_plot_for_model(pm, ds, jo):
@@ -115,15 +152,20 @@ def create_plot_for_model(pm, ds, jo):
         if plot.make_plot():
             # add plot to JsonOutput jo
             plot2json(jo, pm, plot.output + ".png")
+            inform("plot \"%s\" generated" % pm.title)
     elif pm.model_type == "parameter":
         # generate the parameter (statistic)
         res = plot.make_parameter()
         if len(res) != 0:
             # add the parameter to JsonOutput jo
             parameter2json(jo, pm, res)
+            inform("statistic \"%s\" generated" % pm.title)
+        else:
+            warn("no data found for statistic \"%s\"" % pm.title)
 
     else:
-        raise Exception("invalid model type: \"%s\"" % pm.model_type)
+        logging.error("invalid model type: \"%s\"" % pm.model_type)
+        fail("invalid model type: \"%s\"" % pm.model_type)
 
 
 def model2plots(pml, jo, castalia_data):
@@ -147,7 +189,8 @@ def model2plots(pml, jo, castalia_data):
 
     # create plots
     for pm in pml:
-        create_plot_for_model(pm, ds, jo)
+        with Context():
+            create_plot_for_model(pm, ds, jo)
 
 
 def create_simulation_results(simulation_id, plotModels, castalia_data="castalia_output.txt"):

@@ -6,6 +6,7 @@ Created on Jan 19, 2015
 import logging
 from subprocess import PIPE, Popen
 from datavis.database import Relation
+from models.validation import warn, fail
 
 class StatBreakdownHelper:
         """
@@ -110,9 +111,10 @@ class Plot():
             if script:
                 p.stdin.write(script.encode("utf-8"))
                 ret = True
-        # except Exception:  #  for debugging
-        #     import traceback
-        #     print(traceback.format_exc())
+        except BaseException:
+            import traceback
+            logging.error(traceback.format_exc())
+            fail("Generation of plot \"%s\" failed" % self.title)
         finally:
             p.stdin.close()
             return ret
@@ -142,6 +144,7 @@ class Plot():
                 sbh.add_label_values(g.output_data())
             values = sbh.get_values()
             if not values:
+                warn("no data found for plot \"%s\"" % self.title)
                 return None
             for i in range(len(values[0])-1):
                 for row in values:
@@ -157,6 +160,7 @@ class Plot():
                     script += graph_data
                     has_data = True
             if not has_data:
+                warn("no data found for plot \"%s\"" % self.title)
                 return None
 
         return script
