@@ -373,7 +373,7 @@ class Variable(Named):
 
     @property 
     def shape(self):
-        return initval.shape
+        return self.initval.shape
 
     def __init__(self, scope, name, type, initval):
         super().__init__(scope, name)

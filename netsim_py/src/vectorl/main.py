@@ -2,6 +2,7 @@
 from vectorl.model import ModelFactory
 from vectorl.runtime import Runner
 from vectorl.utils import FileModelFactory
+from vectorl.cppgen import CppGenerator
 
 from os.path import dirname, basename, join
 import argparse
@@ -24,6 +25,10 @@ def main():
                         action="store_true",
                         help="""Only compile the given file, do not run it.""")
 
+    parser.add_argument("--gen", '-g',
+                        action="store_true",
+                        help="""Generate C++ code from this model, do not run it.""")
+
     #parser.add_argument("--repo", '-r',
     #                    type=str,
     #                    help="""The url of the project repository to use.""")
@@ -43,8 +48,13 @@ def main():
         bname = bname[:-3]
 
     model = fmf.get_model(bname)
-    if not args.compile:
+    if not (args.compile or args.gen):
         Runner(fmf).start()
+    elif args.gen:
+        gen=CppGenerator(fmf, bname)
+        gen.generate()
+        print(gen.output_hh)
+        print(gen.output_cc)
 
     return fmf
 
