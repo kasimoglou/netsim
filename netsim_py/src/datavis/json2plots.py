@@ -8,7 +8,7 @@ from models.nsdplot import PlotModel, DATA_TABLE, DerivedTable, Table,  Column, 
     PLUS, MINUS, DIV, MULT
 from datavis.database import less_equal, less_than, greater_than, greater_equal, not_equal, like, not_like, between
 from datavis.create_plot import pm_defaults
-from models.validation import warn
+from models.validation import Context, inform, fail
 import re
 
 
@@ -52,9 +52,10 @@ class ViewsPlotsDecoder:
             else:
                 return d[attr]
         elif attr in pm_defaults:
+            # inform("\"%s\" not given a value, defaulting to \"%s\"" % (attr, pm_defaults[attr]))
             return pm_defaults[attr]
         else:
-            Exception("ViewsPlotsDecoder: Bad argument \"%s\"" % attr)
+            raise Exception("ViewsPlotsDecoder: Bad argument \"%s\"" % attr)
 
     @staticmethod
     def gen_plotmodel(rel, d):
@@ -66,7 +67,7 @@ class ViewsPlotsDecoder:
 
         sel = ViewsPlotsDecoder.get_attr("select", d)
         if sel != pm_defaults["select"]:
-            sel = SelectorParser.parse(sel,rel)
+            sel = SelectorParser.parse(sel, rel)
 
         pm = PlotModel(
             d["model_type"],
@@ -111,8 +112,9 @@ class ViewsPlotsDecoder:
         rel is the relation these plots are connected with
         """
         for p in d_plot_list:
-            pm = self.gen_plotmodel(rel, p)
-            self.plot_models.append(pm)
+            with Context(plot=p):
+                pm = self.gen_plotmodel(rel, p)
+                self.plot_models.append(pm)
 
     def gen_derived_table(self, d):
         """
@@ -143,12 +145,13 @@ class ViewsPlotsDecoder:
         returns a tuple of lists (list_DerivedTable, list_plotModel)
         """
         for v in views:
-            if v["name"] == "dataTable":
-                rel = DATA_TABLE
-            else:
-                rel = self.gen_derived_table(v)
-            if "plots" in v:
-                self.gen_plots(rel, v["plots"])
+            with Context(view=v):
+                if v["name"] == "dataTable":
+                    rel = DATA_TABLE
+                else:
+                    rel = self.gen_derived_table(v)
+                if "plots" in v:
+                    self.gen_plots(rel, v["plots"])
 
         return self.derived_tables, self.plot_models
 
@@ -176,7 +179,7 @@ class ViewsPlotsDecoder:
             for c in self.derived_tables:
                 if c.name == name:
                     return c
-            raise ValueError("Table name: \"%s\" does not exist" % name)
+            fail("Table name: \"%s\" does not exist" % name)
 
 
 
@@ -244,7 +247,7 @@ def col_str2col_obj(col_str, col_obj):
         if c:
             cols.append(c)
         else:  # this should never happen
-            raise ValueError("column name: \"%s\" does not exist" % s)
+            fail("column name: \"%s\" does not exist" % s)
     return cols
 
 
@@ -339,7 +342,7 @@ class ExprGenNodeVisitor(ast.NodeVisitor):
         elif name == "Div":
             return DIV
 
-        raise ValueError("func \"%s\" unknown" % name)
+        fail("unknown function: \"%s\"" % name)
 
 
 class SelectorParser():
@@ -414,7 +417,7 @@ class SelectorParser():
             SelectorParser.validate(selector_text, colnames)
             namespace.update({name:name for name in colnames})
             selector = eval("{"+selector_text+"}", {}, SelectorParser.StrictDict(namespace))
-        except Exception as e:
-            raise ValueError("The selector {%s} is malformed" % selector_text)
+        except:
+            fail("The selector {%s} is malformed" % selector_text)
         return selector
 

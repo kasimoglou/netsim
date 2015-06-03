@@ -4,7 +4,8 @@ import logging
 import os
 from datavis.json2plots import ViewsPlotsDecoder
 from datavis.model2plots import create_simulation_results
-from models.validation import Process, fatal
+from datavis.datavis_logger import DatavisProcess
+from models.validation import fatal
 
 from simgen.datastore import context
 
@@ -121,7 +122,10 @@ def generate(fileloc):
     #
     # Get the results of the simulation
     #
-    with Process():
+    output_list = []
+    pf = DatavisProcess.new_factory(output_list)
+
+    with pf(name='GenerateResultsProcess'):
         vpd = ViewsPlotsDecoder()
         with open(filename, "r") as f:
             json_str = f.read()
@@ -144,4 +148,7 @@ def generate(fileloc):
 
         simoutput_handler = SimOutputHandler()
         simoutput_handler.finish_job(results_json)
+
+        for i in output_list:
+            print(i)
         

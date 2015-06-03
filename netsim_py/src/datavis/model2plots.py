@@ -124,7 +124,7 @@ def create_view_for_derived(ds, dt):
         ds.create_view(dt.name, sql)
     except BaseException as ex:
         logging.critical(traceback.format_exc())
-        fatal("error in views generation: \n{}".format(ex))
+        fatal(str(ex))
 
 
 def create_plot_for_model(pm, ds, jo):
@@ -185,11 +185,12 @@ def model2plots(pml, jo, castalia_data):
     # create views
     for table in table_list:
         if isinstance(table, DerivedTable):
-            create_view_for_derived(ds, table)
+            with Context(derived_table=table):
+                create_view_for_derived(ds, table)
 
     # create plots
     for pm in pml:
-        with Context():
+        with Context(plot_model=pm):
             create_plot_for_model(pm, ds, jo)
 
 

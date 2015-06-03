@@ -7,6 +7,8 @@ import logging
 from subprocess import PIPE, Popen
 from datavis.database import Relation
 from models.validation import warn, fail
+import traceback
+import select
 
 class StatBreakdownHelper:
         """
@@ -104,17 +106,22 @@ class Plot():
         self.is_historgram = is_histogram
 
     def make_plot(self, gnuplot="gnuplot"):
-        p = Popen(gnuplot, stdin=PIPE)
+        p = Popen(gnuplot, stdin=PIPE, stderr=PIPE)
         ret = False
         try:
             script = self.__create_script()
             if script:
                 p.stdin.write(script.encode("utf-8"))
                 ret = True
+                # TODO
+                # if stderr has data:
+                #     fail("generation of plot \"%s\" failed\n%s" % (self.title, p.stderr.read()))
+                #     ret = False
+                # else:
+                #     ret = True
         except BaseException:
-            import traceback
-            logging.error(traceback.format_exc())
-            fail("Generation of plot \"%s\" failed" % self.title)
+            logging.critical(traceback.format_exc())
+            fail("generation of plot \"%s\" failed\n%s" % (self.title, p.stderr.read()))
         finally:
             p.stdin.close()
             return ret
@@ -278,7 +285,9 @@ pm_defaults = {
     "grid": " ",
     "key": None,
     "output": DEFAULT,
-    "x": None
+    "x": None,
+    "axes": None,
+    "unit": ""
 }
 
 def make_plot(rel, x, y, axes, select={}, title=DEFAULT, style='linespoints',
