@@ -54,11 +54,6 @@ on carOut {
     spotTaken[pos] := !spotTaken[pos];
 }
 
-on Init {
-    // arrival of first car
-    emit carIn(arrival) after carInTime[arrival] - now;
-}
-
 const real noise = [1.4, 1.9];
 
 def real noisy_measurement(int k) {
@@ -78,3 +73,17 @@ on carOut {
     else
         print("We are done",10,20,"bye");
 }
+
+
+var int x=0;
+
+on Init {
+    // arrival of first car
+    emit carIn(arrival) after carInTime[arrival] - now;
+
+
+    // some weird stuff
+    x[_] := 3[_];
+    print("x=",x, "[[5]]=", 5[_,_] );
+}
+

@@ -1,11 +1,13 @@
 
 from vectorl.typeinfo import *
 from vectorl.expr import *
-from vectorl.model import ModelFactory
+from vectorl.model import *
 
 from simgen.utils import docstring_template
-import io
 
+import io
+from functools import wraps
+from contextlib import contextmanager
 
 def emit_indented(m, values):
 	'return a string with the contents of value indented by m tabs'
@@ -18,6 +20,52 @@ def emit_indented(m, values):
 					out.write(line)
 		return out.getvalue()
 
+def emit_indented_blocks(values):
+	"""Return a string for the recursive list 'values'.
+	This list contains both strings and other lists.
+	The contents are indented according the the nesting
+	level, and returned as a single text.
+	"""
+	text_values = []
+	for v in values:
+		if isinstance(v, list):
+			vtext = emit_indented_blocks(v)
+			vitext = emit_indented(1, vtext)
+			text_values.append('{')
+			text_values.append(vitext)
+			text_values.append('}')
+		else:
+			text_values.append(v)
+	return emit_indented(0, text_values)
+
+
+
+
+def shape_size(shape):
+	"Return the total number of elements of an array or scalar"
+	prod = 1
+	for i in shape:
+		prod *= i
+	return prod
+
+
+cppgen_map = {}
+
+def gen_item(item):
+	"Decorator for switching on generation methods"
+	def map_method(method):
+		cppgen_map[item] = method
+		return method
+	return map_method
+
+
+@contextmanager
+def nested_code(gen):
+	gen.push_code()
+	yield
+	gen.pop_code()
+
+
 
 class CppGenerator:
 	def __init__(self, factory, class_name):
@@ -25,6 +73,22 @@ class CppGenerator:
 		self.output_cc = None
 		self.output_hh = None
 		self.class_name = class_name
+
+		self.code_stack = []
+		self.code = []
+
+
+	def push_code(self):
+		curcode = self.code
+		self.code_stack.append(code)
+		self.code = list()
+
+	def pop_code(self):
+		curcode = self.code
+		self.code = self.code_stack.pop()
+		self.code.append(curcode)
+
+
 
 	def generate(self):
 		'This is the main function to perform the generation'
@@ -67,8 +131,54 @@ struct {{self.class_name}} {
 
 
 	def generate_class_def(self):
-		pass
+		action_text = []
+		for event in self.action_def:
+			atext = self.gen_action_def(event)
+			action_text.append(atext)
+		self.output_cc = self.gen_cc_file(action_text)
 
+
+	@docstring_template
+	def gen_cc_file(self, action_text):
+		"""
+#include "{{!self.class_name}}"
+
+{{! actions}}
+"""
+		actions = "".join(action_text)		
+		return locals()
+
+	@docstring_template
+	def gen_action_def(self, event):
+		"""\
+{{! header}}
+{
+{{! body}}
+}
+
+"""
+		adef = self.action_def[event]
+		# generate method header
+		header = self.gen_action_def_header(event)
+
+		# generate method body
+		body = emit_indented(1, adef)
+		return locals()
+
+
+	@docstring_template
+	def gen_action_def_header(self, event):
+		"void {{!self.class_name}}::{{!mangled_name}}({{! param_list}})"
+		mangled_name = self.mangled(event.model.name,event.name)
+		param_list = self.gen_params_decl(event.variables)
+		return locals()
+
+
+	#------------------------------------------------------
+	#
+	# The variables
+	#
+	#------------------------------------------------------
 
 	def generate_vars(self):
 		self.var_map = {}
@@ -92,12 +202,7 @@ struct _model_{{!model.name}} {
 	% for var in model.variables:
 	% if self.is_model_level(var):
 	%  self.var_map[var] = "%s.%s" % (model.name, var.name)
-    % if len(var.shape):
-	{{!self.gen_type(var.type, var.shape)}} {{! var.name}} \
-	{{! self.var_shape_initializer(var.shape)}}; // loc: {{var.origin}}
-	% else:
-	{{!self.gen_type(var.type, var.shape)}} {{! var.name}};  // loc: {{var.origin}}
-	% end
+	{{!self.gen_var_decl(var.type, var.shape, var.name)}};
 	% end
 	% end
 
@@ -106,17 +211,8 @@ struct _model_{{!model.name}} {
 '''
 		return locals()
 
-	@docstring_template
-	def var_shape_initializer(self, shape):
-		"{ boost::extents{{! ''.join('[%d]'%l for l in shape) }} }"
-		#assert len(shape)
-		return locals()
-
-	def gen_type(self, tinfo, shape):
-		if len(shape) ==0:
-			return self.typemap[tinfo]
-		else:
-			return self.gen_array_type(tinfo, shape)
+	def gen_type(self, tinfo):
+		return self.typemap[tinfo]
 
 	typemap = {
 		BOOL: 'bool',
@@ -125,10 +221,20 @@ struct _model_{{!model.name}} {
 		TIME: 'double'
 	}
 
+
 	@docstring_template
-	def gen_array_type(self, tinfo, shape):
-		"boost::multi_array<{{self.typemap[tinfo]}} , {{len(shape)}}>"
+	def gen_var_decl(self, tinfo, shape, name):
+		"{{!tname}} {{!name}}{{!extents}}"
+		tname = self.gen_type(tinfo)
+		extents = "".join("[%d]" % e  for e in shape)
 		return locals()
+
+	#----------------------------------------------------
+	#
+	# Actions (statements)
+	#
+	#----------------------------------------------------
+
 
 	def generate_actions(self):
 		self.action_decl = {}
@@ -136,6 +242,8 @@ struct _model_{{!model.name}} {
 
 		for event in self.factory.all_events():
 			self.action_def[event] = self.generate_action(event)
+
+
 
 	def generate_action(self, event):
 		self.action_decl[event] = self.gen_action_decl(event)
@@ -147,6 +255,7 @@ struct _model_{{!model.name}} {
 		for action in event.actions:
 			stmt = self.generate_statement(action.statement)
 			action_stmts.append(stmt)
+		return action_stmts
 
 	def mangled(self, *args):
 		largs = ["%d%s"%(len(s),s) for s in args]
@@ -157,16 +266,128 @@ struct _model_{{!model.name}} {
 		"""void on_{{!m_event}}({{!param_list}});
 """
 		m_event = self.mangled(event.model.name, event.name)
-		param_list = ', '.join(self.gen_param_decl(v) for v in event.variables)
+		param_list = self.gen_params_decl(event.variables)
 		return locals()
+
+	def gen_params_decl(self, vars):
+		return ', '.join(self.gen_param_decl(v) for v in vars)
 
 	@docstring_template
 	def gen_param_decl(self, var):
-		"{{!type}} {{name}}"
-		type = self.gen_type(var.type, var.shape)
+		"{{!type}} {{!name}}"
+		type = self.gen_type(var.type)
 		name = var.name
 		return locals()
 
-	def generate_statement():
+
+	def generate_statement(self, stmt):
+		method = cppgen_map[stmt.__class__]
+		return method(self, stmt)
+
+
+	@gen_item(Assignment)
+	@docstring_template
+	def generate_assign(self, stmt):
+		"""\
+// {{! stmt.origin}}
+{	
+}
+"""
+		lhs_var, lhs_code = self.generate_lvalue(stmt.lhs)
+		rhs_var, rhs_code = self.generate_rvalue(stmt.rhs)
+
+		lshape = stmt.lhs.shape
+		rshape = stmt.rhs.shape
+
+		if shape_size(lshape)==1:
+			# we do not loop
+			assert shape_size(rshape)==1
+			assert len(lshape)>=len(rshape)
+			code = ""
+		else:
+			pass
+			# iteration: take all axes whose size is > 1
+
+		return locals()
+
+
+	def gen_assignment_size1(self, lhs_var, lshape, rhs_var, rshape):
+		LHS = lhs_var + "[0]"*len(lshape)
+		RHS = rhs_var + "[0]"*len(rshape)
+
+
+
+	@gen_item(CodeBlock)
+	@docstring_template
+	def generate_code_block(self, stmt):
+		"""\
+{
+{{! stmt}}
+}
+"""
+		stmts = []
+		for stmt in stmt.statements:
+			stmts.append(self.generate_statement(stmt))
+		stmt=emit_indented(1, stmts)
+		return locals()		
+
+	@gen_item(EmitStatement)
+	@docstring_template
+	def generate_emit(self, stmt):
+		"""\
+// {{! stmt.origin}}
+{
+	
+}
+"""
+		return locals()
+
+	@gen_item(PrintStatement)
+	@docstring_template
+	def generate_print(self, stmt):
+		"""\
+// {{! stmt.origin}}
+{
+	
+}
+"""
+		return locals()
+
+	@gen_item(IfStatement)
+	@docstring_template
+	def generate_if(self, stmt):
+		"""\
+// {{! stmt.origin}}
+{
+	
+}
+"""
+		return locals()
+
+
+	@gen_item(FExpr)
+	def generate_fexpr(self, stmt):
+		pass
+
+	#-----------------------------------------------
+	#
+	# r-values (expressions)
+	#
+	#-----------------------------------------------
+	def generate_rvalue(expr):		
+		return self.generate_expr(expr)
 		
-		
+
+
+
+
+
+	#-----------------------------------------------
+	#
+	# l-values
+	#
+	#-----------------------------------------------
+	def generate_lvalue(expr, name):
+		return ("", "")
+
+

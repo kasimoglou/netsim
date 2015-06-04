@@ -112,7 +112,7 @@ class push:
 		return "<push %s>" % self.value
 
 class pushvar:
-	'''Push a variable's storage onto the data stack'''
+	'''Push a variable's value onto the data stack'''
 	__slots__ = ('var')
 	def __init__(self, var):
 		self.var = var
@@ -131,7 +131,7 @@ class pushref:
 		val = sm.varmap[self.var]
 		sm.dstack.append(val)
 	def __repr__(self):
-		return "<pushvar %s.%s>" % (self.var.model.name, self.var.name)
+		return "<pushref %s.%s>" % (self.var.model.name, self.var.name)
 
 
 class decl_op:

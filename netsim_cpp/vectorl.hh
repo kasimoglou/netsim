@@ -8,7 +8,6 @@
 #ifndef _VECTORL_HH
 #define _VECTORL_HH
 
-#include <boost/multi_array.hpp>
 #include <iostream>
 #include <algorithm>
 #include <array>
@@ -27,24 +26,7 @@ namespace vectorl
 
 	using namespace std;
 	using namespace boost;
-	using namespace boost::multi_array_types;
 
-	/**
-		A stream output operator for multi-arrays and related (multi_array_ref, etc).
-	*/
-	template <typename T, size_t n, template <class , size_t, class... > class MultiArray >
-	ostream& operator<<(ostream& out, const MultiArray<T,n>& a)
-	{
-		typedef typename MultiArray<T,n>::value_type row_type;
-		out << "[";
-		for(index i=0;i<a.shape()[0];i++) {
-			if(i>0) out << ",";
-			const row_type& row = a[i];
-			out << row;
-		}
-		out << "]";
-		return out;
-	}
 
 	namespace detail {
 
@@ -186,22 +168,19 @@ namespace vectorl
 		  */
 		inline multi_iteration(const initializer_list<T>& ext) :
 			iter_type(ext), finished(false) { }
+
+
+		inline multi_iteration(const std::array<T,dims>& ext) :
+			iter_type(ext), finished(false) { }
+
 	};
 
 
-	template <typename T1, size_t n1, typename T2, size_t n2>
-	multi_array<  decltype((T1)0 + (T2)0), std::max(n1,n2) >
-	operator+ (const multi_array<T1, n1> & a1, const multi_array<T2, n2>& a2)
-	{
-		typedef decltype((T1)0 + (T2)0) return_type;
-		const size_t return_dim = std::max(n1,n2);
 
-		multi_array<return_type, return_dim> ret;
+	
 
-		//for(multi_iteration<index, return_dim> I {  } )
+	
 
-		return ret;
-	}
 
 } // end namespace vectorl
 

@@ -1,4 +1,6 @@
 
+from models.validation import Process
+
 from vectorl.model import ModelFactory
 from vectorl.runtime import Runner
 from vectorl.utils import FileModelFactory
@@ -47,7 +49,12 @@ def main():
     if bname.endswith('.vl'):
         bname = bname[:-3]
 
-    model = fmf.get_model(bname)
+    with Process() as compile:
+        model = fmf.get_model(bname)
+
+    if not compile.success:
+        return
+
     if not (args.compile or args.gen):
         Runner(fmf).start()
     elif args.gen:
