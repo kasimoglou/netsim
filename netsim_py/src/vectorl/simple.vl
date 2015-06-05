@@ -1,0 +1,12 @@
+
+import sys;
+
+var int a=0;
+
+var int b=10;
+
+on sys.Init {
+   
+   b:=-a;
+
+}

@@ -88,8 +88,7 @@ class ExprNode(SourceItem):
 
     def is_scalar(self):
         '''
-        Returns true if the shape is either empty or
-        the size is 1.
+        Returns true if the shape is empty.
         '''
         assert self.shape is not None
         return len(self.shape)==0
