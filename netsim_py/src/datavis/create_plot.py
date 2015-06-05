@@ -8,7 +8,8 @@ from subprocess import PIPE, Popen
 from datavis.database import Relation
 from models.validation import warn, fail
 import traceback
-import select
+import re
+
 
 class StatBreakdownHelper:
         """
@@ -113,12 +114,10 @@ class Plot():
             if script:
                 p.stdin.write(script.encode("utf-8"))
                 ret = True
-                # TODO
-                # if stderr has data:
-                #     fail("generation of plot \"%s\" failed\n%s" % (self.title, p.stderr.read()))
-                #     ret = False
-                # else:
-                #     ret = True
+                out, err = p.communicate(timeout=0.2)
+                err_str = err.decode("utf-8") if err else ""
+                if err_str != "" and re.search("gnuplot>\ ", err_str):
+                    fail("plot \"%s\" generation failed, gnuplot_stderr:\n%s" % (self.title, err_str))
         except BaseException:
             logging.critical(traceback.format_exc())
             fail("generation of plot \"%s\" failed\n%s" % (self.title, p.stderr.read()))
