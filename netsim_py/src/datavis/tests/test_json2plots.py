@@ -8,6 +8,7 @@ from datavis.model2plots import create_simulation_results
 import json
 import pytest
 
+
 def test_views_plots_decoder():
     Views = [
         #
@@ -16,7 +17,7 @@ def test_views_plots_decoder():
         {
             "name": "dataTable",  # not an actual view, this already exists in the database, used here to define plots
 
-            ####### can be ignored/omitted for "dataTable"#######
+            # ###### can be ignored/omitted for "dataTable"#######
             "columns": [  # not required since columns in dataTable are hardcoded
 
             ],
@@ -109,39 +110,51 @@ def test_views_plots_decoder():
         pm_j = json.dumps(pm, cls=PlotsEncoder, indent=2)
         print(pm_j)
 
-    # assert 0  # just to see the prints
+        # assert 0  # just to see the prints
 
 
-table = Table('foo',[Column('a'), Column('b'), Column('name'),Column('dummy')])
+table = Table('foo', [Column('a'), Column('b'), Column('name'), Column('dummy')])
+
 
 def test_selector_parser():
     sel_str = 'a: 1, b: greater_than(5)|less_equal(3), name: "Consumed Energy"'
     selector = SelectorParser.parse(sel_str, table)
 
     assert isinstance(selector, dict)
-    assert all(x in selector for x in ('a','b','name'))
+    assert all(x in selector for x in ('a', 'b', 'name'))
     assert 'dummy' not in selector
-    assert selector['a']==1
-    assert selector['b']('foo') == (greater_than(5)|less_equal(3))('foo')
+    assert selector['a'] == 1
+    assert selector['b']('foo') == (greater_than(5) | less_equal(3))('foo')
     assert selector['name'] == "Consumed Energy"
 
+
 def test_selector_empty():
-    assert SelectorParser.parse("", table)=={}
+    assert SelectorParser.parse("", table, testing=True) == {}
+
+
 def test_selector_bad_function():
     with pytest.raises(ValueError):
-        SelectorParser.parse("a: foo(2)", table)
+        SelectorParser.parse("a: foo(2)", table, testing=True)
+
+
 def test_selector_bad_name():
     with pytest.raises(ValueError):
-        SelectorParser.parse("aa: 2", table)
+        SelectorParser.parse("aa: 2", table, testing=True)
+
+
 def test_selector_expression():
-    sel = SelectorParser.parse("a: 3*5",table)
-    assert sel['a']==15
+    sel = SelectorParser.parse("a: 3*5", table, testing=True)
+    assert sel['a'] == 15
+
+
 def test_selector_expression2():
     with pytest.raises(ValueError):
-        SelectorParser.parse("a: less_than(b)",table)
+        SelectorParser.parse("a: less_than(b)", table, testing=True)
+
+
 def test_selector_builtin():
     with pytest.raises(ValueError):
-        SelectorParser.parse("a: eval('2')",table)
+        SelectorParser.parse("a: eval('2')", table, testing=True)
 
 
 def test_plot_creation_through_nsd_read(tmp_dir):
@@ -153,7 +166,6 @@ def test_plot_creation_through_nsd_read(tmp_dir):
         os.mkdir("./test_plot_creation_through_nsd_read")
 
     os.chdir("./test_plot_creation_through_nsd_read")
-
 
     vpd = ViewsPlotsDecoder()
     filename = os.path.join(cfg.resource_path, "datavis/predefined_plots.json")

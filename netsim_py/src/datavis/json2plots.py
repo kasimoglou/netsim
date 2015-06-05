@@ -406,7 +406,7 @@ class SelectorParser():
 
 
     @staticmethod
-    def parse(selector_text, rel):
+    def parse(selector_text, rel, testing=None):
         assert isinstance(selector_text, str)
         assert isinstance(rel, Table)
 
@@ -418,6 +418,9 @@ class SelectorParser():
             namespace.update({name:name for name in colnames})
             selector = eval("{"+selector_text+"}", {}, SelectorParser.StrictDict(namespace))
         except:
-            fail("The selector {%s} is malformed" % selector_text)
+            if testing:
+                raise ValueError("The selector {%s} is malformed" % selector_text)
+            else:
+                fail("The selector {%s} is malformed" % selector_text)
         return selector
 
