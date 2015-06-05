@@ -6,6 +6,7 @@ from datavis.json2plots import ViewsPlotsDecoder
 from datavis.model2plots import create_simulation_results
 from datavis.datavis_logger import DatavisProcess
 from models.validation import fatal
+from datavis.results2json import JsonOutput
 
 from simgen.datastore import context
 
@@ -124,6 +125,7 @@ def generate(fileloc):
     #
     output_list = []
     pf = DatavisProcess.new_factory(output_list)
+    results_json = None
 
     with pf(name='GenerateResultsProcess'):
         vpd = ViewsPlotsDecoder()
@@ -146,9 +148,15 @@ def generate(fileloc):
         with open(fileloc + "/results.json", "w") as f:
             print(results_json_string, file=f)
 
-        simoutput_handler = SimOutputHandler()
-        simoutput_handler.finish_job(results_json)
-
+        #just for testing, print all GenerateResultsProcess's logged messages
         for i in output_list:
             print(i)
+
+    # if GenerateResultsProcess failed we should still return something
+    if results_json is None:
+        jo = JsonOutput("simulation_results", simulation_id)
+        results_json = jo.get_json()
+
+    simoutput_handler = SimOutputHandler()
+    simoutput_handler.finish_job(results_json)
         
