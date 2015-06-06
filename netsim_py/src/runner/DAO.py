@@ -311,14 +311,14 @@ class UserDao(DataAccessObject):
 
     def get_users(self):
         with transaction(self.acquire()) as cursor:
-            execSql(cursor, "select username, password, is_admin from monitor.user")
+            execSql(cursor, "select username, password, is_admin from monitor.users")
             for tup in cursor.fetchall():
                 yield User(tup[0], tup[1], tup[2])
 
     def get_user(self, username):
         with transaction(self.acquire()) as cursor:
             execSql(cursor, 
-                "select username, password, is_admin from monitor.user where username=%s", 
+                "select username, password, is_admin from monitor.users where username=%s", 
                 username)
             
             tup = cursor.fetchone()
@@ -327,14 +327,14 @@ class UserDao(DataAccessObject):
     def create_user(self, user):
         with transaction(self.acquire()) as cursor:
             execSql(cursor, 
-                "insert into monitor.user(username, password, is_admin) values(%s, %s, %s)",
+                "insert into monitor.users(username, password, is_admin) values(%s, %s, %s)",
                 user.username,user.password,user.is_admin)
 
     def update_user(self, username, **kwargs):
         # create query
         if not kwargs: return
         assert all(k in {'password', 'is_admin'} for k in kwargs)
-        qry = "update monitor.user set " 
+        qry = "update monitor.users set " 
         qry +=  ','.join("%s = %%(%s)s" % (k,k) for k in kwargs)
         qry += " where username=%(username)s"
         kwargs['username'] = username
@@ -346,7 +346,7 @@ class UserDao(DataAccessObject):
     def delete_user(self, username):
         with transaction(self.acquire()) as cursor:
             execSql(cursor, 
-                "delete from monitor.user where username=%s",
+                "delete from monitor.users where username=%s",
                 (username,))
 
 

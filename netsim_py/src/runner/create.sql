@@ -207,10 +207,12 @@ $$ LANGUAGE plpgsql;
 -- User mgmt
 --
 
-CREATE TABLE IF NOT EXISTS monitor.user
+CREATE TABLE IF NOT EXISTS monitor.users
 (
 	username varchar(24) NOT NULL PRIMARY KEY,
 	password text,
 	is_admin boolean	
 );
+
+INSERT INTO monitor.users VALUES('admin','admin',true);
 

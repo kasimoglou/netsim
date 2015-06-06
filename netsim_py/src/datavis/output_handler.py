@@ -47,7 +47,7 @@ class SimOutputHandler:
 
             #Write json data to SIMOUTPUTx
             logging.info("Data = %s", data)
-            context.datastore.put_root_object(data)
+            context.datastore.update_root_object(data)
 
         except:
             logging.exception("Wrong json content")
