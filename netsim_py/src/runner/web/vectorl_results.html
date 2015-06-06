@@ -1,0 +1,24 @@
+
+% rebase('mainpage.html')
+
+% if runit:
+ <h2>Run output:</h2>
+ <pre>
+{{! result['stdout']}}
+</pre>
+% if result['stderr']:
+ <hr>
+ <h1>Error output:</h1>
+ <pre style="foreground-color:red;">
+{{! result['stdout']}}
+</pre>
+% end
+% end
+
+<hr>
+<h2>Raw json</h2>
+<pre>
+{{!output}}
+</pre>
+
+

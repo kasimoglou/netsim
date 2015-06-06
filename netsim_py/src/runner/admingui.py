@@ -209,25 +209,6 @@ def index_html():
 def get_css():
 	return static_file("mainpage.css", root=gui_file_path())
 
-'''
-# These are not useful !
-@app.route("/download_nsd.html")
-@view("download_nsd.html")
-@AAA.logged_in
-def show_job_form():
-	refresh_page = False
-	thispage = "/admin/download_nsd.html"
-	return locals()
-
-@app.route("/nsd_simulations.html")
-@view("nsd_simulations.html")
-@AAA.logged_in
-def show_nsd_simulations():
-	refresh_page = False
-	thispage = "/admin/nsd_simulations.html"
-	return locals()
-'''
-
 
 @app.post("/run_simulation")
 @view("job_table.html")
@@ -256,6 +237,27 @@ def submit_nsd():
 def show_nsd_table():
 	refresh_page = True
 	thispage = "/admin/nsd_table.html"
+	return locals()
+
+@app.route("/vectorl_table.html")
+@view("vectorl_table.html")
+@AAA.logged_in
+def show_nsd_table():
+	refresh_page = True
+	thispage = "/admin/nsd_table.html"
+	return locals()
+
+@app.post("/run_vectorl")
+@view("vectorl_results.html")
+@AAA.logged_in
+def process_vectorl():
+	vectorl_id = request.forms.vectorl_id
+	runit = 'run' in request.forms
+	
+	result = api.process_vectorl(vectorl_id, runit)
+	output = json.dumps(result, indent=2)
+		
+	refresh_page = False
 	return locals()
 
 

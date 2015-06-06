@@ -1,0 +1,35 @@
+
+
+ % rebase("mainpage.html")
+
+ % from runner.api import vectorl_dao
+ % from os.path import basename
+
+<div style="height: 400px; overflow:scroll">
+ <table class="datatable">
+     <thead>     	
+	<tr>
+         <th>Project</th>
+         <th>Vectorl module id</th>
+         <th>Vectorl module name</th>
+         <th>Operations</th>
+	 </tr>
+     </thead>
+     <tbody>
+     % for obj in vectorl_dao.findAll():     
+     <tr>
+		<td>{{obj['project_id']}}</td>
+		<td>{{obj['_id']}}</td>
+        <td>{{obj.get('name','')}}</td>
+        <td>
+            <form method="post" action="/admin/run_vectorl">
+                <input type="hidden" name="vectorl_id" value="{{obj['_id']}}"/> 
+                <input type="submit" name="compile" value="Compile">
+                <input type="submit" name="run" value="Run">
+            </form>
+        </td>
+     </tr>
+     % end
+     </tbody>
+ </table>
+</div>
