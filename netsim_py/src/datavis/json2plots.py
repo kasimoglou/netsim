@@ -44,7 +44,7 @@ class ViewsPlotsDecoder:
         helper function to return the needed argument from dictionary d if it exists or get a default value for it
         rel is needed only for "x" and "y". It is the Table that columns in x and y belong
         """
-        if attr in d and d[attr] != "":
+        if attr in d and d[attr] != "" and d[attr] != []:
             if attr in ["x", "y"]:
                 xy = d[attr]
                 if xy is None: return None
@@ -307,7 +307,7 @@ class ExprGenNodeVisitor(ast.NodeVisitor):
         return ConstantExpr(num)
 
     def visit_Str(self, node):
-        s = str(node.s)
+        s = "'"+str(node.s)+"'"
         return ConstantExpr(s)
 
     @staticmethod

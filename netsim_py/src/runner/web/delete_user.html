@@ -1,0 +1,20 @@
+
+
+% rebase('mainpage.html')
+
+<h1>Delete user '{{!username}}'?</h1>
+
+<form  method="post" action="/admin/user_delete">
+
+	<input type="hidden" name="username" value="{{!username}}"/>
+	<input type="submit" value="Yes"/>
+	<input type="button" value="No" id="cancelButton"/>
+
+</form>
+
+<script>
+var cancelButton = document.getElementById('cancelButton');
+cancelButton.onclick = function (e) {
+	window.location="/admin/users.html";
+}
+</script>

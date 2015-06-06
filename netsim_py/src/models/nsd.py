@@ -49,6 +49,7 @@ class VectorlEnvironment(Environment):
 #  Application: part of an NSD
 ##############################
 
+'''
 @model
 class SensorType:
     pwr_consuption = attr(float)  # energy consumed per reading
@@ -65,12 +66,6 @@ class SensorType:
 
 @model
 class MoteType:
-    # node type name
-    name = attr(str)
-
-    # all nodes of this type
-    nodes = refs()
-
     # The application code run by this mote. For now this is a string. 
     code = attr(str)
 
@@ -89,16 +84,7 @@ class MoteType:
 
     initial_energy = attr(float)
     baseline_node_power = attr(float)
-
-
-    #
-    # Communication
-    #
-
-    mac = attr(str)
-    radio = attr(str)
-    routing = attr(str)
-
+'''
 
 # This type is used for Node coordinates (corresponds to PLNxxxx coord. triplet)
 Position = namedtuple('Position', ('lat', 'lon', 'alt'))
@@ -119,7 +105,7 @@ class FunctionalBlock:
 
 @repository(prm.NODEDEF)
 @model
-class NodeType:
+class NodeDef:
     # some code word
     code = attr(str)
 
@@ -157,10 +143,7 @@ class Mote:
     # the node type determines the hardware used
     nodeTypeId = attr(str)
     required(nodeTypeId)
-    nodeType = ref(inv=NodeType.motes)
-
-    # the mote type 
-    moteType = ref(inv=MoteType.nodes)
+    nodeType = ref(inv=NodeDef.motes)
 
     #Mote role (ROOT or MOTE)
     moteRole = attr(str, nullable=False, default=None)
@@ -272,7 +255,7 @@ class NSD:
     
     plan = ref()
     project = ref()
-    nodedefs = refs(inv=NodeType.nsd)
+    nodedefs = refs(inv=NodeDef.nsd)
 
 
     #

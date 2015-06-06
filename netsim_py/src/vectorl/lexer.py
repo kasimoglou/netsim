@@ -6,6 +6,7 @@
 
 
 import ply.lex as lex
+from models.validation import fail, fatal
 
 # Reserved words
 reserved = (
@@ -72,8 +73,8 @@ t_NOT              = r'~'
 t_XOR              = r'\^'
 t_LSHIFT           = r'<<'
 t_RSHIFT           = r'>>'
-#t_LOR              = r'\|\|'
-#t_LAND             = r'&&'
+t_LOR              = r'\|\|'
+t_LAND             = r'&&'
 t_LNOT             = r'!'
 t_LT               = r'<'
 t_GT               = r'>'
@@ -135,7 +136,9 @@ def t_comment(t):
 def t_error(t):
     #print("Illegal character %s" % repr(t.value[0]))
     #t.lexer.skip(1)
-    raise ValueError("Illegal character %s" % repr(t.value[0]))
+    fatal("%s(%s): lexical error: Illegal character %s", 
+        t.lexer.modelname if hasattr(t.lexer, 'modelname') else "<unknown>", 
+        t.lexer.lineno, repr(t.value[0]), ooc=ValueError)
 
 def get_lexer():
     return lex.lex()

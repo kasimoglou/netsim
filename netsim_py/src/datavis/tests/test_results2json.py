@@ -212,7 +212,7 @@ def test_add_node_type_parameter():
     db.load_castalia_output(castalia_output_file())
 
     # node parameter
-    q = Operator(EQ, [ColumnRef(DATA_TABLE.col["name"]), ConstantExpr("Consumed Energy")])
+    q = Operator(EQ, [ColumnRef(DATA_TABLE.col["name"]), ConstantExpr("\"Consumed Energy\"")])
     rel = DerivedTable("test", [Column("node"), Column("data")], [DATA_TABLE], q)
     create_view_for_derived(db, rel)
     pm_node = PlotModel("parameter", "node", rel, (rel.col["node"],), (rel.col["data"],),
@@ -280,7 +280,7 @@ def test_add_network_type_parameter():
     # column SUM(data) AS data
     c_data = ColumnExpr("data", Operator(SUM, [ConstantExpr("data")]))
     # filter --> name = "Consumed Energy"
-    f = Operator(EQ, [ColumnRef(DATA_TABLE.col["name"]), ConstantExpr("Consumed Energy")])
+    f = Operator(EQ, [ColumnRef(DATA_TABLE.col["name"]), ConstantExpr("\"Consumed Energy\"")])
     # create derived table containing the SUM of all "Consumed Energy"
     dt = DerivedTable("dt", [c_name, c_data], [DATA_TABLE], f, [DATA_TABLE.col["name"]])
 
@@ -323,7 +323,7 @@ def test_add_node2node_type_parameter():
     db.load_castalia_output(castalia_output_file())
 
     # DerivedTable for node2node parameter
-    q = Operator(EQ, [ColumnRef(DATA_TABLE.col["name"]), ConstantExpr("Packets received per node")])
+    q = Operator(EQ, [ColumnRef(DATA_TABLE.col["name"]), ConstantExpr("\"Packets received per node\"")])
     dt = DerivedTable("testn2n", [Column("node"), Column("n_index"), Column("data")], [DATA_TABLE], q)
 
     # node2node parameter
@@ -384,7 +384,7 @@ def test_plot2json():
     #name = "Consumed Energy"
     ds = StatsDatabase()
     ds.load_castalia_output(castalia_output_file())
-    table_filter = Operator(EQ, [ColumnRef(DATA_TABLE.columns[3]), ConstantExpr("Consumed Energy")])
+    table_filter = Operator(EQ, [ColumnRef(DATA_TABLE.columns[3]), ConstantExpr("\"Consumed Energy\"")])
     dt = DerivedTable("test_plot2json1", [Column("node"), Column("data"), Column("name")], [DATA_TABLE], table_filter)
     create_view_for_derived(ds, dt)
     x = DATA_TABLE.col["node"]
@@ -435,7 +435,7 @@ def test_plot2json():
 class executor_final_stage_test:
     @staticmethod
     def get_plot_models():
-        table_filter = Operator(EQ, [ColumnRef(DATA_TABLE.col["name"]), ConstantExpr("Consumed Energy")])
+        table_filter = Operator(EQ, [ColumnRef(DATA_TABLE.col["name"]), ConstantExpr("\"Consumed Energy\"")])
         dt = DerivedTable("test_plotModel2json1", [Column("node"), Column("data"), Column("name")], [DATA_TABLE], table_filter)
         x = DATA_TABLE.col["node"]
         y = DATA_TABLE.col["data"]
@@ -446,7 +446,7 @@ class executor_final_stage_test:
         pm1 = PlotModel("plot", "network", dt, (x,), (y,), axes, select)
 
         # node parameter
-        q = Operator(EQ, [ColumnRef(DATA_TABLE.col["name"]), ConstantExpr("Consumed Energy")])
+        q = Operator(EQ, [ColumnRef(DATA_TABLE.col["name"]), ConstantExpr("\"Consumed Energy\"")])
         dt = DerivedTable("test", [Column("node"), Column("data")], [DATA_TABLE], q)
         pm_node1 = PlotModel("parameter", "node", dt, (dt.col["node"],), (dt.col["data"],),
                              title="Consumed Energy")
@@ -455,7 +455,7 @@ class executor_final_stage_test:
         # column SUM(data) AS data
         c_data = ColumnExpr("data", Operator(SUM, [ConstantExpr("data")]))
         # filter --> name = "Consumed Energy"
-        f = Operator(EQ, [ColumnRef(DATA_TABLE.col["name"]), ConstantExpr("Consumed Energy")])
+        f = Operator(EQ, [ColumnRef(DATA_TABLE.col["name"]), ConstantExpr("\"Consumed Energy\"")])
         # create derived table containing the SUM of all "Consumed Energy"
         dt2 = DerivedTable("dt", [c_data], [DATA_TABLE], f)
 
@@ -464,7 +464,7 @@ class executor_final_stage_test:
                              title="Total Consumed Energy")
 
         # DerivedTable for node2node parameter
-        q = Operator(EQ, [ColumnRef(DATA_TABLE.col["name"]), ConstantExpr("Packets received per node")])
+        q = Operator(EQ, [ColumnRef(DATA_TABLE.col["name"]), ConstantExpr("\"Packets received per node\"")])
         dt3 = DerivedTable("testn2n", [Column("node"), Column("n_index"), Column("data")], [DATA_TABLE], q)
 
         # node2node parameter

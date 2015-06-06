@@ -1,0 +1,34 @@
+
+
+% rebase('mainpage.html')
+
+<h1>Create user</h1>
+<form method="post" action="/admin/user_create" autocomplete="false">
+	<table>
+		<tr>
+		<td>User name:</td>
+		<td><input type="text" name="new-username" autocomplete="false" value="{{! username}}"/></td>
+		</tr>
+		<tr>
+		<td><input type="hidden" name="username" value="crap"/></td>
+		<td><input type="hidden" name="password" value="crap"/></td>
+		</tr>
+		<tr>
+		<td>Password:</td>
+		<td><input type="password" name="new-password" autocomplete="false" value=""/></td>
+		</tr>
+		<tr>
+		<td>Re-type password:</td>
+		<td><input type="password" name="check-password" autocomplete="false" value=""/></td>
+		</tr>
+
+		<tr>
+		<td>Is administrator</td>
+		<td><input type="checkbox" name="is-admin" value="yes" {{! 'checked="yes"' if is_admin else '' />
+		</tr>
+	</table>
+
+	<input type="submit" value="Create"/>
+	<input type="button" value="Cancel"/>
+
+</form>

@@ -79,7 +79,10 @@ class StatBreakdownHelper:
             """
             returns the info structure sorted by node
             """
-            return sorted(self.info, key=lambda x: x[0])
+            if len(self.info) == 0:
+                return None
+            else:
+                return sorted(self.info, key=lambda x: x[0])
 
 
 class Plot():
@@ -101,47 +104,62 @@ class Plot():
 
     def make_plot(self, gnuplot="gnuplot"):
         p = Popen(gnuplot, stdin=PIPE)
+        ret = False
         try:
-            self.__create_script(p.stdin)
+            script = self.__create_script()
+            if script:
+                p.stdin.write(script.encode("utf-8"))
+                ret = True
+        # except Exception:  #  for debugging
+        #     import traceback
+        #     print(traceback.format_exc())
         finally:
             p.stdin.close()
+            return ret
 
     def make_parameter(self):
-        # TODO: can we have multiple graphs?
         return self.graphs[0].output_data()
 
-    def __create_script(self, f):
-        if self.title:    f.write(('set title ' + '"'+self.title+'"\n').encode("utf-8"))
-        if self.xlabel:   f.write(('set xlabel "' + self.xlabel + "\n").encode("utf-8"))
-        if self.ylabel:   f.write(('set ylabel "' + self.ylabel + '"\n').encode("utf-8"))
-        if self.x_range:  f.write(('set xrange ' + self.x_range + "\n").encode("utf-8"))
-        if self.y_range:  f.write(('set yrange ' + self.y_range + "\n").encode("utf-8"))
-        if self.logscale: f.write(('set logscale %s' % self.logscale + "\n").encode("utf-8"))
-        if self.grid:     f.write(('set grid %s' % self.grid + "\n").encode("utf-8"))
-        if self.key:      f.write(("set key %s" % self.key + "\n").encode("utf-8"))
-        if self.terminal: f.write(self.terminal.out(self.output).encode("utf-8"))
-        if self.is_historgram: f.write("set style data histograms\n"
-                                       "set style histogram cluster gap 2\n"
-                                       "set style fill solid 1.0\n".encode("utf-8"))
+    def __create_script(self):
+        script = ""
+        if self.title:    script += ('set title ' + '"'+self.title+'"\n')
+        if self.xlabel:   script += ('set xlabel "' + self.xlabel + "\n")
+        if self.ylabel:   script += ('set ylabel "' + self.ylabel + '"\n')
+        if self.x_range:  script += ('set xrange ' + self.x_range + "\n")
+        if self.y_range:  script += ('set yrange ' + self.y_range + "\n")
+        if self.logscale: script += ('set logscale %s' % self.logscale + "\n")
+        if self.grid:     script += ('set grid %s' % self.grid + "\n")
+        if self.key:      script += ("set key %s" % self.key + "\n")
+        if self.terminal: script += self.terminal.out(self.output)
+        if self.is_historgram: script += ("set style data histograms\n"
+                                          "set style histogram cluster gap 2\n"
+                                          "set style fill solid 1.0\n")
 
-        f.write(("plot" + ','.join([g.output_plot() for g in self.graphs]) + "\n").encode("utf-8"))
+        script += ("plot" + ','.join([g.output_plot() for g in self.graphs]) + "\n")
         if self.is_historgram:
             sbh = StatBreakdownHelper()
             for g in self.graphs:
                 sbh.add_label_values(g.output_data())
             values = sbh.get_values()
-            import logging
-            logging.root.debug("the values=%s",values)
             if not values:
-                return
+                return None
             for i in range(len(values[0])-1):
                 for row in values:
                     node = str(row[0])
                     val = str(row[i+1])
-                    f.write(("\""+node+"\""+" "+val+"\n").encode("utf-8"))
-                f.write("end\n".encode("utf-8"))
+                    script += ("\""+node+"\""+" "+val+"\n")
+                script += "end\n"
         else:
-            for g in self.graphs: g.output_data_for_gnuplot(f)
+            has_data = False
+            for g in self.graphs:
+                graph_data = g.output_data_for_gnuplot()
+                if graph_data is not None:
+                    script += graph_data
+                    has_data = True
+            if not has_data:
+                return None
+
+        return script
 
     def add_graph(self, rel, x, y, select={}, title=None, style='linespoints'):
         g  = Graph(self, rel, x, y, select=select, title=title, style=style)
@@ -178,17 +196,21 @@ class Graph(object):
         using = "using 2:xticlabels(1)" if self.style == "histogram" else ""
         return """ '-' %s title "%s" %s""" % (using, title, style)
 
-
-
-    def output_data_for_gnuplot(self, f):
+    def output_data_for_gnuplot(self):
         """
-        writes this graph's data, in gnuplot format, to f
+        writes this graph's data, in gnuplot format, to string s
+        returns s or None if no data was returned from the query
         """
+        s = ""
         sql = self.relation.sql_select([self.x[0].name, self.y[0].name], where=self.select, order=[self.x[0].name])
         conn = self.relation.dataset.conn
-        for row in conn.execute(sql):
-            f.write((" ".join(str(x) for x in row) + "\n").encode("utf-8"))
-        f.write("end\n".encode("utf-8"))
+        res = conn.execute(sql).fetchall()
+        logging.debug("query row count: %d" % len(res))
+        if len(res) == 0: return None
+        for row in res:
+            s += (" ".join(str(x) for x in row) + "\n")
+        s += "end\n"
+        return s
 
     def output_data(self):
         """

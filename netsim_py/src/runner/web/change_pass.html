@@ -1,0 +1,45 @@
+
+
+% rebase('mainpage.html')
+% import runner.AAA as AAA
+
+
+
+<h1>Change password for '{{!username}}</h1>
+<form method="post" action="/admin/user_change_pass" autocomplete="false">
+	<table>
+
+		<tr>
+		<td><input type="hidden" name="username" value="{{!username}}"/></td>
+		<td><input type="hidden" name="password" value="crap"/></td>
+		</tr>
+
+	% if not AAA.current_user_is_admin():
+		<tr>
+		<td>Current password:</td>
+		<td><input type="password" name="old-password" autocomplete="false" value=""/></td>
+		</tr>
+	% end
+
+		<tr>
+		<td>New password:</td>
+		<td><input type="password" name="new-password" autocomplete="false" value=""/></td>
+		</tr>
+		<tr>
+		<td>Re-type password:</td>
+		<td><input type="password" name="check-password" autocomplete="false" value=""/></td>
+		</tr>
+
+	</table>
+
+	<input type="submit" value="Change"/>
+	<input type="button" value="Cancel" id="cancelButton"/>
+
+</form>
+
+<script>
+var cancelButton = document.getElementById('cancelButton');
+cancelButton.onclick = function (e) {
+	window.location="/admin/users.html";
+}
+</script>

@@ -102,3 +102,36 @@ def test_execute_function_redir(tempdir):
 	assert_file_eq('stderr.test.txt', 'this is stderr\n')
 
 	
+@pytest.fixture(params=[
+	['x','x','x'],
+	['What a nice day', 'What!a nice day'],
+	['x','x_1','x 1','x+1', 'x+1']
+	])
+def names(request):
+	return request.param
+
+def test_construct_legal_ids(names):
+
+	nmap = construct_legal_ids(names)
+
+	print("from: ",names)
+	print("to: ", nmap)
+
+	# all names are mapped
+	assert set(names)==set(nmap.keys())
+
+	# non-empty
+	for n in nmap:
+		assert nmap[n]
+
+	# all mapped names are disjoint
+	L = []
+	for l in nmap.values():
+		L += l
+	assert len(set(L)) == len(L)
+
+
+
+
+
+

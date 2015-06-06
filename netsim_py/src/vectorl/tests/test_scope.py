@@ -1,6 +1,6 @@
 
 import pytest
-from vectorl.parser import *
+from vectorl.model import *
 
 
 def test_scope():

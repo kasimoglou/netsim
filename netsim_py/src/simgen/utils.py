@@ -7,10 +7,11 @@ Created on Sep 23, 2014
 '''
 
 
-import os.path, logging, sys
+import os.path, logging, sys, string
 from subprocess import check_call
 from multiprocessing import Process, Queue
 from runner.config import configure, cfg
+from models.constraints import is_legal_identifier
 
 
 #
@@ -157,6 +158,75 @@ def execute_function(fileloc, func, stdstr_suffix, redirect, *args, **kwargs):
 
 
 
+def construct_legal_ids(names):
+    '''
+    Given a collection of N names (not necessarily distinct),
+    try to return a mapping for these names, that makes them into legal ids,
+    as follows:
+
+    First, preserve all legal names that are unique into set L.
+
+    Then, for each remaining name x:
+    (a) map any non-legal characters to _
+    (b) if x is in L, append '_<n>' to it, where <n> is the least integer making it
+        disjoint from L. 
+
+    Return a dict from strings to lists of strings, so that each list contains a 
+    number of distinct versions of the names.
+
+    For example, 
+
+    [ 'x', 'x 1', 'x+1', 'x 1' ]  ->
+
+    {
+    'x' : ['x'],
+    'x 1' : ['x_1'],
+    'x+1' : ['x_1_0', 'x_1_1']
+    }
+
+
+    '''
+    def map_char(x):
+        import string
+        if x in string.ascii_letters or x in string.digits or x=='_':
+            return x
+        else:
+            return '_'
+
+    def legalized(x):
+        return ''.join(map_char(c) for c in x)
+
+    # output mapping
+    L = {}
+
+    # check for collisions
+    S = set()    
+
+    mapped_names = []
+    for name in names:
+        if name not in L:
+            L[name]=[]
+
+        if is_legal_identifier(name) and name not in S:
+            L[name].append(name)
+            S.add(name)
+        else:
+            mapped_names.append((name,legalized(name)))
+
+    for orig, mapped in mapped_names:
+        trans = mapped
+        i=0
+        while trans in S:
+            i += 1
+            trans = mapped+('_%d' % i)
+        L[orig].append(trans)
+        S.add(trans)
+
+    return L
+
+
+
+
 #
 #  TEMPLATES
 #
@@ -182,4 +252,9 @@ def docstring_template(func):
         tparams = func(*args, **kwargs)
         return template(func.__doc__, tparams)
     return inline_template_func
+
+
+
+
+
 

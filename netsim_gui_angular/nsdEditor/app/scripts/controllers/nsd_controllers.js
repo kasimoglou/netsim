@@ -3,9 +3,10 @@ define(['underscore',
     'angular',
     'ngDialog',
     'ngGrid',
+    'json-formatter',
     '../services/api_services'], function(_) {
 
-    var nsdControllers = angular.module('nsdControllers', ['apiServices', 'ngDialog', 'ngGrid']);
+    var nsdControllers = angular.module('nsdControllers', ['apiServices', 'ngDialog', 'ngGrid', 'jsonFormatter']);
 
     // New nsd form Controller
     nsdControllers.controller('newNsdFormController',
@@ -25,29 +26,36 @@ define(['underscore',
                     .success(function(response) {
                         $scope.projects = response.results;
                     })
-                    .error(function() {
-                        console.log('Error during fetching projects from repository.');
-                        alert('Error during fetching projects from repository.');
+                    .error(function(error) {
+                        console.log(error.details);
+                        alert(error.details);
                     });
         };
 
+        $scope.validateForm = function() {
+            $validator.validate($scope, 'nsd').success(function() {
+                if ($location.search().plan_id) {
+                    $scope.nsd.plan_id = $location.search().plan_id;
+                } 
+                
+                $scope.createNsd();
+                
+            });
+        };
+        
         // This method calls `createNsd` api call and creates a new
         // nsd file in the database. On success, the newly created object
         // is returned and we redirect user to nsd edit screen.
         // 
+        
         $scope.createNsd = function() {
-            $validator.validate($scope, 'nsd').success(function() {
-                if ($location.search().plan_id) {
-                    $scope.nsd.plan_id = $location.search().plan_id;
-                }
-                API.nsdCreate($scope.nsd)
-                        .success(function(response) {
-                            $window.location.href = '#!/nsd/' + response._id;
-                })
-                        .error(function() {
-                           console.log('Error creating nsd.');
-                           alert('Error creating nsd.'); 
-                });
+            API.nsdCreate($scope.nsd)
+                    .success(function(response) {
+                        $window.location.href = '#!/nsd/' + response._id;
+            })
+                    .error(function(error) {
+                       console.log(error.details);
+                       alert(error.details); 
             });
         };
 
@@ -62,7 +70,9 @@ define(['underscore',
         // ### Initializations
         
         $scope.nsd = {};
-        $scope.temp = {};
+        $scope.temp = {
+            load_finished: false
+        };
         $scope.temp.environment = {};
         
         $scope.alerts = {
@@ -77,16 +87,22 @@ define(['underscore',
                     .success(function(response) {
                         $scope.nsd = response;
                         $scope.getProjectName($scope.nsd.project_id);
+                        
+                        if ($scope.nsd.plan_id) {
+                            $scope.fetchSelectedPlan($scope.nsd.plan_id);
+                        }
+                        
                         $scope.initializeParameters($scope.nsd);
                         $scope.initializeEnvironment($scope.nsd);
                         $scope.initializeOutput($scope.nsd);
 
                         $scope.loadProjectPlans($scope.nsd.project_id);
                         $scope.loadProjectVectorlFiles($scope.nsd.project_id);
+                        $scope.temp.load_finished = true;
             })
-                    .error(function() {
-                        console.log('Error loading nsd.');
-                        alert('Error loading nsd.');
+                    .error(function(error) {
+                        console.log(error.details);
+                        alert(error.details);
             });
         };
         
@@ -96,9 +112,9 @@ define(['underscore',
                         var project = _.findWhere(response.results, {id: project_id});
                         $scope.temp.project_name = project.name;
             })
-                    .error(function() {
-                        console.log('Error reading project name');
-                        alert('Error reading project name.');
+                    .error(function(error) {
+                        console.log(error.details);
+                        alert(error.details);
             });
         };
 
@@ -156,7 +172,6 @@ define(['underscore',
                     }
                 ];
             }
-            $scope.selected_view.view = nsd.views[0];
         };
         
         // Helps us recognize selected tab, so that we can persist
@@ -171,7 +186,7 @@ define(['underscore',
             $location.search('tab', index);
         };
 
-        // ### Network tab related data and methods
+        /////////////////////// ### Network tab related data and methods
         
         $scope.plans = [];
         
@@ -182,13 +197,40 @@ define(['underscore',
                     .success(function(response) {
                         $scope.plans = response.results;
             })
-                    .error(function() {
-                        console.log('Error fetching project\'s plans.');
-                        alert('Error fetching project\'s plans.');
+                    .error(function(error) {
+                        console.log(error.details);
+                        alert(error.details);
             });
         };
         
-        // ### Environment related data and methods
+        $scope.selected_plan = {};
+        // Every time user selects a different plan for this project
+        // we have to update its details. So on select change this function
+        // is called and we fetch specific plan's details.
+        $scope.fetchSelectedPlan = function(plan_id) {
+            $scope.selected_plan = {};
+            if (plan_id) {
+                API.planRead(plan_id)
+                        .success(function(response) {
+                            $scope.selected_plan = _.omit(response, ['_id', '_rev']);
+                })
+                        .error(function(error) {
+                            console.log(error.details);
+                            alert(error.details);
+                });
+            }
+        };
+        
+        // Controls toggle button message (if it's gonna be 'Show' or 'Hide')
+        $scope.temp.planDetailsShown = false;
+        
+        // Controls `planDetailsShown` variable and is called every time user
+        // clicks `Show/Hide Plan Details` toggle button
+        $scope.togglePlanDetails = function() {
+            $scope.temp.planDetailsShown = !$scope.temp.planDetailsShown;
+        };
+        
+        /////////////////////// ### Environment related data and methods
         $scope.vectorls = [];
         
         // This method calls `projectVectorLFilesRead` api call and
@@ -198,9 +240,9 @@ define(['underscore',
                     .success(function(response) {
                         $scope.vectorls = response.results;
             })
-                    .error(function() {
-                        console.log('Error fetching project\'s plans.');
-                        alert('Error fetching project\'s plans.');
+                    .error(function(error) {
+                        console.log(error.details);
+                        alert(error.details);
             });
         };
         
@@ -208,11 +250,12 @@ define(['underscore',
         
         // Used in order to determine which view's plots to show
         $scope.selected_view = {
-            view: {}
+            index: 0
         };
         
         $scope.setSelectedView = function(view) {
-            $scope.selected_view.view = view;
+            var index = _.indexOf($scope.nsd.views, view);
+            $scope.selected_view.index = index;
         };
         
         // This function is called when `create new view` button is clicked
@@ -262,6 +305,12 @@ define(['underscore',
                                 field:'groupby', 
                                 displayName:'Group By', 
                                 cellTemplate: 'templates/ng-grid_checkbox.html'
+                            },
+                            {
+                                field: 'delete',
+                                displayName: '',
+                                cellTemplate: 'templates/ng-grid_delete.html',
+                                cellClass: 'delete-field-cell'
                             }
                         ]
                     };
@@ -272,6 +321,12 @@ define(['underscore',
                     //
                     $scope.addField = function() {
                         $scope.myData.push({name: 'field' + $scope.myData.length, expression: '', groupby: false});
+                    };
+                    
+                    // This method is called when user clicks `Delete` button
+                    // in a ngGrid table row. It removes selected row.
+                    $scope.deleteField = function(row) {
+                        $scope.myData.splice(row.rowIndex, 1);
                     };
                     
                     $scope.available_fields = [];
@@ -359,6 +414,12 @@ define(['underscore',
                                 field:'groupby', 
                                 displayName:'Group By', 
                                 cellTemplate: 'templates/ng-grid_checkbox.html'
+                            },
+                            {
+                                field: 'delete',
+                                displayName: '',
+                                cellTemplate: 'templates/ng-grid_delete.html',
+                                cellClass: 'delete-field-cell'
                             }
                         ]
                     };
@@ -369,6 +430,12 @@ define(['underscore',
                     //
                     $scope.addField = function() {
                         $scope.myData.push({name: 'field' + $scope.myData.length, expression: '', groupby: false});
+                    };
+                    
+                    // This method is called when user clicks `Delete` button
+                    // in a ngGrid table row. It removes selected row.
+                    $scope.deleteField = function(row) {
+                        $scope.myData.splice(row.rowIndex, 1);
                     };
                     
                     $scope.available_fields = [];
@@ -493,19 +560,14 @@ define(['underscore',
                         } else if (graph_type === 'node parameter') {
                             $scope.plot.model_type = 'parameter';
                             $scope.plot.stat_type = 'node';
-                            $scope.plot.x = 'node';
-                            $scope.plot.y = 'data';
                             _.extend($scope.plot, $scope.parameter);
                         } else if (graph_type === 'network parameter') {
                             $scope.plot.model_type = 'parameter';
                             $scope.plot.stat_type = 'network';
-                            $scope.plot.y = 'data';
                             _.extend($scope.plot, $scope.parameter);
                         } else if (graph_type === 'node2node parameter') {
                             $scope.plot.model_type = 'parameter';
                             $scope.plot.stat_type = 'node2node';
-                            $scope.plot.x = ['node', 'n_index'];
-                            $scope.plot.y = 'data';
                             _.extend($scope.plot, $scope.parameter);
                         }
                         
@@ -561,6 +623,9 @@ define(['underscore',
                         // Plot - parameter common attributes
                         $scope.plot.title = plot.title;
                         $scope.plot.select = plot.select;
+                        $scope.plot.x = plot.x;
+                        $scope.plot.y = plot.y;
+                        $scope.plot.x2 = plot.x2;
                         
                         // adjust graph type
                         if (plot.model_type === 'plot') {
@@ -581,7 +646,7 @@ define(['underscore',
                     };
                     $scope.readPlot(plot);
                     
-                    // Once user clicks `crete` in plot dialog
+                    // Once user clicks `create` in plot dialog
                     // depending on his selection on `graph type` field
                     $scope.adjustPlot = function (graph_type) {
                         for (var attr in plot) {
@@ -590,6 +655,8 @@ define(['underscore',
                         // Plot - parameter common attributes
                         plot.title = $scope.plot.title;
                         plot.select = $scope.plot.select;
+                        plot.x = $scope.plot.x;
+                        plot.y = $scope.plot.y;
                         
                         if (graph_type === 'plot') {
                             plot.model_type = 'plot';
@@ -598,19 +665,15 @@ define(['underscore',
                         } else if (graph_type === 'node parameter') {
                             plot.model_type = 'parameter';
                             plot.stat_type = 'node';
-                            plot.x = 'node';
-                            plot.y = 'data';
                             _.extend(plot, $scope.parameter);
                         } else if (graph_type === 'network parameter') {
                             plot.model_type = 'parameter';
                             plot.stat_type = 'network';
-                            plot.y = 'data';
                             _.extend(plot, $scope.parameter);
                         } else if (graph_type === 'node2node parameter') {
                             plot.model_type = 'parameter';
                             plot.stat_type = 'node2node';
-                            plot.x = ['node', 'n_index'];
-                            plot.y = 'data';
+                            plot.x2 = $scope.plot.x2;
                             _.extend(plot, $scope.parameter);
                         }
                     };
@@ -644,7 +707,7 @@ define(['underscore',
             // Open dialog in order to ask user to confirm view deletion
             ngDialog.openConfirm({
                 template: '<div class="ng-dialog-message">' +
-                            '<p>You are about to delete <i><strong>' + plot.name +'</strong></i> plot.</p>' +
+                            '<p>You are about to delete <i><strong>' + plot.title +'</strong></i> plot.</p>' +
                             '<p>Are you sure?</p>' +
                         '</div>' +
                         '<div class="ng-dialog-buttons row">' +
@@ -688,7 +751,14 @@ define(['underscore',
                         $scope.alerts.save_success = true;
                         success_alert_timeout = $timeout($scope.dismiss, 10000);
             })
-                    .error(function() {
+                    .error(function(error) {
+                        // in case of conflict get the returned `_rev`
+                        // and try again
+                        if (error.status == 409) {
+                            $scope.nsd._rev = error.current_object._rev;
+                            $scope.saveNsd();
+                            return;
+                        }
                         console.log('Error updating nsd.');
                         alert('Error updating nsd.');
             });
@@ -719,23 +789,33 @@ define(['underscore',
 
         $scope.filters = {};
 
+        // Fetches user's projects so that user can filter nsd files
+        // by the project they belong to.
         $scope.fetchProjects = function() {
             API.projectsRead()
                     .success(function(response) {
                         $scope.projects = response.results;
                         $scope.readNsds();
             })
-                    .error(function() {
-                        console.log('Error during fetching projects from repository.');
-                        alert('Error during fetching projects from repository.');
+                    .error(function(error) {
+                        console.log(error.details);
+                        alert(error.details);
             });
         };
         
+        // This function searches `projects` and returns the name of the project
+        // with id `project_id`
         $scope.getProjectName = function(project_id) {
             var project = _.findWhere($scope.projects, {id: project_id});
             return project.name;
         };
+        
+        $scope.temp = {
+            load_finished: false
+        };
 
+        // Read the list of user's nsds. For each nsd, find its project's name
+        // by the corresponding id.
         $scope.readNsds = function() {
             API.nsdsRead()
                     .success(function(response) {
@@ -744,19 +824,78 @@ define(['underscore',
                             nsd.project_name = $scope.getProjectName(nsd.project_id);
                         });
                         $scope.shown_nsds = $scope.nsds;
+                        $scope.temp.load_finished = true;
             })
-                    .error(function() {
-                        console.log('Error fetching nsds.');
-                        alert('Error fetching nsds.');
+                    .error(function(error) {
+                        console.log(error.details);
+                        alert(error.details);
             });
         };
 
+        // This function is called whenever user selects a project filter. We filter
+        // nsds locally and update the results in the listing
         $scope.filterNsds = function() {
             if ($scope.filters.project_id) {
                 $scope.shown_nsds = _.where($scope.nsds, {project_id: $scope.filters.project_id});
             } else {
                 $scope.shown_nsds = $scope.nsds;
             }
+        };
+        
+        // This function contains `cloneNsd` process.
+        // At first, it shows a dialog in which user is asked to enter a name for
+        // his new nsd file. Input is validated, and if validation is successful,
+        // we fetch nsd's to clone data, and then we call `nsdCreate` API call
+        // passing these data as parameters.
+        //
+        $scope.cloneNsd = function(nsd_id) {
+            var self = this;
+            ngDialog.openConfirm({
+                template: 'templates/clone_nsd.html',
+                className: 'ngdialog-theme-default clone-nsd-dialog',
+                closeByDocument: false,
+                controller: ['$scope', '$validator', function($scope, $validator) {
+                        
+                    $scope.clone = function() {
+                        // Validates nsd name input. In success fetch data to clone.
+                        $validator.validate($scope, 'new_nsd').success(function() {
+                            $scope.fetchNsdToClone();
+                        });
+                    };
+                    
+                    $scope.fetchNsdToClone = function() {
+                        API.nsdRead(nsd_id)
+                                .success(function(response) {
+                                    // Clone response, omitting `_id` and `_rev` fields
+                                    var existed_nsd_data = _.omit(response, ['_id', '_rev']);
+                                    // Also update nsd's name
+                                    existed_nsd_data.name = $scope.new_nsd.name;
+                                    // And create a new nsd from these data
+                                    $scope.saveClonedNsd(existed_nsd_data);
+                        })
+                                .error(function(error) {
+                                    console.log(error.details);
+                                    alert(error.details);
+                        });
+                    };
+                    
+                    $scope.saveClonedNsd = function(nsd) {
+                        API.nsdCreate(nsd)
+                                .success(function(response) {
+                                    $scope.closeThisDialog();
+                                    self.go(response._id);
+                        })
+                                .error(function(error) {
+                                    console.log(error.details);
+                                    alert(error.details);
+                        });
+                    };
+                    
+                    $scope.dismissDialog = function() {
+                        $scope.closeThisDialog();
+                    };
+                }]
+            });
         };
         
         $scope.confirmDeleteNsd = function(nsd_id, nsd_name) {
@@ -790,9 +929,9 @@ define(['underscore',
                     .success(function() {
                         $scope.readNsds();
             })
-                    .error(function() {
-                        console.log('Error deleting nsd.');
-                        alert('Error deleting nsd.');
+                    .error(function(error) {
+                        console.log(error.details);
+                        alert(error.details);
             });
         };
 

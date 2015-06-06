@@ -19,25 +19,17 @@ from runner import api
 ##############################################
 
 
-_apierror_code_map = {
-	api.Forbidden : 403,
-	api.Conflict : 409,
-	api.NotFound : 404,
-	api.BadRequest : 400,
-	api.Unauthorized : 401,
-	api.ServerError : 500
-}
 
-
-def json_abort(code, msg=None, details=None, **kwargs):
+def json_abort(code, msg=None, **kwargs):
 	'''Raise an http error with a json response body.'''
+
 	body = {
 		'status':code, 
-		'message': bottle.HTTP_CODE[code] if msg is None else str(msg),
-		'details': 'No information' if details is None else str(details)
+		'message': bottle.HTTP_CODES[code] if msg is None else str(msg),
+		'details': 'No information is available for this problem'
 	}
 	body.update(kwargs)
-	logging.error("json_abort: body=%s\n     kwargs=%s", json.dumps(body, indent=4), str(kwargs))
+	logging.error("json_abort: body=%s\n    kwargs=%s", json.dumps(body, indent=4), str(kwargs))
 	raise bottle.HTTPResponse(status = code, body = json.dumps(body))
 
 
@@ -47,15 +39,18 @@ def process_api_error(ex):
 	'''
 
 	# get the error code
-	code = _apierror_code_map.get(ex.__class__, None)
-	if code is None:
-		logging.debug("In process_api_error: http code unknown, ex.cls = %s", ex.__class__, exc_info=1)
-		json_abort(500, 'An unexpected error occurred.',
-			'An unanticipated error occurred. This is a bug in the server.')
+	if not isinstance(ex, api.Error):
+		logging.debug("In process_api_error: exception class = %s", ex.__class__, exc_info=1)
+		json_abort(500, details = 'An unanticipated error occurred. '
+			'This is a problem that the server is unable to describe.')
 	else:
+		code = getattr(ex, 'httpcode')
 		msg = bottle.HTTP_CODES[code]
-		details = ' '.join(str(arg) for arg in ex.args)
-		json_abort(code, msg, details, ** ex.kwargs)
+		if 'details' not in ex.kwargs:			
+			details = ' '.join(str(arg) for arg in ex.args)
+			json_abort(code, msg, details, ** ex.kwargs)
+		else:
+			json_abort(code, ** ex.kwargs)
 
 
 
@@ -77,7 +72,9 @@ def POST_simulation():
 		return sim
 	except ValueError as e:
 		logging.warn(* e.args)
-		json_abort(403, "The provided NSD id was not legal", nsdid)
+		json_abort(403, "The provided NSD id was not legal", 
+			details="The project repository does not contain the NSD that was requested"
+			"in the simulation: %s" % nsdid)
 	except Exception as e:
 		process_api_error(e)
 
@@ -120,9 +117,9 @@ def GET_projects():
 		for p in projects:
 			p['id'] = p['_id']
 		return { 'results': projects }
-	except:
+	except Exception as e:
 		logging.exception('in getting projects from the PR')
-		json_abort(500, "Cannot get projects from the Project Repository")
+		process_api_error(e)
 
 			
 					
@@ -130,13 +127,50 @@ def GET_projects():
 def get_plans(prjid):
 		try:
 			project = api.project_dao.read(prjid)
-			logging.root.debug('Project=%s', json.dumps(project, indent=4) )
-			return { 'results': project.get('plans',[]) }
-		except:
+		except api.NotFound:
 			logging.exception('in getting projects from the PR')
-			json_abort(500, "Cannot get project plans from the Project Repository")
+			json_abort(404, "Cannot find project", 
+				details="The requested project does not exist in the repository")
+		except api.Unauthorized:
+			logging.exception('in getting projects from the PR')
+			json_abort(401, "Cannot find project", 
+				details="You do not have permission to access the requested project.")
+		except Exception as e:
+			process_api_error(e)
 
 
+		logging.root.debug('Project=%s', json.dumps(project, indent=4) )
+		plan_ids = project.get('plans',[])
+		plans = []
+
+		for plan_id in plan_ids:
+			resp = []
+			try:
+				resp = list(api.plan_dao.findBy('all', key=plan_id))
+			except:
+				# We failed looking up some plan!
+				pass
+			if resp:
+				assert len(resp)==1
+				plans.append(resp[0])
+		return { 'results': plans }
+
+#
+# vectorl execution
+#
+
+@app.get("/vectorl/<vlid>/compile")
+def compile_vectorl(vlid):
+	return api.process_vectorl(vlid, run=False)
+
+@app.get("/vectorl/<vlid>/run")
+def run_vectorl(vlid):
+	return api.process_vectorl(vlid, run=True)
+
+
+#
+# ReST api for project repository
+#
 
 class RestApi:
 	def __init__(self, dao):
@@ -189,7 +223,8 @@ class RestApi:
 			if obj is None:
 				raise BadRequest()
 		except:
-			json_abort(400, 'Bad POST request', 'A json body was expected but not provided')
+			json_abort(400, details='Bad create (POST) request. A json body '
+				'was expected but not provided')
 		try:
 			response.status = 201   # Created
 			return self.dao.create(obj)
@@ -200,16 +235,14 @@ class RestApi:
 				process_api_error(e)
 
 	def PUT(self, oid):
-		try:
-			obj = request.json
-			if obj is None:
-				raise BadRequest()
-		except:
-			json_abort(400, 'Bad PUT request', 'A json body was expected but not provided')
+		obj = request.json
+		if obj is None:
+			json_abort(400, details='Bad update (PUT) request. A json body was expected but not provided')
+
 		try:
 			return self.dao.update(oid, obj)
 		except Exception as e:
-			return process_api_error(e)
+			process_api_error(e)
 
 	def DELETE(self, oid):
 		try:

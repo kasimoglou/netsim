@@ -1,0 +1,73 @@
+
+% rebase('mainpage.html')
+
+% from models.aaa import *
+
+<table class="datatable">
+     <thead>            
+        <tr>
+         <th>Role</th>
+         <th>Implied roles</th>
+         </tr>
+     </thead>
+     <tbody>
+     % for role in sorted(Role.by_name):
+      <tr>
+      	<td>{{role}}</td> 
+      	<td>
+      	  {{', '.join(sorted(r.name for r in Role.by_name[role].implies))}}
+      	</td>
+  	  </tr>
+  	  % end
+ 	</tbody>
+</table>
+
+<table class="datatable">
+     <thead>            
+        <tr>
+         <th>Privilege</th>
+         <th>Subsumed privileges</th>
+         </tr>
+     </thead>
+     <tbody>
+     % for priv in sorted(Privilege.by_name):
+      <tr>
+      	<td>{{priv}}</td> 
+      	<td>
+      	  {{', '.join(sorted(r.name for r in Privilege.by_name[priv].implies))}}
+      	</td>
+  	  </tr>
+  	  % end     	
+ 	</tbody>
+</table>
+
+<table class="datatable">
+     <thead>            
+        <tr>
+         <th>Entity class tree</th>
+         <th>Access rules</th>
+         </tr>
+     </thead>
+     <tbody>
+     % for level, eclass in ectree:
+      <tr>
+      	<td>
+      		<span style="padding-left: {{max(2.5*level-0.5,0)}}em;">{{!'&#x21b3' if level else ''}}  {{eclass.name}}</span>
+  		</td> 
+      	<td>
+	      	<table class="datatable">
+	      	% for rule in eclass.acl.rules:
+	      	<tr>
+	      		<td>{{'allow' if rule.allow else 'deny'}}</td>
+	      		<td> {{rule.priv.name}}</td>
+	      		<td> by </td>
+	      		<td> {{rule.role.name}}</td>
+	      	</tr>
+	      	% end
+	      	</table>
+      	</td>
+  	  </tr>
+  	  % end     	
+ 	</tbody>
+</table>
+

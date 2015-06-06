@@ -11,9 +11,8 @@ import logging
 import os.path
 
 
-
 from simgen.executor import instantiate_executor
-
+from models.aaa import User
 
 
 #---------------------------------------------------------
@@ -305,6 +304,51 @@ class MonitorDao(DataAccessObject):
                 
 
 
+class UserDao(DataAccessObject):
+    "DAO for users"
+    def __init__(self, pool):
+        super().__init__(pool)
+
+    def get_users(self):
+        with transaction(self.acquire()) as cursor:
+            execSql(cursor, "select username, password, is_admin from monitor.user")
+            for tup in cursor.fetchall():
+                yield User(tup[0], tup[1], tup[2])
+
+    def get_user(self, username):
+        with transaction(self.acquire()) as cursor:
+            execSql(cursor, 
+                "select username, password, is_admin from monitor.user where username=%s", 
+                username)
+            
+            tup = cursor.fetchone()
+            return User(* tup) if tup else None
+
+    def create_user(self, user):
+        with transaction(self.acquire()) as cursor:
+            execSql(cursor, 
+                "insert into monitor.user(username, password, is_admin) values(%s, %s, %s)",
+                user.username,user.password,user.is_admin)
+
+    def update_user(self, username, **kwargs):
+        # create query
+        if not kwargs: return
+        assert all(k in {'password', 'is_admin'} for k in kwargs)
+        qry = "update monitor.user set " 
+        qry +=  ','.join("%s = %%(%s)s" % (k,k) for k in kwargs)
+        qry += " where username=%(username)s"
+        kwargs['username'] = username
+
+        with transaction(self.acquire()) as cursor:
+            logging.info("qyery: %s  kwargs: %s", qry, kwargs)
+            execSql(cursor, qry, **kwargs)
+
+    def delete_user(self, username):
+        with transaction(self.acquire()) as cursor:
+            execSql(cursor, 
+                "delete from monitor.user where username=%s",
+                (username,))
+
 
 
         
@@ -328,24 +372,31 @@ def check_database(args, pgconn):
     if args.initdb=='YES' or not schema_exists:
         # create the schema
         try:
-            # read the contents of the file
+            # read the contents of the sql files
             sqlfile = os.path.dirname(__file__)+"/create.sql"
-            sql = '\n'.join(open(sqlfile,'r').readlines())
+            with open(sqlfile,'r') as f:
+                create_sql = '\n'.join(f.readlines())
+
+            sqlfile = os.path.dirname(__file__)+"/drop.sql"
+            with open(sqlfile,'r') as f:
+                drop_sql = '\n'.join(f.readlines())
+
             
             # make sure we are fresh
             db.commit()
             c = db.cursor()
             try:
                 logging.info("Rebuilding database schema")
-                c.execute(sql)
+                c.execute(drop_sql)
+                c.execute(create_sql)
                 logging.info("Loading initial configuration in database")
                 
-                import runner.config 
+                from runner.config import cfg, executor_init, monitor_init
                 import json
                 
-                for name, className, homedir, args in runner.config.executor_init():  
+                for name, className, homedir, args in executor_init():
                     c.callproc("monitor.new_executor", (name,className, homedir, json.dumps(args)))
-                for name, workers in runner.config.monitor_init():
+                for name, workers in monitor_init():
                     c.callproc("monitor.new_monitor_engine", (name, workers))
                 
                 db.commit()                

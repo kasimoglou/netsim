@@ -25,9 +25,11 @@
                 <td class="topbar-right" >
                   <a href="/admin/logout" class="a-button">Logout</a>
                 </td>
+                % if AAA.current_user_is_admin():
                 <td class="topbar-right" >
-                    <a href="/admin/shutdown" class="a-button" d >Shutdown</a>
+                    <a href="/admin/shutdown" class="a-button">Shutdown</a>
                 </td>
+                % end
                 % end            
         </tr>           
     </table>
@@ -39,9 +41,14 @@
         <div class="widget">
            <ul class="wlist">
                <li><a href="/admin">Monitor</a></li>
+               % if AAA.current_user_is_admin():
+               <li><a href="/admin/users.html">Users</a></li>
+               <li><a href="/admin/acl.html">ACLs</a></li>
+               % end
+
                <li><a href="/admin/jobs.html">Jobs</a></li>
                <!-- <li><a href="/admin/new_job.html">New job</a></li> -->
-			   <li><a href="/admin/nsd_table.html">Nsd Table</a></li>
+			         <li><a href="/admin/nsd_table.html">Nsd Table</a></li>
          </ul>
         </div>
         % end
@@ -61,6 +68,7 @@
           % if defined('thispage'):
      	    <td><a class="a-button" href="{{thispage}}">Reload</a></td>
           % end
+          {{! more_buttons if defined('more_buttons') else ''}}
         </tr>
         </table> 
     	{{!base}}

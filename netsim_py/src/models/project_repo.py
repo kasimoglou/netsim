@@ -92,6 +92,17 @@ class ForeignKey(Field):
 		self.references = refent
 
 @model
+class FetchField(Named):
+	entity =  ref() 					# the entity this belongs to
+	fkey = attr(Field, nullable=False)	# the foreign key to use
+
+	def __init__(self, name, fkey, multiple=False):
+		super().__init__(name)
+		self.fkey = fkey
+		self.entity = fkey.entity
+
+
+@model
 class ConstraintUnique(Named):
 	'''
 	Declare a uniqueness constraint on a number of attributes.
@@ -127,6 +138,9 @@ class ApiEntity(Entity):
 	unique = refs(inv=ConstraintUnique.entity)
 	primary_key = attr(type=ConstraintUnique, nullable=True, default=None)
 
+	# fetch fields are fields that are added by the server at the API level
+	# but not stored in the database. E.g. plan_name for NSDs
+	fetch_fields = refs(inv=FetchField.entity)
 
 	# operations supported
 	read = attr(bool, nullable=False, default=True)
@@ -149,17 +163,26 @@ class ApiEntity(Entity):
 			raise ValueError("Primary key already exists: %s" % self.primary_key.names())
 		self.primary_key = ConstraintUnique("%s_pk" % self.name, self, args, primary_key=True)
 
+	def id_for_primary_key(self, obj):
+		assert self.primary_key
+		body = ":".join(str(obj[f.name]) for f in self.primary_key.fields)
+		return "%s:%s" % (self.name, body)
+
 	def create_id(self, obj):
 		if self.primary_key:
-			body = ":".join(str(obj[f.name]) for f in self.primary_key.fields)
-			return "%s:%s" % (self.name, body)
+			return self.id_for_primary_key(obj)
 		else:
 			if '_id' in obj:
 				return obj['_id']
 			else:
 				return "%s-%s" % (self.name, uuid.uuid4().hex)
 
-
+	def add_fetch_field(self, name, fkey_name):
+		fkey = [f for f in self.fields if isinstance(f, ForeignKey) and f.name==fkey_name]
+		if len(fkey)!=1:
+			raise ValueError("Cannot determine key field")
+		fkey = fkey[0]
+		return FetchField(name, fkey)
 
 
 #
@@ -189,6 +212,7 @@ NSD.add_foreign_key('project_id', PROJECT)
 NSD.add_foreign_key('plan_id', PLAN)
 NSD.add_field('name')
 NSD.set_primary_key('project_id','name')
+NSD.add_fetch_field('plan', 'plan_id')
 
 VECTORL = ApiEntity('vectorl', DB_SIM)
 VECTORL.add_foreign_key('project_id', PROJECT)

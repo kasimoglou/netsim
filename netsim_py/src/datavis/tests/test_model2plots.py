@@ -188,7 +188,7 @@ def test_create_plot_for_model(tmp_dir):
     #name = "Consumed Energy"
     ds = StatsDatabase()
     ds.load_castalia_output(castalia_output_file())
-    table_filter = Operator(EQ, [ColumnRef(DATA_TABLE.col["name"]), ConstantExpr("Consumed Energy")])
+    table_filter = Operator(EQ, [ColumnRef(DATA_TABLE.col["name"]), ConstantExpr("\"Consumed Energy\"")])
     dt = DerivedTable("test_create_plot_for_model", [Column("node"), Column("data"), Column("name")], [DATA_TABLE], table_filter)
     create_view_for_derived(ds, dt)
     x = DATA_TABLE.col["node"]
@@ -201,7 +201,7 @@ def test_create_plot_for_model(tmp_dir):
     #
     # node parameter
     #
-    q = Operator(EQ, [ColumnRef(DATA_TABLE.col["name"]), ConstantExpr("Consumed Energy")])
+    q = Operator(EQ, [ColumnRef(DATA_TABLE.col["name"]), ConstantExpr("\"Consumed Energy\"")])
     rel = DerivedTable("nodepar_test", [Column("node"), Column("data")], [DATA_TABLE], q)
     create_view_for_derived(ds, rel)
     pm2 = PlotModel("parameter", "node", rel, (rel.col["node"],), (rel.col["data"],),
@@ -213,9 +213,9 @@ def test_create_plot_for_model(tmp_dir):
     # column name
     c_name = Column("name")
     # column SUM(data) AS data
-    c_data = ColumnExpr("data", Operator(SUM, [ConstantExpr("data")]))
+    c_data = ColumnExpr("data", Operator(SUM, [ConstantExpr("\"data\"")]))
     # filter --> name = "Consumed Energy"
-    f = Operator(EQ, [ColumnRef(DATA_TABLE.col["name"]), ConstantExpr("Consumed Energy")])
+    f = Operator(EQ, [ColumnRef(DATA_TABLE.col["name"]), ConstantExpr("\"Consumed Energy\"")])
     # create derived table containing the SUM of all "Consumed Energy"
     dt = DerivedTable("networkpar_test", [c_name, c_data], [DATA_TABLE], f, [DATA_TABLE.col["name"]])
 
@@ -229,7 +229,7 @@ def test_create_plot_for_model(tmp_dir):
     #
 
     # DerivedTable for node2node parameter
-    q = Operator(EQ, [ColumnRef(DATA_TABLE.col["name"]), ConstantExpr("Packets received per node")])
+    q = Operator(EQ, [ColumnRef(DATA_TABLE.col["name"]), ConstantExpr("\"Packets received per node\"")])
     dt = DerivedTable("testn2n", [Column("node"), Column("n_index"), Column("data")], [DATA_TABLE], q)
 
     pm4 = PlotModel("parameter", "node2node", dt, (dt.col["node"], dt.col["n_index"]), (dt.col["data"],),
@@ -330,9 +330,9 @@ def test_model2plots(tmp_dir):
     os.chdir(tmp_dir)
 
     #name = "Consumed Energy"
-    table_filter = Operator(EQ, [ColumnRef(DATA_TABLE.col["name"]), ConstantExpr("Consumed Energy")])
+    table_filter = Operator(EQ, [ColumnRef(DATA_TABLE.col["name"]), ConstantExpr("\"Consumed Energy\"")])
     dt = DerivedTable("test_model2plots_1", [Column("node"), Column("data"), Column("name")], [DATA_TABLE], table_filter)
-    table_filter2 = Operator(EQ, [ColumnRef(DATA_TABLE.col["label"]), ConstantExpr("TX pkts")])
+    table_filter2 = Operator(EQ, [ColumnRef(DATA_TABLE.col["label"]), ConstantExpr("\"TX pkts\"")])
     dt2 = DerivedTable("test_model2plots_2", [Column("node"), Column("data"), Column("label")], [DATA_TABLE], table_filter2)
 
     x = DATA_TABLE.col["node"]

@@ -1,4 +1,5 @@
 define(['angular',
+    'bootstrap',
     'angular-animate',
     'angular-route',
     'angular-bootstrap',

@@ -11,6 +11,8 @@ from collections import namedtuple
 from models.nsd import *
 
 
+
+
 def index_to_text(idx):
     '''
     This method prints an index (a number of a slice) into
@@ -25,11 +27,46 @@ def index_to_text(idx):
             return "*"
         a = str(idx.start) if idx.start is not None else ""
         b = str(idx.stop-1) if idx.stop is not None else ""
-        return "%s..%s" % (a,b)
+        if a==b:
+            return a
+        else:
+            return "%s..%s" % (a,b)
+
+
+
+# an annotation for parameter attributes
+Param = annotation_class('Param',[])()
+
+# convenience declaration for annotated attributes
+def parameter(type, **kwargs):
+    '''
+    Encapsulate an mf.Attribute declaration with a Param annotation on
+    the attribute. It is used to declare Castalia module parameters.
+    '''
+    return Param(attr(type=type, **kwargs))
 
 
 @model
 class CastaliaModule:
+    '''
+    This class represents a castalia module or collection of modules.
+    Subclasses of this class can have additional 'parameter' attributes
+
+    A module is defined by a path and an index. Also, it can have a parent 
+    and a list of submodules. 
+
+    The full_name of a module is determined by its name and index, and those
+    of its parents.
+
+    Examples.
+
+    net = CastaliaModule(None, 'SN')  ->           SN   (the root network module)
+    CastaliaModule(net, 'node', slice(10,15))  ->   SN.node[10..14]
+
+    node_group = CastaliaModule(None, 'SN.node', slice(2,5))  ->  SN.node[2..4]
+    node_group_radio = CastaliaModule(node_group, 'Radio')    ->  SN.node[2..4].Radio
+
+    '''
     # module tree
     parent = ref()
     submodules = ref_list(inv=parent)
@@ -40,20 +77,45 @@ class CastaliaModule:
     # the index can be a number or a range.
     index = attr(type=(int,slice), nullable=True, default=None)
 
+
+    def __base_name(self):
+        if self.parent is None:
+            return self.subname
+        else:
+            return '.'.join([self.parent.full_name, self.subname])
+
     @property
     def full_name(self):
+        '''
+        The pathname for this submodule in the NED tree.
+        '''
         if self.index is None:
-            myname = self.subname
+            return self.__base_name()
         else:
-            myname = "%s[%s]" % (self.subname, index_to_text(self.index))
+            return "%s[%s]" % (self.__base_name(), index_to_text(self.index))
 
-        if self.parent is None:
-            return myname
-        else:
-            return '.'.join([self.parent.full_name, myname])
 
-    def dummy(self, name, index):
+    def submodule(self, name, index=None):
+        '''
+        Create a new generic submodule for this module.
+        '''
         return CastaliaModule(self, name, index)
+
+
+    def base(self):
+        '''
+        Return a CastaliaModule M.
+
+        The type of M is always CastaliaModule.
+        
+        M has no parent.
+        
+        The name of the module is equal to the full_name of self,
+        without the index, and the index of M is equal to the index of self.
+
+        Therefore, M.full_name == self.full_name
+        '''
+        return CastaliaModule(None, self.__base_name(), self.index)
 
     def __init__(self, parent, name, index=None):
         self.parent = parent
@@ -61,14 +123,9 @@ class CastaliaModule:
         self.index = index
 
 
-
-
-# an annotation for parameter attributes
-Param = annotation_class('Param',[])()
-
-# convenience declaration for annotated attributes
-def parameter(type, **kwargs):
-    return Param(attr(type=type, **kwargs))
+#
+# castalia module subtypes with attribute declarations
+#
 
 
 @model
@@ -93,6 +150,7 @@ class Network(CastaliaModule):
     numNodes = parameter(int)
     numPhysicalProcesses = parameter(int)
     physicalProcessName = parameter(str)
+
 
 @model
 class WirelessChannel(CastaliaModule):
@@ -316,9 +374,43 @@ class Mac(CastaliaModule):
     macPacketOverhead = parameter(int)
 
 
+#
+#  Omnetpp.ini model
+#
+
+@model 
+class Section:
+    '''
+    A config section in the omnetpp.ini file
+    '''
+
+    # the section name, or None for the general section
+    name = attr(str, nullable=True, default=None)
+
+    # the supersections (and subsections)
+    extends = ref_list()
+    extended_by =refs(inv=extends)
+
+    # the top-level model
+    castalia_model = ref()
+
+    # module declarations for this section
+    modules = attr(list)
+
+    def __init__(self, cm, name, extends=[]):
+        self.name = name
+        self.castalia_model = cm
+        self.extends = extends
+        self.modules = []
+
+
 
 @model
-class Omnetpp:
+class General(Section):
+    '''
+    A simple model for omnetpp.ini parameters
+    '''
+
     # Simulation time in sec
     sim_time_limit = attr(float)
 
@@ -331,15 +423,73 @@ class Omnetpp:
     # The path to Castalia
     castalia_path = attr(str)
 
+    def __init__(self, cm):
+        super().__init__(cm, None)
+
+
+
+#
+#  Helper models
+# 
+@model
+class NodeType:
+    # index for nodes in this node type
+    index = attr(slice)
+
+    # the NSD node def
+    nodeDef = attr(NodeDef)
+
+    # the top-level model
+    castalia_model = ref()
+
+    # the omnetpp section where this type is configured
+    section = attr(Section)
+
+    # the node module (dummy)
+    nodes = attr(CastaliaModule)
+
+    # the communication submodule (dummy)
+    comm = attr(CastaliaModule)
+
+    def __init__(self, cm, nodeDef, index):
+        self.castalia_model = cm
+        self.nodeDef = nodeDef
+        self.index = index
+
+        self.nodes = Node(cm.network.base(), 'node', index)
+        self.comm = self.nodes.submodule('Communication')
+
+
+#
+#  Toplevel model
+#
+
 
 @model
 class CastaliaModel:
-    omnetpp = attr(type=Omnetpp, nullable=False)
-    network = attr(type=CastaliaModule, nullable=False)
+    '''
+    The top-level model, contains a 
+    '''
+    # omnetpp sections
+    omnetpp = ref_list(inv=Section.castalia_model)
+
+    # node types
+    nodeTypes = refs(inv=NodeType.castalia_model)
+
+    #main network definition
+    network = attr(Network)
+
 
 
 MODEL = [
-    CastaliaModel, Omnetpp,
+    CastaliaModel, 
+    # omnetpp
+    Section, General,
+
+    # other
+    NodeType,
+
+    # modules
     CastaliaModule, 
     Network, WirelessChannel,    
     Node, ResourceManager, SensorManager,

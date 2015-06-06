@@ -1,8 +1,9 @@
 
 import pytest, io
-from vectorl.parser import ModelFactory, Model, Scope
+from vectorl.model import ModelFactory, Model, Scope
 from vectorl.tests.modelfactory import *
 
+from vectorl.runtime import Runner
 
 
 
@@ -129,8 +130,10 @@ const int carSpot = [0,1,1,0];
 //// time
 var bool spotTaken = [false, false]; 
 
-event carIn(int i);
+//// i is index    
 
+event carIn(int i);
+event carOut(int i);
 
 on carIn { // line 22
     def int pos = carSpot[i];
@@ -142,13 +145,9 @@ on carIn { // line 22
 
     // schedule arrival of next car 
     arrival := arrival + 1;
-    if(arrival < dims(carInTime))
+    if(arrival < shapeof(carInTime)[0])
         emit carIn(arrival) after carInTime[arrival]-now;
 }    
-
-//// i is index    
-
-event carOut(int i);
 
 on carOut {    
     def int pos = carSpot[i];
@@ -156,9 +155,28 @@ on carOut {
 }
 
 
+
 on Init {
     // arrival of first car
     emit carIn(arrival) after carInTime[arrival] - now;
+}
+
+const real noise = [1.4, 1.9];
+
+def real noisy_measurement(int k) {
+    def int spots = shapeof(spotTaken)[0];
+    def real varnoise = spots*noise;
+
+    varnoise[carSpot[k]]
+}
+
+event measurement(int i, real val);
+
+on carOut {
+    if( i < shapeof(carSpot)[0] )
+        emit measurement(i, noisy_measurement(i)) after 1.0;
+    else
+        print("We are done",10,20,"bye");
 }
 
 
@@ -167,6 +185,9 @@ on Init {
 
 def test_big_parse():
     tmf = TestModelFactory(sources=BIGMF)
-    #model = tmf.get_model('cars')
-    #assert model
+    model = tmf.get_model('cars')
+    assert model
+
+    Runner(tmf).start()
+
 
