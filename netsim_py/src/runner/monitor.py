@@ -62,7 +62,7 @@ class Manager:
         exdao = ExecutorDao(self.pool)
         for ex in exdao.get_executors():
             if ex.name in self.execs:
-                logging.critical("Duplicate executor name: %s", ex.name)
+                self.log.critical("Duplicate executor name: %s", ex.name)
             self.execs[ex.name] = ex
             self.log.info("Registered executor %s",ex.name)
         import runner.config
@@ -425,9 +425,7 @@ class DbPollTask(MonitorTask):
         '''
         dao = self.engine.getDao()
         try:
-            #self.log.debug("Cleanup of old jobs")
-            #dao.cleanup_old_jobs()
-            self.log.debug("Processing new jobs")
+            #self.log.debug("Processing new jobs")
             self.processReadyJobs(dao)
         finally:
             dao.release()

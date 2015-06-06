@@ -27,6 +27,8 @@ from models.project_repo import ApiEntity, Entity, DATABASES, DB_PT, DB_SIM, Dat
 from simgen.utils import docstring_template
 
 
+logger = logging.getLogger("dpcmrepo")
+
 
 class ProjectRepository(pycouchdb.Server):
 	"""
@@ -163,14 +165,24 @@ def initialize_repo(url=None, **kwargs):
 	"""
 	global PR
 	if PR is not None:
-		logging.warn("Re-initializing PR")
+		logger.warn("Re-initializing PR")
 
 	if url is None:
 		url = project_repository()
 	PR = ProjectRepository(url, **kwargs)
-	logging.info("Initialized PR")
+	logger.info("Initialized Project Repository at %s", url)
 
+def repo_url(model, oid):
+	from urllib.parse import urljoin
 
+	if isinstance(model, Entity):
+		db = cfg[model.database.name]
+	elif isinstance(model, Database):
+		db = cfg[model.name]
+	else:
+		raise ValueError("Unrecognized type of model")
+
+	return urljoin(project_repository(), "_utils/document.html?%s/%s" %(db, oid))	
 
 
 

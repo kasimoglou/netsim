@@ -14,6 +14,7 @@ from runner.apierrors import *
 import runner.AAA as AAA
 
 import os, logging, functools
+import os.path, json
 
 _repoerror_map = {
     dpcmrepo.GenericError : Forbidden,
@@ -23,6 +24,8 @@ _repoerror_map = {
     dpcmrepo.AuthenticationFailed : Unauthorized,
 }
 
+
+logger = logging.getLogger("API")
 
 
 def apierror(func):
@@ -46,14 +49,14 @@ def apierror(func):
                 api_exc = _repoerror_map[e.__class__]
                 raise api_exc(* e.args) from e
             else:
-                logging.error("An unknown dpcmrepo.ApiError subclass was encountered: ", 
+                logger.error("An unknown dpcmrepo.ApiError subclass was encountered: ", 
                     e.__class__.__name__)
                 # Just do a default thing
                 raise ServerError(*e.args, details="An unexpected problem with the project repository"
                     " was encountered.") from e
 
         except BaseException as e:
-            logging.debug("Mapping exception to BadRequest",exc_info=1)
+            logger.debug("Mapping exception to BadRequest",exc_info=1)
             raise BadRequest(details="An unexpected error in the server has occurred")
     return wrapper
 
@@ -123,7 +126,7 @@ def create_simoutput(xtor, prepo, nsdid):
         raise
 
     url = "%s/%s" % (simdb.resource.base_url, sim['_id'])
-    logging.info("Created simulation with url=%s",url)
+    logger.info("Created simulation with url=%s",url)
 
     return sim, url, simhome
 
@@ -171,7 +174,7 @@ def delete_simulation(simid):
             raise NotFound(details="There is no simulation with this id")
         simdb.delete(simid)
     except (dpcmrepo.NotFound,NotFound):
-        logging.debug('In api.delete_simulation(%s)',simid, exc_info=1)
+        logger.debug('In api.delete_simulation(%s)',simid, exc_info=1)
         pass # Ignore 
 
     # Now, get the job
@@ -215,7 +218,7 @@ def create_user(user):
     if not AAA.UserRecord.authorize(roles, AAA.Create):
         raise Unauthorized(details="Not authorized to create users")
     Manager.create_user(user)
-    logging.info("New system user: %s", user.username)
+    logger.info("New system user: %s", user.username)
 
 @apierror
 def delete_user(username):
@@ -226,7 +229,7 @@ def delete_user(username):
     if not AAA.UserRecord.authorize(roles, AAA.Delete):
         raise Unauthorized(details="Not authorized to delete users")
     Manager.delete_user(username)
-    logging.info("Deleted user: %s", username)
+    logger.info("Deleted user: %s", username)
 
 @apierror
 def change_user_password(username, password):
@@ -237,7 +240,7 @@ def change_user_password(username, password):
     if not AAA.UserRecord.authorize(roles, AAA.ChangeUserPassword):
         raise Unauthorized(details="Not authorized to change the password for this user")
     Manager.update_user(username, password=password)
-    logging.info("Changed password for user: %s", username)
+    logger.info("Changed password for user: %s", username)
 
 @apierror
 def change_admin_status(username, is_admin):
@@ -248,7 +251,7 @@ def change_admin_status(username, is_admin):
     if not AAA.UserRecord.authorize(roles, AAA.ChangeAdminStatus):
         raise Unauthorized(details="Not authorized to change the admin flag for this user")
     Manager.update_user(username, is_admin=is_admin)
-    logging.info("Changed admin status for user '%s' to %s", username, is_admin)
+    logger.info("Changed admin status for user '%s' to %s", username, is_admin)
 
 @apierror
 def verify_password(username, password):
@@ -261,9 +264,9 @@ def login(username, password):
 
     if success:
         AAA.set_current_user(username)
-        logging.info('User %s logged in', username)
+        logger.info('User %s logged in', username)
     else:
-        logging.info('Login failure')
+        logger.info("Login failure: username='%s'", username)
     return success
 
 @apierror
@@ -304,7 +307,7 @@ class RepoDao:
         '''
         for ff in self.entity.fetch_fields:
             try:
-                logging.debug("Fetch field %s", ff.name)
+                logger.debug("Fetch field %s", ff.name)
                 if ff.fkey.name not in obj:
                     continue
                 fid = obj[ff.fkey.name]
@@ -314,10 +317,10 @@ class RepoDao:
                 if len(fobj):
                     obj[ff.name] = fobj[0]
                 else:
-                    logging.warn("Foreign key is stale for %s", obj.get('_id', "<unknown>"))
+                    logger.warn("Foreign key is stale for %s", obj.get('_id', "<unknown>"))
             except:
                 # log but otherwise ignore errors
-                logging.exception("Failed to fetch join field '%s' for %s", 
+                logger.exception("Failed to fetch join field '%s' for %s", 
                     ff.name, obj.get('_id', "<unknown>"))
         return obj
 
@@ -345,7 +348,7 @@ class RepoDao:
                 join_obj[ff.name] = idx_fobj
             except:
                 # log but otherwise ignore errors
-                logging.exception("Failed to fetch join field '%s' for %s", 
+                logger.exception("Failed to fetch join field '%s' for %s", 
                     ff.name, obj.get('_id', "<unknown>"))
 
         # (b) Generate an index-loop join result
@@ -411,8 +414,11 @@ class RepoDao:
 Is the name of the object 'strange'? The exception was: %s" % str(e)
             raise BadRequest(message=message, details=details)
 
+        init_obj = self.entity.initialize(obj)
+        logger.debug("New entity=", init_obj)
+
         try:
-            newobj = self.__db().save(obj)
+            newobj = self.__db().save(init_obj)
         except dpcmrepo.Conflict as e:
             # Conflict at creation means the same primary key
             raise Conflict(details="There is already an object with this name "
@@ -466,9 +472,56 @@ def _create_crud_api():
     for em in MODELS:
         e = em.entity
         globals()[e.dao_name] = RepoDao(em)
-        logging.info("Installed CRUD api for entity %s",e.name)
+        logger.info("Installed CRUD api for entity %s",e.name)
 _create_crud_api()
 
+
+#
+# Initializers
+#
+
+# This assures delayed initialization
+predefined_plots = None
+def _get_predefined_plots():
+    global predefined_plots
+    if predefined_plots is None:
+        with open(os.path.join(cfg.resource_path, 'datavis/predefined_plots.json'), 'r') as f:
+            predefined_plots = json.load(f)
+    return predefined_plots
+
+
+# make nsd initially runnable (if possible!)
+# we are still in need of a current plan and current user!
+def _nsd_init(entity, obj):
+
+    # (0) project id
+    if 'current_project' in AAA.session():
+        obj.setdefault('project_id', AAA.session()['current_project'])
+
+    # (A) parameters
+    obj.setdefault('parameters', {})
+    obj['parameters'].setdefault('sim_time_limit', 3600)
+    obj['parameters'].setdefault('simtime_scale', -9)
+
+    # (B) environment
+    obj.setdefault('environment',{})
+    obj['environment'].setdefault('type','castalia')
+
+    # (C) network
+    if 'current_plan' in AAA.session():
+        obj.setdefault('plan_id', AAA.session()['current_plan'])
+
+    # (D) views
+    obj.setdefault('views', _get_predefined_plots()['views'])
+
+    logger.debug("NSD initialized to: ", obj)
+
+    return obj
+
+def _add_initializers():
+    from models.project_repo import NSD
+    NSD.initializer = _nsd_init
+_add_initializers()
 
 #
 # Vectorl compilation and running

@@ -13,11 +13,13 @@ Created on Mar 3, 2014
 
 import runner.api as api
 import runner.AAA as AAA
-from runner.config import gui_file_path
+from runner.config import gui_file_path, cfg
 from runner.monitor import Manager
 from runner.AAA import User
+from runner.dpcmrepo import repo_url
 
 from models.constraints import ConstraintViolation
+from models.project_repo import NSD, SIM, PROJECT, PLAN
 
 import sys
 import logging, os
@@ -150,7 +152,9 @@ def view_simhome(xtor, name):
 	job_created = job.tscreated.strftime("%y/%m/%d %H:%M:%S")
 	job_runtime = str(job.tsinstatus - job.tscreated)
 
+
 	basic_url = "/admin/simhomes/%s/%s" % (xtor, name)
+	repo_simoutput = repo_url(SIM, Manager.get_simid(xtor,name))
 
 	def myurl(sel=selected_file):
 		if sel is None:

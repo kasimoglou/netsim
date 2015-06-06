@@ -69,6 +69,7 @@ class Entity(Named):
 				return f
 		raise KeyError("Field %s not found in entity %s" % (name, self.name))
 
+
 @model
 class Field(Named):
 	'''
@@ -148,12 +149,19 @@ class ApiEntity(Entity):
 	update = attr(bool, nullable=False, default=True)
 	delete = attr(bool, nullable=False, default=True)
 
-	def __init__(self, name, db, read_only=False, **kwargs):
+	# A callable called to initialize new instances.
+	# It is called with parameters (ApiEntity, obj)
+	initializer = attr(object, nullable=False)
+
+	def __init__(self, name, db, read_only=False, initializer=(lambda e,x: x),  **kwargs):
 		super().__init__(name, db)
 		self.dao_name = kwargs.get('dao_name', "%s_dao" % name)
 
 		if read_only:
 			self.create = self.update = self.delete = False
+
+		self.initializer = initializer
+
 
 	def constraint_unique(self, name, *args):
 		ConstraintUnique(name, self, args, primary_key=False)
@@ -176,6 +184,9 @@ class ApiEntity(Entity):
 				return obj['_id']
 			else:
 				return "%s-%s" % (self.name, uuid.uuid4().hex)
+
+	def initialize(self, obj):
+		return self.initializer(self, obj)
 
 	def add_fetch_field(self, name, fkey_name):
 		fkey = [f for f in self.fields if isinstance(f, ForeignKey) and f.name==fkey_name]
@@ -214,6 +225,8 @@ NSD.add_field('name')
 NSD.set_primary_key('project_id','name')
 NSD.add_fetch_field('plan', 'plan_id')
 
+
+
 VECTORL = ApiEntity('vectorl', DB_SIM)
 VECTORL.add_foreign_key('project_id', PROJECT)
 VECTORL.add_field('name')
@@ -221,6 +234,8 @@ VECTORL.set_primary_key('project_id','name')
 
 SIM = Entity('simoutput', DB_SIM)
 SIM.add_foreign_key('nsdid', NSD)
+SIM.add_foreign_key('project_id', PROJECT)
+SIM.add_foreign_key('plan_id', PLAN)
 
 DATABASES = [ DB_PT, DB_SIM ]
 ENTITIES = [ USER, PROJECT, PLAN, NODEDEF, NSD, VECTORL, SIM ]
