@@ -1,12 +1,13 @@
 
 import sys;
 
-var int a=0;
+var int a=[0,1];
+var int b=[10,12];
 
-var int b=10;
+def int k=[1,2];
 
 on sys.Init {
    
-   b:=-a;
+   b:= a+k;
 
 }

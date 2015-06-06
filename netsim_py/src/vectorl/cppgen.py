@@ -21,23 +21,28 @@ def emit_indented(m, values):
                     out.write(line)
         return out.getvalue()
 
-def emit_indented_blocks(values):
+def emit_indented_blocks(values, m='', out=None):
     """Return a string for the recursive list 'values'.
     This list contains both strings and other lists.
     The contents are indented according the the nesting
     level, and returned as a single text.
     """
-    text_values = []
+    if out is None: 
+        out = io.StringIO()
+        print('values=',values)
+
+
     for v in values:
         if isinstance(v, list):
-            vtext = emit_indented_blocks(v)
-            vitext = emit_indented(1, vtext)
-            text_values.append('{')
-            text_values.append(vitext)
-            text_values.append('}')
+            out.write(m+"{\n")
+            emit_indented_blocks(v, m+'\t', out)
+            out.write(m+"}\n")
         else:
-            text_values.append(v)
-    return emit_indented(0, text_values)
+            assert isinstance(v, str)
+            out.write(m)
+            out.write(v)
+            out.write('\n')
+    return out.getvalue()
 
 
 
@@ -67,11 +72,6 @@ def nested_code(gen):
     gen.pop_code()
 
 
-
-
-
-
-
 class CppGenerator:
     def __init__(self, factory, class_name):
         self.factory = factory
@@ -89,7 +89,7 @@ class CppGenerator:
 
     def getname(self, prefix):
         self.name_counter += 1
-        return "_%s_%d" % (prefix, self.name_counter)
+        return "_%s%d" % (prefix, self.name_counter)
 
 
     def push_code(self):
@@ -163,9 +163,7 @@ struct {{self.class_name}} {
     def gen_action_def(self, event):
         """\
 {{! header}}
-{
 {{! body}}
-}
 
 """
         adef = self.action_def[event]
@@ -173,7 +171,7 @@ struct {{self.class_name}} {
         header = self.gen_action_def_header(event)
 
         # generate method body
-        body = emit_indented(1, adef)
+        body = emit_indented_blocks(adef)
         return locals()
 
 
@@ -262,11 +260,15 @@ struct _model_{{!model.name}} {
         for var in event.variables:
             self.var_map[var] = var.name
 
-        action_stmts = []
         for action in event.actions:
             stmt = self.generate_statement(action.statement)
-            action_stmts.append(stmt)
-        return action_stmts
+
+        # get code from the stack
+        assert not self.code_stack 
+        action_def = self.code
+        self.code = []
+
+        return action_def
 
     def mangled(self, *args):
         largs = ["%d%s"%(len(s),s) for s in args]
@@ -292,22 +294,16 @@ struct _model_{{!model.name}} {
 
 
     def generate_statement(self, stmt):
-        print("entering: ",stmt.origin)
         method = cppgen_map[stmt.__class__]
-        return method(self, stmt)
+        with nested_code(self):
+            return method(self, stmt)
 
 
     @gen_item(Assignment)
-    @docstring_template
     def generate_assign(self, stmt):
-        """\
-// {{! stmt.origin}}
-{   
-}
-"""
-        with nested_code(self):
-            rhs_expr = self.generate_expression(stmt.rhs)
-            print("rhs=",rhs_expr)
+
+        rhs_expr = self.materialize_expression(stmt.rhs)
+        self.code.append(rhs_expr.code)
         return
 
         lhs_var, lhs_code = self.generate_lvalue(stmt.lhs)
@@ -334,13 +330,7 @@ struct _model_{{!model.name}} {
 
 
     @gen_item(CodeBlock)
-    @docstring_template
     def generate_code_block(self, stmt):
-        """\
-{
-{{! stmt}}
-}
-"""
         stmts = []
         for stmt in stmt.statements:
             stmts.append(self.generate_statement(stmt))
@@ -348,40 +338,16 @@ struct _model_{{!model.name}} {
         return locals()     
 
     @gen_item(EmitStatement)
-    @docstring_template
     def generate_emit(self, stmt):
-        """\
-// {{! stmt.origin}}
-{
-    
-}
-"""
-        return locals()
+        pass
 
     @gen_item(PrintStatement)
-    @docstring_template
     def generate_print(self, stmt):
-        """\
-// {{! stmt.origin}}
-{
-    
-}
-"""
-        with nested_code(self):
-            return locals()
+        pass
 
     @gen_item(IfStatement)
-    @docstring_template
     def generate_if(self, stmt):
-        """\
-// {{! stmt.origin}}
-{
-    
-}
-"""
-        with nested_code(self):
-            return locals()
-
+        pass
 
     @gen_item(FExpr)
     def generate_fexpr(self, stmt):
@@ -397,6 +363,48 @@ struct _model_{{!model.name}} {
         'This is a top-level entry point to create the expression context.'
         ctx = ExprContext(self, expr)
         ret = self.generate_rvalue(ctx)
+        return ctx
+
+    def materialize_expression(self, expr):
+        'This is a top-level entry point to create the expression context.'
+        ctx = ExprContext(self, expr)
+        return self.materialize(ctx)
+
+
+    def materialize(self, ctx):
+        '''
+        This is a pseudo-operator which materializes the result of an
+        expression to a variable.
+        '''
+        expr = ctx.expr
+
+        # declare the result
+        result_name = self.getname('tmp')
+        code = self.gen_var_decl(expr.type, expr.shape, result_name)
+        self.code.append(code + ';')
+
+        # body of the implementation
+        with nested_code(self):
+            mat = ctx.materialize()
+            self.generate_rvalue(ctx)
+
+            # loop 
+            mat.iterctx.gen_loops()
+
+            # create copy expression
+            lhs = mat.indexing.gen_index(result_name, expr.shape)
+            rhs = ctx.code
+            with nested_code(self):
+                code = "%s = %s;" % (lhs, rhs)
+                self.code.append(code)
+
+        if mat.parent is None:
+            mat.set_inline(result_name, VAR_PRIORITY)
+        else:
+            code = mat.parent.indexing.gen_index(result_name, expr.shape)
+            mat.set_inline(code, VAR_PRIORITY)
+
+        return mat
 
     def generate_rvalue(self, ctx):
         # Here, we first check to see if we are at a constant
@@ -416,7 +424,9 @@ struct _model_{{!model.name}} {
         Variables are named, return inline code
         '''
         varname = self.var_map[ctx.expr.var]
-        ctx.set_inline(varname, VAR_PRIORITY)
+        varshape = ctx.expr.shape
+        code = ctx.indexing.gen_index(varname, varshape)
+        ctx.set_inline(code, VAR_PRIORITY)
 
 
     @gen_item(Literal)
@@ -436,7 +446,7 @@ struct _model_{{!model.name}} {
         if etype is BOOL:
             return "true" if evalue else "false"
         elif etype is INT or etype is REAL:
-            return str(expr.value)
+            return str(evalue)
         elif etype is TIME:
             # what?
             return self.time_literal(evalue)
@@ -456,9 +466,12 @@ struct _model_{{!model.name}} {
         # (because the expr tree is actually a DAG, due to
         # fexpr). In this case, we do not re-emit the constant.
 
-        if hasattr(ctx.expr, 'cpp_const'):
+        expr = ctx.expr
+
+        if hasattr(expr, 'cpp_const'):
             # return the expression previously computed
-            ctx.set_inline(expr.cpp_const, VAR_PRIORITY)
+            code = ctx.indexing.gen_index(cpp_const, ctx.shape)
+            ctx.set_inline(code, VAR_PRIORITY)
             return
 
         # First visit!
@@ -474,26 +487,30 @@ struct _model_{{!model.name}} {
         # ok, non-scalar
         # We create a const array for the value.
         assert expr.shape == expr.value.shape
+
         # get a name for the constant
         name = self.getname('const')
-        code = self.gen_var_decl(expr.type, expr.shape, name, expr.value)
+        code = self.gen_const_decl(expr.type, expr.shape, name, expr.value)
+
         self.const_decl.append(code)
-        ctx.expr.cpp_const = name
-        ctx.set_inline(name, VAR_PRIORITY)
+        expr.cpp_const = name
+        
+        code = ctx.indexing.gen_index(name, expr.shape)
+        ctx.set_inline(code, VAR_PRIORITY)
 
     @docstring_template
-    def gen_const_decl(self, type, shape, name):
+    def gen_const_decl(self, vtype, shape, name, value):
         "static const {{! vardecl}} = {{! valinit}};"
-        vardecl = self.gen_var_decl(vtype, shape, name, value)
+        vardecl = self.gen_var_decl(vtype, shape, name)
         valinit = self.gen_array_literal(vtype, value)
         return locals()
 
     def gen_array_literal(self, type, value):
-        if ndim>1:
+        if value.ndim>1:
             res = ",\n".join(self.gen_array_literal(a) for a in value)
             return "{ "+res+ "}"
         else:
-            assert ndim==1
+            assert value.ndim==1
             res = ", ".join(self.generate_literal_value(type, value))
             return "{ " +res+" }"
 
@@ -525,17 +542,19 @@ struct _model_{{!model.name}} {
         assert not ctx.expr.const
 
         if ctx.expr.is_scalar():
-            self.propagate_to_contexts(ctx)
+            self.propagate_to_contexts(ctx.argctx)
             self.compose_ufunc_expression(ctx)
         else:
             assert ctx.parent is not None
-            parent = ctx.parent
-            ctx.copy_iter_context()
-            # 
+            parent = ctx.parent            
+            self.propagate_to_contexts(ctx.argctx)
+            self.compose_ufunc_expression(ctx)
+
+            
 
 
-    def propagate_to_contexts(argctx):
-        for argc in ctx.argctx:
+    def propagate_to_contexts(self, argctx):
+        for argc in argctx:
             self.generate_rvalue(argc)
 
 
@@ -553,7 +572,7 @@ struct _model_{{!model.name}} {
         # do we need parentheses?
         priority = UNARY_PRIORITY
 
-        if argc.priority > priority
+        if argc.priority > priority:
             # inline, they are all prefix operators!
             ctx.set_inline("%s%s" % (expr.op, argc.code), priority)
         else:
@@ -585,6 +604,7 @@ struct _model_{{!model.name}} {
         return ("", "")
 
 
+
 @model
 class IterVar:
     context = ref()
@@ -595,11 +615,88 @@ class IterVar:
         self.name = name
         self.extent = extent
 
+
+@model
+class Index:
+    context = ref()
+    var = attr(IterVar, nullable=True)
+    stride = attr(int, nullable=False,default=1)
+    offset = attr(type=(int, str), nullable=False, default=0)
+
+    def __init__(self, var, stride, offset):
+        self.var = var
+        self.stride = stride
+        self.offset=offset
+
+    def gen_code(self):
+        if self.var is None or self.stride==0:
+            return str(self.offset)
+
+        vname = self.var.name
+        if self.stride==1:
+            cvar = vname
+        elif self.stride==-1:
+            cvar = '-'+vname
+        else:
+            cvar = "(%s)*%s" %(self.stride, vname)
+
+        if self.offset==0:
+            return "["+cvar+"]"
+        else:
+            return "[%s+(%s)]" % (cvar, self.offset)
+
+
+@model
+class IndexingContext:
+    indices = ref_list(inv=Index.context)
+
+    def gen_index(self, code, shape):
+        codes = [code]
+        skip = len(self.indices) - len(shape)
+        for i in self.indices[skip:]:
+            codes.append(i.gen_code())
+        return ''.join(codes)
+
+
 @model
 class IterationContext:
+    # the owning expression context
+    context = ref()
+
+    @property 
+    def generator(self):
+        return self.context.generator
+
+    # the shape
+    shape = attr(type=(list,tuple), nullable=False)
+
     # the variables
-    expr = ref()
     iteration = ref_list(inv=IterVar.context)
+
+    def __init__(self, context, shape):
+        self.context = context
+        self.shape = shape
+        for s in shape:
+            IterVar(self, self.context.generator.getname('i'), s)
+
+    def gen_loops(self):
+        code = self.generator.code
+        for iter in self.iteration:
+            code.append(self.loop(iter))
+
+    @docstring_template
+    def loop(self, iter):
+        """for(int {{!i}}=0; {{!i}}!={{!n}}; ++{{!i}})"""
+        i=iter.name
+        n=iter.extent
+        return locals()
+
+    def indexing_context(self):
+        idxc = IndexingContext()
+        for ivar in self.iteration:
+            idxc.indices.append(Index(ivar, 1, 0))
+        return idxc
+
 
 
 @model
@@ -608,20 +705,26 @@ class ExprContext:
     generator = attr(CppGenerator, nullable=False)
     expr = attr(ExprNode)
 
+    @property 
+    def shape(self):
+        return self.expr.shape
+
     # priority (to minimize parentheses), only meaningful if inline is true
     # If inline is false, it is set to VAR_PRIORITY
 
     # the result
     code = attr(str, nullable=False)
-    inline = attr(bool, nullable=False)
     priority = attr(int, nullable=False)
 
     # implement the tree of operators
     argctx = ref_list()
     parent = ref(inv=argctx)
 
-    iterctx = ref(inv=IterationContext.expr)
-    iter = attr(IterationContext, nullable=False)
+    # iteration context
+    iterctx = ref(inv=IterationContext.context)
+
+    # indexing context
+    indexctx = attr(IndexingContext, nullable=True, default=None)
 
     def __init__(self, generator, expr):
         self.generator = generator
@@ -629,17 +732,59 @@ class ExprContext:
         if isinstance(expr, Operator) and not expr.const:
             # populate the tree recursively
             for arg in expr.args:
-                self.argctx.append(generator, ExprContext(arg))
+                self.argctx.append(ExprContext(generator, arg))
 
     def set_inline(self, code, priority):
+        print("setting code to",code)
         self.code = code
         self.inline = True
+        self.priority = priority
 
-    def copy_iter_context(self):
-        self.iter = self.parent.iter
+
     def create_iter(self, shape):
-        for s in shape:
-            IterVar(self, self.generator.getname('i'), s)
+        ictx = IterationContext(self, shape)
+        assert self.iterctx is ictx
+        self.indexctx = ictx.indexing_context()
+        assert self.indexing is not None
+
+
+    @property 
+    def indexing(self):
+        if self.indexctx is not None: return self.indexctx
+        if self.parent is not None: return self.parent.indexing
+        return None
+
+
+    def parent_order(self):
+        if self.parent is not None:
+            for i in len(self.parent.argctx):
+                if self.parent.argctx[i] is self:
+                    return i
+            assert False,"This is an error in the mf system!"
+        return None
+
+    def materialize(self):
+        '''
+        Return a new context, for the same expression, and replace
+        thyself both in the parent and in the children.
+        '''
+        matnode = ExprContext(self.generator, None)
+        matnode.expr = self.expr
+        # find your order
+        order = self.parent_order()
+        if order is not None:
+            self.parent.argctx[order] = matnode
+        self.parent = matnode
+
+        # create materialized iteration
+        matnode.create_iter(self.expr.shape)
+        assert matnode.indexctx is not None
+        assert self.indexctx is None
+
+        assert self.indexing is matnode.indexing, "the two:{0}, {1}".format(self.indexing, matnode.indexing)
+
+        return matnode
+
 
 
 
