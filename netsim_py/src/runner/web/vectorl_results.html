@@ -5,9 +5,9 @@
 
 <table class="attrtable" style="bold">
 	<tr>
-		<th>Vectorl module:</th><td><a href="{{nsd_editor_path(VECTORL, vectorl_id)}}">{{!main_module}}</a></td>
+		<th>Vectorl module:</th><td><a href="{{nsd_editor_path(VECTORL, vectorl_id)}}">{{main_module}}</a></td>
 		<td class="sep"></td>
-		<th>Project:</th><td>{{!project_id}}</td>
+		<th>Project:</th><td>{{project_id}}</td>
 	</tr>
 
 	<tr>
@@ -18,11 +18,11 @@
 % end_time = result.get('end_time',"none")
 % run_steps = result.get('run_steps', 'none')
 % if result['success']:
-% run_success = "OK" 
+% run_success = "<b>OK</b>" 
 % else: 
 % run_success = """<span style="color:red;">ERROR</span>"""
 % end
-		<td>{{!run_success}} (end={{!end_time}}, steps={{!run_steps}})</td>
+		<td>{{!run_success}} (end={{end_time}}, steps={{run_steps}})</td>
 % else:
 		<td>-</td>
 % end 
@@ -31,7 +31,7 @@
 </table>
 
 <form method="GET" action="/admin/run_vectorl">
-    <input type="hidden" name="vectorl_id" value="{{!vectorl_id}}"/>     
+    <input type="hidden" name="vectorl_id" value="{{!vectorl_id}}"/>
     <input type="submit" name="action" value="Edit"/>
     <input type="submit" name="action" value="Compile"/>
     <input type="submit" name="action" value="Run"/>
@@ -42,16 +42,16 @@
 
 
 % if runit and success:
- <h2>Run output  (end_time={{! result.get('end_time',"none")}}, processed events={{! result.get('run_steps', 'none')}}  ) </h2>
+ <h2>Run output  (end_time={{result.get('end_time',"none")}}, processed events={{result.get('run_steps', 'none')}}  ) </h2>
  <pre>
-{{! result['stdout']}}
+{{result['stdout']}}
 </pre>
 % if result['stderr']:
  <hr>
- <h1>Error output:</h1>
- <pre style="foreground-color:red;">
-{{! result['stdout']}}
-</pre>
+ <h3>Error output:</h3>
+ <b><pre style="color:red;text-weight:bold;">
+{{result['stderr']}}
+</pre></b>
 % end
 % end
 

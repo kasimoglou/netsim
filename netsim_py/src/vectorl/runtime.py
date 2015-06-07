@@ -5,6 +5,7 @@ from models.validation import snafu
 
 import numpy as np
 import heapq
+import sys
 from collections import deque
 
 #
@@ -63,27 +64,26 @@ class StackMachine:
 			try:
 				op(self)
 			except Exception as e:
-				print("Exception=",e)
+				print("Exception=",e, file=sys.stderr)
 				self.print_state(op)
 				self.print_stack_labels()
 				raise
 
 
 	def print_state(self, op=None):
-		print("step=",self.step,"now=", self.now)
-		if op: print("Processing ",op)
-		print("Data stack:", self.dstack)
-		print("Oper stack:", self.ostack)
-		print("Pending:", self.event_queue)
-		print()
+		print("step=",self.step,"now=", self.now, file=sys.stderr)
+		if op: print("Processing ",op, file=sys.stderr)
+		print("Data stack:", self.dstack, file=sys.stderr)
+		print("Pending:", self.event_queue, file=sys.stderr)
+		print(file=sys.stderr)
 
 	def print_stack_labels(self):
-		print('Stack trace (top to bottom)')
+		print('Stack trace (top to bottom)', file=sys.stderr)
 		for item in reversed(self.ostack):
 			if isinstance(item, label):
-				print(item)
+				print(item, file=sys.stderr)
 			else:
-				print('\t\t',item)
+				print('\t',item, file=sys.stderr)
 
 
 	def start(self, until=None, steps=None):

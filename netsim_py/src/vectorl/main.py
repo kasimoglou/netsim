@@ -10,8 +10,11 @@ from os.path import dirname, basename, join
 import argparse
 
 
+factory = None
 
 def main():
+
+    global factory
 
     parser = argparse.ArgumentParser(description='''
     This is a compiler and executor for vectorl. It takes as input a uri to the
@@ -43,6 +46,7 @@ the simulation will end. The default is 'no limit'""" , default=None)
     args = parser.parse_args()
 
     fmf = FileModelFactory()
+    factory = fmf
     for d in args.path.split(':'):
         fmf.add(d)
 
@@ -59,10 +63,11 @@ the simulation will end. The default is 'no limit'""" , default=None)
         model = fmf.get_model(bname)
 
     if not compile.success:
-        return
+        return fmf
 
     if not (args.compile or args.gen):
         runner = Runner(fmf)
+        fmf.runner = runner
         runner.start(until=args.until, steps=args.steps)
         if runner.event_queue:
             print("Finished at time=", runner.now,"after", 
@@ -72,6 +77,7 @@ the simulation will end. The default is 'no limit'""" , default=None)
         gen.generate()
         print(gen.output_hh)
         print(gen.output_cc)
+
 
     return fmf
 
