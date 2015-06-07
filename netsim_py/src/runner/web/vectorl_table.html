@@ -22,10 +22,11 @@
 		<td>{{obj['_id']}}</td>
         <td>{{obj.get('name','')}}</td>
         <td>
-            <form method="post" action="/admin/run_vectorl">
+            <form method="GET" action="/admin/run_vectorl">
                 <input type="hidden" name="vectorl_id" value="{{obj['_id']}}"/> 
-                <input type="submit" name="compile" value="Compile">
-                <input type="submit" name="run" value="Run">
+                <input type="submit" name="action" value="Edit"/>
+                <input type="submit" name="action" value="Compile"/>
+                <input type="submit" name="action" value="Run"/>
             </form>
         </td>
      </tr>

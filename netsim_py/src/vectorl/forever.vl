@@ -1,0 +1,18 @@
+
+
+import sys;
+
+
+
+event next();
+
+on next
+{
+	emit next() after 1;
+	print("Time is ", now());
+}
+
+on sys.Init
+{
+	emit next() after 1;
+}

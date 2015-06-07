@@ -530,14 +530,19 @@ _add_initializers()
 from vectorl.repofactory import proc_vectorl_model
 
 @apierror
-def process_vectorl(vectorl_id, run=False):
+def process_vectorl(vectorl_id, run=False, until=None, steps=1000):
+    # put a maximum cutoff at the number of steps!
+    max_steps = 100000
+    if steps is not None and steps>max_steps:
+        raise Forbidden(details="The number of simulation steps requested exceeds the allowable maximum of %d" % max_steps)
+
     vlres = list(vectorl_dao.findBy('all', key=vectorl_id))
     if len(vlres)==0:
-        raise NotFound(details="The given vectorl object does not exist")
+        raise NotFound(details="The requested vectorl object does not exist")
     assert len(vlres)==1
 
     vlobj = vlres[0]
     project_id = vlobj['project_id']
     name = vlobj['name']
 
-    return proc_vectorl_model(project_id, name, run)
+    return proc_vectorl_model(project_id, name, run, until=until, steps=steps)

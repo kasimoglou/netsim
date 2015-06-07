@@ -1,8 +1,48 @@
 
 % rebase('mainpage.html')
+% from runner.guiapp import nsd_editor_path
+% from models.project_repo import VECTORL
 
+<table class="attrtable" style="bold">
+	<tr>
+		<th>Vectorl module:</th><td><a href="{{nsd_editor_path(VECTORL, vectorl_id)}}">{{!main_module}}</a></td>
+		<td class="sep"></td>
+		<th>Project:</th><td>{{!project_id}}</td>
+	</tr>
+
+	<tr>
+		<th>Compiler:</th><td>{{'success' if success else 'failed'}}</td>
+		<td class="sep"></td>
+		<th>Run:</th>
 % if runit:
- <h2>Run output:</h2>
+% end_time = result.get('end_time',"none")
+% run_steps = result.get('run_steps', 'none')
+% if result['success']:
+% run_success = "OK" 
+% else: 
+% run_success = """<span style="color:red;">ERROR</span>"""
+% end
+		<td>{{!run_success}} (end={{!end_time}}, steps={{!run_steps}})</td>
+% else:
+		<td>-</td>
+% end 
+	</tr>
+
+</table>
+
+<form method="GET" action="/admin/run_vectorl">
+    <input type="hidden" name="vectorl_id" value="{{!vectorl_id}}"/>     
+    <input type="submit" name="action" value="Edit"/>
+    <input type="submit" name="action" value="Compile"/>
+    <input type="submit" name="action" value="Run"/>
+    <span>Until:</span><input type="number" name="until" value="{{!until}}"/>
+    <span>Max. events</span> <input type="number" max="100000" name="steps" value="{{!steps}}"/>
+</form>
+
+
+
+% if runit and success:
+ <h2>Run output  (end_time={{! result.get('end_time',"none")}}, processed events={{! result.get('run_steps', 'none')}}  ) </h2>
  <pre>
 {{! result['stdout']}}
 </pre>
@@ -15,10 +55,29 @@
 % end
 % end
 
+% if compiler['compiler_output']:
 <hr>
-<h2>Raw json</h2>
-<pre>
-{{!output}}
-</pre>
+<h2>Compiler output</h2>
+% for entry in compiler['compiler_output']:
+% style = {'ERROR':'color:red;', 'WARNING':'color:blue;', 'CRITICAL':'color:red;'}.get(entry['level'],'color:black;')
+<p style="margin:4px; {{style}}">{{entry['message']}}</p>
+% end
+<hr>
+<h2>Modules included:</h2>
+<ul>
+% for model in compiler['id_map']:
+   <li><a href="{{!nsd_editor_path(VECTORL, compiler['id_map'][model])}}">{{!model}}</a></li>
+% end
+</ul>
 
+% end
+
+<hr>
+<h2>Source</h2>
+% source_code = compiler['vectorl_object_map'][compiler['vectorl_model_name']]['code']
+<ol class="code">
+% for line in source_code.split('\n'):
+	<li><pre>{{!line}}</pre></li>
+% end
+</ol>
 

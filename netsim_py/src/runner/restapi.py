@@ -159,13 +159,30 @@ def get_plans(prjid):
 # vectorl execution
 #
 
+
+def _process_vectorl(vlid, run):
+	limits = {}
+	try:
+		if request.query.steps:
+			limits['steps'] = int(request.query.steps)
+		if request.query.until:
+			limits['until'] = float(request.query.until)
+	except ValueError:
+		json_abort(api.BadRequest.hhtpcode, details="The url query parameters well not well-formed.")
+
+	try:
+		return api.process_vectorl(vlid, run, **limits)
+	except Exception as e:
+		process_api_error(e)
+
+
 @app.get("/vectorl/<vlid>/compile")
 def compile_vectorl(vlid):
-	return api.process_vectorl(vlid, run=False)
+	return _process_vectorl(vlid, False)
 
 @app.get("/vectorl/<vlid>/run")
 def run_vectorl(vlid):
-	return api.process_vectorl(vlid, run=True)
+	return _process_vectorl(vlid, True)
 
 
 #

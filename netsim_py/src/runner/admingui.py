@@ -247,14 +247,51 @@ def show_nsd_table():
 	thispage = "/admin/nsd_table.html"
 	return locals()
 
-@app.post("/run_vectorl")
+@app.route("/run_vectorl")
 @view("vectorl_results.html")
 @AAA.logged_in
 def process_vectorl():
-	vectorl_id = request.forms.vectorl_id
-	runit = 'run' in request.forms
-	
-	result = api.process_vectorl(vectorl_id, runit)
+	vectorl_id = request.query.vectorl_id
+	if request.query.action not in ('Edit', 'Compile', 'Run'):
+		raise HTTPError(status=403, body="The request is illegal")
+
+	if request.query.action=='Edit':
+		redirect("/nsdEdit/html/index.html#!/vectorl/%s" % vectorl_id)
+
+	runit = request.query.action=='Run'
+
+	if request.query.until:
+		try:
+			until = float(request.query.until)
+		except:
+			return show_alert("Bad end time", 
+				"The end-time must be a floating point decimal number.",
+				"/admin/vectorl_table.html")
+	else:
+		until=''
+
+	if request.query.steps:
+		try:
+			steps = int(request.query.steps)
+		except:
+			return show_alert("Bad maximum number of events", 
+				"The maximum number of events must be an integer.",
+				"/admin/vectorl_table.html")
+	else:
+		steps=1000
+
+
+	result = api.process_vectorl(vectorl_id, runit, 
+		until=until if isinstance(until, (int,float)) else None, 
+		steps=steps)
+	compiler = result['compiler'] if runit else result
+	assert compiler['type']=="vectorl_compiler_output"
+	run = result if runit else None
+	assert run is None or run['type']=="vectorl_run_output"
+
+	success = compiler['success']
+	main_module = compiler['vectorl_model_name']
+	project_id = compiler['project_id']
 	output = json.dumps(result, indent=2)
 		
 	refresh_page = False

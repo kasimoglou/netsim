@@ -1,6 +1,7 @@
 
 from vectorl.builtins import SysBuiltin
 from vectorl.model import *
+from models.validation import snafu
 
 import numpy as np
 import heapq
@@ -30,6 +31,7 @@ class StackMachine:
 		self.event_queue = [] 	# the event queue
 		self.event_count = 0  	# event counter
 		self.now = TIME(0)    	# the current time
+		self.step = 0
 
 	def emit(self, evt, args, after):
 		'''
@@ -50,7 +52,8 @@ class StackMachine:
 
 	def run(self, prog):
 		'''
-		Load a program on the ostack and iterate until it is empty.
+		Load a program on the ostack and iterate until it is empty, or the
+		time limit is reached. If time limit is None, no time limit is set.
 		'''
 		self.ostack.extend(prog.prog)
 		while self.ostack:
@@ -65,9 +68,10 @@ class StackMachine:
 				self.print_stack_labels()
 				raise
 
+
 	def print_state(self, op=None):
+		print("step=",self.step,"now=", self.now)
 		if op: print("Processing ",op)
-		print("now=", self.now)
 		print("Data stack:", self.dstack)
 		print("Oper stack:", self.ostack)
 		print("Pending:", self.event_queue)
@@ -82,18 +86,25 @@ class StackMachine:
 				print('\t\t',item)
 
 
-	def start(self, until=None):
+	def start(self, until=None, steps=None):
 		'''
 		Process queue events until the specified time,
-		or forever when None
+		or forever when None, or until the number of 'steps'
+		is performed, unless None.
+
+		Note that a 'step' is an event dispatch
 		'''
 		while self.event_queue:
+			if until is not None and self.now>until:
+				break
+			if steps is not None and self.step>=steps:
+				break
+
 			item = heapq.heappop(self.event_queue)
+			self.step+=1
 			if self.trace:
 				self.print_state(item)
 			self.now, _, evt, args = item
-			if until is not None and self.now>until:
-				break
 			self.trigger(evt, args)
 
 
@@ -392,7 +403,7 @@ class Runner(StackMachine):
 			all_actions.append(StmtProg(action.statement, "on %s" % evt.name))
 		return Prog(all_actions,"actions(%s)" % evt.name)
 
-	def start(self, until=None):
+	def start(self, until=None, steps=None):
 		self.emit(self.model.sysmodel['Init'], [], 0)
-		super().start(until)
+		super().start(until, steps)
 

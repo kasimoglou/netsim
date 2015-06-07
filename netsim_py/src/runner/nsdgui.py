@@ -21,9 +21,3 @@ def index(fname):
 def get_css():
     return static_file(fname, root=(nsdEdit_file_path() + '/dist/styles'))
 
-
-
-
-
-
-

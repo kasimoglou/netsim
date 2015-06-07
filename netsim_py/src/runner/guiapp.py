@@ -9,6 +9,7 @@ import logging
 import bottle
 #from runner.config import gui_file_path, nsdEdit_file_path
 from runner.config import cfg
+from models.project_repo import NSD, VECTORL, ApiEntity
 
 # importing these declares their functions
 import runner.admingui
@@ -48,5 +49,12 @@ def start_gui(args, guiaddr):
         quiet=True)
     logging.info("Stopped web server")
 
+def nsd_editor_path(model, oid):
+    assert isinstance(model, ApiEntity)
+    prefix = "/nsdEdit"
+    if model is NSD:
+        return ''.join((prefix,"/html/index.html#!/nsd/",oid))
+    elif model is VECTORL:
+        return ''.join((prefix,"/html/index.html#!/vectorl/",oid))
 
 

@@ -347,7 +347,8 @@ def snafu(msg=None, *args, **kwargs):
     However, processing continues normally.
     '''
     if not scope_stack:
-        logging.getLogger().error(msg, args, extra=kwargs)
+        if msg:
+            logging.getLogger().error(msg, args, extra=kwargs)
         return
     if msg:
         scope_stack[-1].log.error(msg, *args, extra=kwargs)

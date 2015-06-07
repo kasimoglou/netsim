@@ -23,6 +23,12 @@ def main():
     parser.add_argument("--path", '-p', type=str, help="""Provide a list of directories separated by
         : to search in vectorl files.""", default="")
 
+    parser.add_argument("--until", "-u", type=float, help="""The simulation time at which 
+the simulation will end. The default is 'no limit'""" , default=None)
+
+    parser.add_argument("--steps", "-s", type=int, help="""The maximum number of steps (events) to process.
+ The default is 'no limit'""", default=None)
+
     parser.add_argument("--compile", '-c',
                         action="store_true",
                         help="""Only compile the given file, do not run it.""")
@@ -56,7 +62,11 @@ def main():
         return
 
     if not (args.compile or args.gen):
-        Runner(fmf).start()
+        runner = Runner(fmf)
+        runner.start(until=args.until, steps=args.steps)
+        if runner.event_queue:
+            print("Finished at time=", runner.now,"after", 
+                runner.step, "steps, unprocessed events=",len(runner.event_queue))
     elif args.gen:
         gen=CppGenerator(fmf, bname)
         gen.generate()
