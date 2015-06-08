@@ -6,6 +6,10 @@ Created on Jan 19, 2015
 import logging
 from subprocess import PIPE, Popen
 from datavis.database import Relation
+from models.validation import warn, fail
+import traceback
+import re
+
 
 class StatBreakdownHelper:
         """
@@ -103,16 +107,20 @@ class Plot():
         self.is_historgram = is_histogram
 
     def make_plot(self, gnuplot="gnuplot"):
-        p = Popen(gnuplot, stdin=PIPE)
+        p = Popen(gnuplot, stdin=PIPE, stderr=PIPE)
         ret = False
         try:
             script = self.__create_script()
             if script:
                 p.stdin.write(script.encode("utf-8"))
                 ret = True
-        # except Exception:  #  for debugging
-        #     import traceback
-        #     print(traceback.format_exc())
+                out, err = p.communicate(timeout=0.2)
+                err_str = err.decode("utf-8") if err else ""
+                if err_str != "" and re.search("gnuplot>\ ", err_str):
+                    fail("plot \"%s\" generation failed, gnuplot_stderr:\n%s" % (self.title, err_str))
+        except BaseException:
+            logging.critical(traceback.format_exc())
+            fail("generation of plot \"%s\" failed\n%s" % (self.title, p.stderr.read()))
         finally:
             p.stdin.close()
             return ret
@@ -142,6 +150,7 @@ class Plot():
                 sbh.add_label_values(g.output_data())
             values = sbh.get_values()
             if not values:
+                warn("no data found for plot \"%s\"" % self.title)
                 return None
             for i in range(len(values[0])-1):
                 for row in values:
@@ -157,6 +166,7 @@ class Plot():
                     script += graph_data
                     has_data = True
             if not has_data:
+                warn("no data found for plot \"%s\"" % self.title)
                 return None
 
         return script
@@ -274,7 +284,9 @@ pm_defaults = {
     "grid": " ",
     "key": None,
     "output": DEFAULT,
-    "x": None
+    "x": None,
+    "axes": None,
+    "unit": ""
 }
 
 def make_plot(rel, x, y, axes, select={}, title=DEFAULT, style='linespoints',

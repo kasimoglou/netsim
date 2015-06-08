@@ -1,26 +1,21 @@
-import json, base64
-from pprint import pprint
-import random
-import subprocess, shlex
-import urllib.request
-import logging, os
-import time
+import json
+import base64
+import logging
+import os
 from datavis.json2plots import ViewsPlotsDecoder
-from runner.config import cfg
-
-from runner.config import resource_path
-from runner.default_json_simoutput import node_plot_results_default, node_parameter_results_default, network_plot_results_default, network_parameter_results_default, node_2_node_results_default
-from datavis.tests.test_results2json import executor_final_stage_test as efst
 from datavis.model2plots import create_simulation_results
+from datavis.datavis_logger import DatavisProcess
+from models.validation import fatal
+from datavis.results2json import JsonOutput
 
 from simgen.datastore import context
+
 
 class SimOutputHandler:
     def __init__(self):
         self.status = 'FINISHED'
-        
 
-    def finish_job(self,results_json):
+    def finish_job(self, results_json):
         try:
             if (self.status == 'ABORTED'):
                 self.create_null_SIMOUTPUT()
@@ -29,11 +24,12 @@ class SimOutputHandler:
         except:
             logging.exception("Cannot create json file")
 
-	
 
-	#
-	#Creates the SIMOUTPUT json file in case where ABORTED
-	#    
+
+        #
+        # Creates the SIMOUTPUT json file in case where ABORTED
+        #
+
     def create_null_SIMOUTPUT(self):
         data = context.datastore.get_root_object()
         try:
@@ -45,7 +41,7 @@ class SimOutputHandler:
             data["node_2_node_results"] = []
             data["type"] = "simoutput"
 
-            #Write json data to SIMOUTPUTx
+            # Write json data to SIMOUTPUTx
             logging.info("Data = %s", data)
             context.datastore.update_root_object(data)
 
@@ -54,7 +50,7 @@ class SimOutputHandler:
 
 
     #
-    #Creates the SIMOUTPUT json file and stores
+    # Creates the SIMOUTPUT json file and stores
     #all the simulation results
     #
     def create_SIMOUTPUT(self, results_json):
@@ -127,23 +123,39 @@ def generate(fileloc):
     #
     # Get the results of the simulation
     #
+    output_list = []
+    pf = DatavisProcess.new_factory(output_list)
+    results_json = None
 
-    vpd = ViewsPlotsDecoder()
-    with open(filename, "r") as f:
-        json_str = f.read()
+    with pf(name='GenerateResultsProcess'):
+        vpd = ViewsPlotsDecoder()
+        with open(filename, "r") as f:
+            json_str = f.read()
 
-    logging.root.debug("The nsd is:\n%s", json.dumps(json.loads(json_str), indent=4))
+        logging.root.debug("The nsd is:\n%s", json.dumps(json.loads(json_str), indent=4))
 
-    nsd = json.loads(json_str)
-    if "views" not in nsd:
-        nsd["views"] = []
-    derived_tables, plot_models = vpd.decode(nsd["views"])
+        nsd = json.loads(json_str)
+        if "views" not in nsd:
+            nsd["views"] = []
+        try:
+            derived_tables, plot_models = vpd.decode(nsd["views"])
+        except Exception as ex:
+            fatal("{}\nAborting results generation".format(ex))
 
-    results_json = create_simulation_results(simulation_id, plot_models, castalia_data)
-    results_json_string = json.dumps(results_json, default=lambda o: o.__dict__, indent=2)
-    logging.root.debug("Results in json are:\n%s", json.dumps(json.loads(results_json_string), indent=2))
-    with open(fileloc + "/results.json", "w") as f:
-        print(results_json_string, file=f)
+        results_json = create_simulation_results(simulation_id, plot_models, castalia_data)
+        results_json_string = json.dumps(results_json, default=lambda o: o.__dict__, indent=2)
+        logging.root.debug("Results in json are:\n%s", json.dumps(json.loads(results_json_string), indent=2))
+        with open(fileloc + "/results.json", "w") as f:
+            print(results_json_string, file=f)
+
+        #just for testing, print all GenerateResultsProcess's logged messages
+        for i in output_list:
+            print(i)
+
+    # if GenerateResultsProcess failed we should still return something
+    if results_json is None:
+        jo = JsonOutput("simulation_results", simulation_id)
+        results_json = jo.get_json()
 
     simoutput_handler = SimOutputHandler()
     simoutput_handler.finish_job(results_json)
