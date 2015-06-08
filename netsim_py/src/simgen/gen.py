@@ -79,7 +79,8 @@ def validate_simulation(nsd_url):
 
         logger.error("url=%s", get_root_url(fileloc))
 
-        retval = execute_context(fileloc, generate_simulation, 'val', redir=True, loglevel=logging.DEBUG, raises=False)
+        retval = execute_context(fileloc, generate_simulation, 'val', redir=True, 
+            loglevel=logging.DEBUG, raises=False, validate=True)
 
         with open(os.path.join(fileloc, 'stdout.val.txt'), 'r') as f:
                 retval['stdout'] = f.read()
@@ -89,7 +90,7 @@ def validate_simulation(nsd_url):
     return retval
 
 
-def generate_simulation(fileloc=None, loglevel=logging.DEBUG, raises=True):
+def generate_simulation(fileloc=None, loglevel=logging.DEBUG, raises=True, validate=False):
     """
     This function is called by the executor to bootstrap code generation.
     """
@@ -98,6 +99,8 @@ def generate_simulation(fileloc=None, loglevel=logging.DEBUG, raises=True):
     with GenProcess(loglevel) as genproc:
         # Get the root object
         try:
+            context.validate = validate
+
             dstore = context.datastore
             sim = context.datastore.get_root_object()
         except Exception as e:
