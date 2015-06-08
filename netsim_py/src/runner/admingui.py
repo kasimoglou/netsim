@@ -216,13 +216,16 @@ def get_css():
 def submit_nsd():
 	nsdid = request.forms.nsdid
 	try:
-		try:
-			sim = api.create_simulation(nsdid)
-		except:
-			pass
+		sim = api.create_simulation(nsdid)
 		refresh_page = False
 		thispage = "/admin/jobs.html"
 		return locals()
+	except api.Error as e:
+		logging.debug("In create_simulation(%s)",nsdid,exc_info=1)
+		body = ["The simulation was not created."]
+		for k, v in e.kwargs.items():
+			body.append("%s: %s" % (k,v))
+		raise HTTPError(status=e.httpcode, body="\n".join(body))
 	except ValueError as e:
 		loggging.debug("In restapi.post_simulation", exc_info=1)
 		raise HTTPError(status=403, body="The provided NSD id was not legal")
@@ -436,6 +439,7 @@ def show_acl():
 
 
 @app.error(400)
+@app.error(403)
 @app.error(500)
 @view('generror.html')
 def show_generic_error(e):

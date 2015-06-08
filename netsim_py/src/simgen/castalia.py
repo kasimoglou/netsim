@@ -6,7 +6,11 @@ Created on Oct 14, 2014
 
 import os.path
 import json
+import logging
+
 from models.json_reader import JSONReader, repository
+from simgen.validation import *
+
 from models.mf import Attribute
 from simgen.utils import docstring_template
 from .castaliagen import generate_castalia
@@ -15,6 +19,7 @@ from models.nsd import NSD, Network, Mote, Position, Plan, Project,\
     CastaliaEnvironment, VectorlEnvironment, NodeDef, ConnectivityMatrix
 
 
+logger = logging.getLogger('codegen')
 
 class NSDReader(JSONReader):
     """This class implements a text2model transformation:
@@ -24,7 +29,6 @@ class NSDReader(JSONReader):
     """
     def __init__(self, gen):
         self.gen = gen
-        self.log = gen.log
         self.datastore = gen.datastore
 
     def read_nsd(self, nsd_id, simhome):
@@ -35,42 +39,52 @@ class NSDReader(JSONReader):
         Return the nsd object on wchich all the information is linked.
         '''
         nsd = NSD()
+        self.nsd=nsd
         self.simhome=simhome
         # get nsd
 
-        nsd_json = self.read_object(nsd_id, nsd)
-        self.create_jsonfile(nsd_json, "nsd.json")
+        with Context(stage='Analyzing NSD'):
+            nsd_json = self.read_object(nsd_id, nsd)
+            self.create_jsonfile(nsd_json, "nsd.json")
 
-        self.nsd=nsd
+            # add the environment spec
+            nsd.environment = self.create_environment(nsd_json)
+
         nsd.plan = Plan()
         nsd.project = Project()
 
-        # add the environment spec
-        nsd.environment = self.create_environment(nsd_json)
-
         #read Couchdb json files
-        plan_json = self.read_object(nsd.plan_id, nsd.plan)
-        self.create_jsonfile(plan_json, "plan.json")
+        plan_json = {}
+        with Context(stage='Analyzing plan'):
+            plan_json = self.read_object(nsd.plan_id, nsd.plan)
+            self.create_jsonfile(plan_json, "plan.json")
 
-        project_json = self.read_object(nsd.project_id, nsd.project)
-        self.create_jsonfile(project_json, "project.json")
+        project_json = {}
+        with Context(stage='Analyzing project info'):
+            project_json = self.read_object(nsd.project_id, nsd.project)
+            self.create_jsonfile(project_json, "project.json")
 
         # Read nodedef objects
         nodeDefOids = {n.nodeTypeId for n in nsd.plan.NodePosition}
-        self.log.debug("Collected nodeDef objects: %s", nodeDefOids )
+        logger.debug("Collected nodeDef objects: %s", nodeDefOids )
 
         self.nodeDefs = {oid: NodeDef() for oid in nodeDefOids}
-        nodeDefJson = {oid:self.read_object(oid, self.nodeDefs[oid]) 
-            for oid in nodeDefOids}
+
+        nodeDefJson = {}
+        for oid in nodeDefOids:
+            with Context(stage='Analyzing node type %s'%oid):
+                nodeDefJson[oid] = self.read_object(oid, self.nodeDefs[oid])
+
         self.create_jsonfile(nodeDefJson, "nodedefs.json")
         nsd.nodedefs = set(self.nodeDefs.values())
 
         # read connectivity matrix, if it exists
         if ('_attachments' in plan_json and 
              'connectivityMatrix.json' in plan_json['_attachments']):
-            cm = nsd.plan.connectivityMatrix = ConnectivityMatrix()
-            cm_json = self.read_object((plan_json,'connectivityMatrix.json'), cm)
-            self.create_jsonfile(cm_json, "connectivityMatrix.json")
+            with Context(stage="Analyzing connectivity"):
+                cm = nsd.plan.connectivityMatrix = ConnectivityMatrix()
+                cm_json = self.read_object((plan_json,'connectivityMatrix.json'), cm)
+                self.create_jsonfile(cm_json, "connectivityMatrix.json")
 
         # Create network model
         self.create_network()
@@ -82,15 +96,24 @@ class NSDReader(JSONReader):
         Read object oid from the repository, and populate model 
         object obj.
         '''
-        entity = repository.get(obj.__class__).entity
+        try:
+            entity = repository.get(obj.__class__).entity
+        except ValueError:
+            fail("It was not possible to determine the repository entity for %s",obj.name)
+
         try:
             # read parameters
             json_obj = self.datastore.get(entity, oid)
+        except Exception as e:
+            fail("Failed to read %s with id='%s' from the project repository." % (entity.name, oid))
+
+        try:
             self.populate_modeled_instance(obj, json_obj)
         except Exception as e:
-            self.log.debug("Failed to read %s." % (entity.name))
-            raise RuntimeError(str(e))
-        self.log.debug("%s=\n%s", entity.name, json.dumps(json_obj, indent=4))
+            logger.error("Failure in populate_modeled_instance(%s, %s)", obj, json_obj, exc_info=1)
+            fail("Failed to analyze %s with id='%s'." % (entity.name, oid))
+
+        logger.debug("%s=\n%s", entity.name, json.dumps(json_obj, indent=4))
         return json_obj
 
     def create_jsonfile(self, jsondata, filename):
@@ -105,13 +128,19 @@ class NSDReader(JSONReader):
         '''
         Create the correct environment spec in the nsd.
         '''
+        if 'environment' not in nsd_json:
+            fail('The NSD does not have an environment specification')
         env_json = nsd_json['environment']
+
+        if 'type' not in env_json:
+            fail('The NSD environment type is missing')
+
         if env_json['type']=='castalia':
             env = CastaliaEnvironment()
         elif env_json['type']=='vectorl':
             env = VectorlEnvironment()
         else:
-            raise ValueError("Unknown environment spec: %s" % env_json[type])
+            fail("The NSD contains an unknown environment type: %s" % env_json[type])
         self.populate_modeled_instance(env, env_json)
         self.nsd.environment = env
 
@@ -125,9 +154,7 @@ class NSDReader(JSONReader):
             mote.network = network
             mote.nodeType = self.nodeDefs[mote.nodeTypeId]
 
-        
-        
-        
+       
 
 #
 # Implements a "driver object" mixin
@@ -140,35 +167,29 @@ class CastaliaGen:
         """Return an open text file (for appending) with the given relative path."""
         return open(os.path.join(self.simhome, path), "a")
 
-    def generate_nodefile(self):
-        self.log.info("Generating nodefile")
-        print("Generating nodefile")
-        with self.open_file("nodefile.txt") as nodefile:
-            nodes = self.extract_nodes(self.plan)
-            nodefile.write(json.dumps(nodes))
-    
     def build_model(self):
-        """This is the entry point to the code that loads the NSD from the Project Repository.
         """
-        self.log.info("Building model.\n simhome=%s\n sim_root=%s", self.simhome, self.sim_root)
+        This is the entry point to the code that loads the NSD from the Project Repository.
+        """
+        inform("Building model.")
+        logger.debug("simhome=%s   sim_root=%s", self.simhome, self.sim_root)
 
-        reader = NSDReader(self)
-        self.nsd = reader.read_nsd(self.sim_root['nsdid'], self.simhome)
-       
-        self.log.info("NSD model built")
+        with Context(stage='Building network model') as build:
+            reader = NSDReader(self)
+            self.nsd = reader.read_nsd(self.sim_root['nsdid'], self.simhome)
+        if build.success:
+            inform("Network model built.")
+        else:
+            fatal("""Building the network model from information in the \
+ project repository has failed. \
+ Cannot continue with the generation. The simulation has failed.""")
 
-    
     def validate(self):
-
-        self.log.info("NSD validated")
+        inform("NSD validated.")
         
     
-    def open_file(self, path):
-        return open(os.path.join(self.simhome, path), "a")
-        
-
     def generate_code(self):        
         generate_castalia(self)
-        #self.generate_nodefile()
+        inform("Simulation generated successfully.")
 
 

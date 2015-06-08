@@ -87,12 +87,12 @@ def create_simoutput(xtor, prepo, nsdid):
     try:
         project_id = nsd['project_id']
     except KeyError:
-        raise BadRequest('The specified NSD does not reference a project!'
+        raise BadRequest(details='The specified NSD does not reference a project!'
         ' This is definitely a malformed NSD, and a simulation cannot be created for it.')
     try:
         plan_id = nsd['plan_id']
     except KeyError:
-        raise BadRequest('The specified NSD does not specify a plan. Therefore, the ' 
+        raise BadRequest(details='The specified NSD does not specify a plan. Therefore, the ' 
             'simulation cannot be created. Try to edit the NSD in the NSD editor.')
 
 

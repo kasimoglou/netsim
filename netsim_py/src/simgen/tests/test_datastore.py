@@ -6,7 +6,7 @@ Created on Oct 14, 2014
 @author: vsam
 '''
 from simgen.datastore import create_datastore_proxy
-
+from models.project_repo import NSD
 
 #
 #  filestore
@@ -94,7 +94,7 @@ def test_filestore_load_relative_path():
     ds = get_filestore_in_resources()
 
     sim = ds.get_root_object()
-    nsd_obj = ds.get_nsd(sim['nsd'])
+    nsd_obj = ds.get(NSD, sim['nsd'])
     assert 'sim_time_limit' in nsd_obj
     
         

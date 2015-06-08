@@ -86,17 +86,14 @@ class FileStore(DataStore):
         robj.update(sim)
         self.put_json_object(robj, self.root_path)
 
-    def put_attachment(self, data, name):
-        """Add an attachment to root object, under name. 'data' must be either bytes or
-        a file-like object."""
-        raise NotImplementedError
 
-    def get_nsd(self, oid):
-        """Retrieve the NSD for the given oid"""
-        return self.__get_object(oid)
-
-    def get_plan(self, oid):
-        """Retrieve plan for the given oid"""
+    def get(self, entity, oid):
+        '''
+        Read an entity from the file store. Basically, ignore the entity
+        and just read the object (also take care of attachments).
+        '''
+        if isinstance(oid, (tuple,list)):
+            oid = oid[1]
         return self.__get_object(oid)
 
 register_datastore_proxy('file', FileStore)

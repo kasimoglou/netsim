@@ -4,6 +4,7 @@
 # A class for parsing json into model objects
 # 
 
+from models.validation import Context, fail, fatal, inform, warn, add_context
 from models.mf import RelKind, python_type, annotation_class, Attribute
 
 
@@ -103,9 +104,6 @@ class JSONReader:
     of a json object into a hierarchy of model objects.
     '''
 
-    def __init__(self, log):
-        self.log = log
-
     def transform_value(self, attr, value):
         """Transform a value so that it is assignment-compatible the given mf.Attribute.
         """
@@ -125,7 +123,7 @@ class JSONReader:
             tval = attr.type(value)
             return tval
         except Exception as e:
-            raise TransformValueError(attr,value) from e
+            fail('Incompatible value. Expected %s and got %s', attr.type, type(value).__name__)
 
 
     def populate_modeled_instance(self, model, json, **defaults):
@@ -139,80 +137,72 @@ class JSONReader:
         metamodel = model.__model_class__
         json_fields = set(json.keys())
 
-        self.log.debug('Mapping for %s', metamodel.name)
+        with Context(importing=metamodel.name):
         
-        # Map the model attributes         
-        for attr in metamodel.attributes:
-            # Respect 'ignore' annotation
-            if ignore.has(attr):
-                continue
+            # Map the model attributes         
+            for attr in metamodel.attributes:
+                with Context(reading=attr.name):
 
-            if attr.name in defaults:
-                setattr(model, attr.name, tval)
+                    # Respect 'ignore' annotation
+                    if ignore.has(attr):
+                        continue
 
-            # here we respect name mapping by a 'json_name' annotation
-            json_field = json_name.get_item(attr, default=attr.name)
-            map_msg = "%s (json=%s)" % (attr.name, json_field) \
-                if attr.name != json_field else json_field
+                    if attr.name in defaults:
+                        setattr(model, attr.name, tval)
 
-            # look up attribute in json object
-            if json_field in json:
-                json_fields.remove(json_field)
-                tval = self.transform_value(attr, json[json_field])
-                setattr(model, attr.name, tval)                
+                    # here we respect name mapping by a 'json_name' annotation
+                    json_field = json_name.get_item(attr, default=attr.name)
 
-                self.log.debug('   Mapped attribute %s = %s', map_msg, tval)
-            else:
-                if required.has(attr):
-                    raise RequiredMissingError(attr)
-                self.log.debug('   Skipped attribute %s', map_msg)
+                    # look up attribute in json object
+                    if json_field in json:
+                        json_fields.remove(json_field)
+                        tval = self.transform_value(attr, json[json_field])
+                        setattr(model, attr.name, tval)                
+                    else:
+                        if required.has(attr):
+                            fail("Missing required attribute '%s' of %s", attr.name, metamodel.name)
 
-        # Map the relationships
-        for rel in metamodel.relationships:
-            # only process those relationships annotated as 'descend'
-            if not descend.has(rel): continue
+            # Map the relationships
+            for rel in metamodel.relationships:
 
-            # here we respect name mapping by a 'json_name' annotation
-            json_field = json_name.get_item(rel, default=rel.name)
-            map_msg = "%s (json=%s)" % (rel.name, json_field) \
-                if rel.name != json_field else json_field
+                with Context(reading=rel.name):
 
-            # look up name in json object
-            if json_field in json:
-                json_value = json[json_field]
+                    # only process those relationships annotated as 'descend'
+                    if not descend.has(rel): continue
 
-                if isinstance(json_value, list)==(rel.kind is RelKind.ONE):
-                    raise DescendError(rel)
+                    # here we respect name mapping by a 'json_name' annotation
+                    json_field = json_name.get_item(rel, default=rel.name)
 
-                # ok, now create subobject(s) (must be default constructibe)
-                submodel_class = python_type.get_item(rel.target)
-                # a small trick: to handle both a json subobject and a sublist
-                # in the same way, make the object into a list of one item!
-                if not isinstance(json_value, list):
-                    subitems = [json_value]
-                else:
-                    subitems = json_value
+                    # look up name in json object
+                    if json_field in json:
+                        json_value = json[json_field]
 
-                # loop over subitems
-                for subitem in subitems:               
-                    subobj = submodel_class()
-                    self.populate_modeled_instance(subobj, subitem)
-                    # establish the association
-                    getattr(model.__class__, rel.name).associate(model, subobj)
+                        if isinstance(json_value, list)==(rel.kind is RelKind.ONE):
+                            expected_found = ('one','many') if rel.kind is RelKind.ONE else ('many','one')
+                            fail("For attribute '%s' of %s, expected %s and got %s", 
+                                json_field, metamodel.name, expected_found[0], expected_found[1])
 
-                # all done, mark field as processed
-                json_fields.remove(json_field)
-                self.log.debug('   Mapped subobject %s ', map_msg)
+                        # ok, now create subobject(s) (must be default constructibe)
+                        submodel_class = python_type.get_item(rel.target)
+                        # a small trick: to handle both a json subobject and a sublist
+                        # in the same way, make the object into a list of one item!
+                        if not isinstance(json_value, list):
+                            subitems = [json_value]
+                        else:
+                            subitems = json_value
 
-            else:
-                if required.has(rel):
-                    raise RequiredMissingError(rel)
-                self.log.debug('   Skipped subobject %s', map_msg)
+                        # loop over subitems
+                        for subitem in subitems:               
+                            subobj = submodel_class()
+                            self.populate_modeled_instance(subobj, subitem)
+                            # establish the association
+                            getattr(model.__class__, rel.name).associate(model, subobj)
 
+                        # all done, mark field as processed
+                        json_fields.remove(json_field)
 
-        for f in json_fields:
-            self.log.debug('   Ignored json field %s', f)
+                    else:
+                        if required.has(rel):
+                            fail("Missing required subobject '%s' of %s", rel.name, metamodel.name)
 
-
-        self.log.debug('Done mapping for %s', metamodel.name)
 

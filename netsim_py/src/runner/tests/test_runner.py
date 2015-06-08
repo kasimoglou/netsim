@@ -112,10 +112,10 @@ def test_ExecutorDao(pg_pool):
 def test_UserDao(pg_pool):
     dao = UserDao(pg_pool)
 
-    assert len(list(dao.get_users())) == 0
+    assert len(list(dao.get_users())) == 1
 
     dao.create_user(User('foo', 'bar', False))
-    assert len(list(dao.get_users())) == 1
+    assert len(list(dao.get_users())) == 2
 
     u = dao.get_user('foo')
     assert u.username == 'foo'
@@ -129,5 +129,5 @@ def test_UserDao(pg_pool):
     assert u.is_admin == False
 
     dao.delete_user('foo')
-    assert len(list(dao.get_users())) == 0
+    assert len(list(dao.get_users())) == 1
 

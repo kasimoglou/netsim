@@ -1,6 +1,8 @@
 
-import os.path
+import os.path, logging
 from runner.config import castalia_path, omnetpp_path
+
+from simgen.validation import Context, fail, fatal, inform, warn, add_context
 from models.nsd import *
 from models.castalia_sim import *
 from models.mf import Attribute
@@ -9,6 +11,7 @@ from simgen.datastore import context
 import pyproj
 import numpy as np
 
+logger = logging.getLogger('codegen')
 
 def generate_castalia(gen):
     '''
@@ -24,7 +27,7 @@ def generate_castalia(gen):
     with gen.output_file("executor.mak") as m:
         m.write(makefile(cmb))
 
-    gen.log.debug("Code generated from NSD")
+    logger.debug("Code generated from NSD")
 
 
 class CastaliaModelBuilder:
@@ -49,18 +52,25 @@ class CastaliaModelBuilder:
         '''
         Main routine.
         '''
-        self.init_omnetpp_general()
 
-        self.create_network()
+        with Context(stage='Initialize generation'):
+            self.init_omnetpp_general()
+
+        with Context(stage='Create simulated network'):
+            self.create_network()
 
         for nodeType in self.cm.nodeTypes:
-            self.create_node_type(nodeType)
+            with Context(stage='Process node type %s' % nodeType.nodeDef.name):
+                self.create_node_type(nodeType)
 
-        self.create_environment()
+        with Context(stage='Create environment simulation'):
+            self.create_environment()
 
-        self.create_wireless_channel()
+        with Context(stage='Parameterize wireless channel'):
+            self.create_wireless_channel()
 
-        self.add_omnetpp_sections()
+        with Context(stage='Configure simulation'):
+            self.add_omnetpp_sections()
 
 
     def init_omnetpp_general(self):
@@ -274,7 +284,7 @@ def generate_omnetpp(gen, cm):
     '''
     Generate the omnetpp.ini file.
     '''
-    gen.log.debug("Generating omnetpp.ini")    
+    logger.debug("Generating omnetpp.ini")    
     with gen.output_file("omnetpp.ini") as omnetpp:
         # start with preamble
         preamble = omnetpp_preamble(cm)
