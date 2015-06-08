@@ -9,6 +9,7 @@ from datavis.database import Relation
 from models.validation import warn, fail
 import traceback
 import re
+from models.validation import CheckFail
 
 
 class StatBreakdownHelper:
@@ -118,12 +119,14 @@ class Plot():
                 err_str = err.decode("utf-8") if err else ""
                 if err_str != "" and re.search("gnuplot>\ ", err_str):
                     fail("plot \"%s\" generation failed, gnuplot_stderr:\n%s" % (self.title, err_str))
+        except CheckFail as ex:
+            raise ex
         except BaseException:
             logging.critical(traceback.format_exc())
-            fail("generation of plot \"%s\" failed\n%s" % (self.title, p.stderr.read()))
+            fail("generation of plot \"%s\" failed" % self.title)
         finally:
             p.stdin.close()
-            return ret
+        return ret
 
     def make_parameter(self):
         return self.graphs[0].output_data()

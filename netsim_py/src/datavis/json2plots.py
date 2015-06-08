@@ -146,6 +146,9 @@ class ViewsPlotsDecoder:
         """
         for v in views:
             with Context(view=v):
+                allowed_chars = re.compile(r"^[a-zA-Z0-9_]+$")
+                if not allowed_chars.match(v["name"]):
+                    fail("View name can contain only upper/lower case letters, numbers and underscores")
                 if v["name"] == "dataTable":
                     rel = DATA_TABLE
                 else:
