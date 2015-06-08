@@ -7,9 +7,11 @@
 from runner.DAO import SimJob
 from runner.monitor import Manager
 from runner import dpcmrepo
-from runner.dpcmrepo import repo
+from runner.dpcmrepo import repo, repo_url
 from runner.config import cfg
 from runner.apierrors import *
+from simgen.gen import validate_simulation
+from models.project_repo import NSD, VECTORL, ApiEntity
 
 import runner.AAA as AAA
 
@@ -205,6 +207,31 @@ def get_nsds():
     '''
     return repo().get_nsds()
 
+
+@apierror
+def validate_nsd(nsd_id):
+    '''
+    Return a json object with the results of running NSD validation.
+    '''
+    try:
+        url = repo().url_of(NSD, nsd_id)
+        results = validate_simulation(url)
+    except Exception as e:
+        logger.error("Unexpected exception from validate_simulation()", exc_info=1)
+        raise ServerError(details="An unexpected exception occurred during NSD validation")
+
+    return results
+
+
+
+@apierror
+def nsd_editor_path(model, oid):
+    assert isinstance(model, ApiEntity)
+    prefix = "/nsdEdit"
+    if model is NSD:
+        return ''.join((prefix,"/html/index.html#!/nsd/",oid))
+    elif model is VECTORL:
+        return ''.join((prefix,"/html/index.html#!/vectorl/",oid))
 
 
 #

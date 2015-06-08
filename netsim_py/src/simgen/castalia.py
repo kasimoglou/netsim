@@ -56,11 +56,15 @@ class NSDReader(JSONReader):
         #read Couchdb json files
         plan_json = {}
         with Context(stage='Analyzing plan'):
+            if not hasattr(nsd, 'plan_id'):
+                fatal("There is no plan for this NSD. Aborting.")
             plan_json = self.read_object(nsd.plan_id, nsd.plan)
             self.create_jsonfile(plan_json, "plan.json")
 
         project_json = {}
         with Context(stage='Analyzing project info'):
+            if not hasattr(nsd, 'project_id'):
+                fail("There is no project for the NSD.")
             project_json = self.read_object(nsd.project_id, nsd.project)
             self.create_jsonfile(project_json, "project.json")
 

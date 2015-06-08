@@ -5,7 +5,7 @@ Created on Oct 24, 2014
 '''
 from contextlib import contextmanager, ContextDecorator
 from sys import exc_info
-from traceback import extract_tb, format_exception_only
+from traceback import extract_tb, format_exception_only, format_exception
 from os.path import basename
 import logging
 import threading
@@ -193,7 +193,8 @@ class CheckScope(ContextDecorator):
                 catch = self.catches(exc_type, exc)
 
                 if catch and exc_type not in self.suppress_types:
-                    self.log.exception("an unexpected error occurred")
+                    self.log.exception("An unexpected error occurred:\n%s", 
+                        ''.join(format_exception(exc_type, exc, tb)))
 
                 return catch
         finally:

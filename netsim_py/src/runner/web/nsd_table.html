@@ -21,9 +21,11 @@
 		<td>{{obj['_id']}}</td>
         <td>{{obj.get('name','')}}</td>
         <td>
-            <form method="post" action="/admin/run_simulation">
+            <form method="GET" action="/admin/run_simulation">
                 <input type="hidden" name="nsdid" value="{{obj['_id']}}"/> 
-                <input type="submit" value="Run sim">
+                <input type="submit" name="action" value="Edit">
+                <input type="submit" name="action" value="Validate">
+                <input type="submit" name="action" value="Run">
             </form>
         </td>
      </tr>

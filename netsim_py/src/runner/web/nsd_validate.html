@@ -1,0 +1,39 @@
+
+
+% rebase('mainpage.html')
+% from runner.api import nsd_editor_path
+% from models.project_repo import NSD
+
+<table class="attrtable" style="bold">
+	<tr>
+		<th>NSD:</th><td><a href="{{nsd_editor_path(NSD, nsdid)}}">{{nsdid}}</a></td>
+		<td class="sep"></td>
+		<th>Success:</th><td>{{success}}</td>
+	</tr>
+
+</table>
+
+<br>
+<form method="GET" action="/admin/run_simulation">
+    <input type="hidden" name="nsdid" value="{{!nsdid}}"/>
+    <input type="submit" name="action" value="Edit"/>
+    <input type="submit" name="action" value="Validate"/>
+    <input type="submit" name="action" value="Run"/>
+</form>
+<hr>
+
+
+
+% for entry in messages:
+% style = {'ERROR':'color:red;', 'WARNING':'color:blue;', 'CRITICAL':'color:red;'}.get(entry['level'],'color:black;')
+<p style="margin:4px; {{style}}">{{entry['message']}}</p>
+% end
+
+<hr>
+<h3>Stdout</h3>
+<pre>{{result['stdout']}}</pre>
+
+<hr>
+<h3>Stderr</h3>
+<pre>{{result['stderr']}}</pre>
+

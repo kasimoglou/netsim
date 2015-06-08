@@ -210,11 +210,50 @@ def get_css():
 	return static_file("mainpage.css", root=gui_file_path())
 
 
-@app.post("/run_simulation")
-@view("job_table.html")
+
+
+@app.get("/run_simulation")
 @AAA.logged_in
 def submit_nsd():
-	nsdid = request.forms.nsdid
+	nsdid = request.query.nsdid
+
+	if request.query.action=="Validate":
+		return validate_nsd(nsdid)
+	if request.query.action=="Run":
+		return run_nsd(nsdid)
+	if request.query.action=="Edit":
+		redirect(api.nsd_editor_path(NSD, nsdid))
+	raise HTTPError(api.BadRequest, body="You did not provide a valid action.")
+
+
+@view("nsd_validate.html")
+def validate_nsd(nsdid):
+	try:
+		result = api.validate_nsd(nsdid)
+
+		success = result['success']
+		messages = result['messages']
+
+		refresh_page = False
+		thispage = "/admin/nsd_validate.html"
+		return locals()
+	except api.Error as e:
+		logging.debug("In validate_nsd(%s)",nsdid,exc_info=1)
+		body = ["The nsd was not validated."]
+		for k, v in e.kwargs.items():
+			body.append("%s: %s" % (k,v))
+		raise HTTPError(status=e.httpcode, body="\n".join(body))
+	except ValueError as e:
+		loggging.debug("In restapi.post_simulation", exc_info=1)
+		raise HTTPError(status=403, body="The provided NSD id was not legal")
+	except:
+		logging.debug("In restapi.post_simulation", exc_info=1)
+		raise HTTPError(status=500, body="An unknown error has occurred.")
+	
+
+
+@view("job_table.html")
+def run_nsd(nsdid):
 	try:
 		sim = api.create_simulation(nsdid)
 		refresh_page = False

@@ -184,6 +184,17 @@ def compile_vectorl(vlid):
 def run_vectorl(vlid):
 	return _process_vectorl(vlid, True)
 
+#
+# NSD validation
+#
+
+@app.get("/nsd/<nsdid>/validate")
+def validate_nsd(nsdid):
+	try:
+		return api.validate_nsd(nsdid)
+	except Exception as e:
+		process_api_error(e)
+
 
 #
 # ReST api for project repository

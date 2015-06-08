@@ -8,9 +8,11 @@ Created on Sep 20, 2014
 
 import logging
 import os.path
+import tempfile
 
-from simgen.utils import put_file, get_file
-from simgen.datastore import context, set_root_url
+
+from simgen.utils import put_file, get_file, execute_function
+from simgen.datastore import context, set_root_url, get_root_url, execute_context
 from simgen.validation import GenProcess, GenError
 
 logger = logging.getLogger('codegen')
@@ -75,12 +77,15 @@ def validate_simulation(nsd_url):
         url = nsd_url+"#validate"
         set_root_url(fileloc, url)
 
-        retval = execute_function(fileloc, generate_simulation, 'val', redirect=True, raises=False)
+        logger.error("url=%s", get_root_url(fileloc))
+
+        retval = execute_context(fileloc, generate_simulation, 'val', redir=True, loglevel=logging.DEBUG, raises=False)
 
         with open(os.path.join(fileloc, 'stdout.val.txt'), 'r') as f:
                 retval['stdout'] = f.read()
         with open(os.path.join(fileloc, 'stderr.val.txt'), 'r') as f:
                 retval['stderr'] = f.read()
+
     return retval
 
 
@@ -90,33 +95,28 @@ def generate_simulation(fileloc=None, loglevel=logging.DEBUG, raises=True):
     """
     from models.validation import inform, warn
 
-    print("loglevel=",loglevel)
     with GenProcess(loglevel) as genproc:
         # Get the root object
-        sim = context.datastore.get_root_object()
+        try:
+            dstore = context.datastore
+            sim = context.datastore.get_root_object()
+        except Exception as e:
+            logger.exception("In creating datastore", exc_info=1)
+        inform("Created root object", sim)
 
         # From the root object, select the proper Generator class
         GenCls = GENERATOR_REGISTRY[sim['generator']]
 
         # run the generator
-        try:
-            generator = GenCls()
-            generator.generate()
-        except Exception as e:
-            logger.exception("Mystery: %s", e, exc_info=1)
-            logger.exception("Mystery:", exc_info=1)
-            raise
+        generator = GenCls()
+        generator.generate()
 
 
     result = {
         'success': genproc.success,
-        'messages': genproc.messages
+        'messages': genproc.messages,
+        'nsd_id': sim['nsdid']
     }
-
-
-    print("Output messages:", len(genproc.messages))
-    for msg in genproc.messages:
-        print(msg['level'],':',msg['message'])
 
     if not genproc.success and raises:
         raise GenError(result)

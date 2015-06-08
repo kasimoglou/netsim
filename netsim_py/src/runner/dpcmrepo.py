@@ -8,6 +8,8 @@ import functools
 import logging
 import pycouchdb
 import os.path
+from urllib.parse import urljoin
+
 from runner.config import project_repository, cfg
 
 # Import pycouchdb exceptions in this namespace.
@@ -41,6 +43,7 @@ class ProjectRepository(pycouchdb.Server):
 
 	def __init__(self, repo_url, **kwargs):
 		super().__init__(repo_url, **kwargs)
+		self.repo_url = repo_url
 
 
 	############################
@@ -59,18 +62,24 @@ class ProjectRepository(pycouchdb.Server):
 		'''The NetSim database'''
 		return self.database(cfg[DB_SIM.name])
 
+	def dbname_of(self, model):
+		if isinstance(model, Entity):
+			return cfg[model.database.name]
+		elif isinstance(model, Database):
+			return cfg[model.name]
+		else:
+			raise ValueError("Unrecognized type of model: %s" % model.__class__.__name__)
+
+
 	def db_of(self, model):
 		'''
 		This method takes as input a model object defined in models/project_repo.py
 		and returns the right database for it.
 		'''
-		if isinstance(model, Entity):
-			return self.database(cfg[model.database.name])
-		elif isinstance(model, Database):
-			return self.database(cfg[model.name])
-		else:
-			raise ValueError("Unrecognized type of model")
+		return self.database(self.dbname_of(model))
 
+	def url_of(self, model, oid):
+		return urljoin(self.repo_url, "%s/%s" % (self.dbname_of(model), oid))
 
 	def update_simulation(self, simid, **kwargs):
 		'''Add fields to a simulation object. 
@@ -105,6 +114,7 @@ class ProjectRepository(pycouchdb.Server):
 			}
 		'''
 		return self.SIM.query("_design/nsdModel/_view/byProjectId")
+
 
 
 	def create_models(self, MODELS, translate=True):
@@ -173,6 +183,11 @@ def initialize_repo(url=None, **kwargs):
 	logger.info("Initialized Project Repository at %s", url)
 
 def repo_url(model, oid):
+	'''
+	Return a url for the given object, TO THE COUCHDB GUI.
+	This is not for getting the actual url of the object.
+	See, ProjectRepository.get_url
+	'''
 	from urllib.parse import urljoin
 
 	if isinstance(model, Entity):

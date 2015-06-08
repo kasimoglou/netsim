@@ -16,6 +16,7 @@ from functools import lru_cache
 from simgen.utils import docstring_template
 
 import hashlib, base64, uuid
+from urllib.parse import urljoin
 
 #
 #  Models for project repository objects
