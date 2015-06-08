@@ -55,7 +55,7 @@ class ViewsPlotsDecoder:
             # inform("\"%s\" not given a value, defaulting to \"%s\"" % (attr, pm_defaults[attr]))
             return pm_defaults[attr]
         else:
-            raise Exception("ViewsPlotsDecoder: Bad argument \"%s\"" % attr)
+            fatal("Bad argument \"%s\"" % attr)
 
     @staticmethod
     def gen_plotmodel(rel, d):
@@ -185,7 +185,7 @@ class ViewsPlotsDecoder:
             for c in self.derived_tables:
                 if c.name == name:
                     return c
-            fail("Table name: \"%s\" does not exist" % name)
+            fatal("Table: \"%s\" does not exist" % name)
 
 
 
@@ -253,7 +253,7 @@ def col_str2col_obj(col_str, col_obj):
         if c:
             cols.append(c)
         else:  # this should never happen
-            fail("column name: \"%s\" does not exist" % s)
+            fatal("column: \"%s\" does not exist" % s)
     return cols
 
 
@@ -427,6 +427,6 @@ class SelectorParser():
             if testing:
                 raise ValueError("The selector {%s} is malformed" % selector_text)
             else:
-                fail("The selector {%s} is malformed" % selector_text)
+                fatal("The selector {%s} is malformed" % selector_text)
         return selector
 
