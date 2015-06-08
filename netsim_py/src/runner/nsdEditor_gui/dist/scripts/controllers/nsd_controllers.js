@@ -267,7 +267,7 @@ define(['underscore',
                 className: 'ngdialog-theme-default new-view-dialog',
                 closeByDocument: false,
                 // This controller controls create_view template
-                controller: ['$scope', function($scope) {
+                controller: ['$scope', '$validator', function($scope, $validator) {
                         
                     // Boolean value used to customize 
                     // buttons in the template
@@ -346,20 +346,23 @@ define(['underscore',
                     $scope.createView = function() {
                         
                         if ($scope.view) {
-                            $scope.view.columns = [];
-                            $scope.view.groupby = [];
-                            
-                            // transform `myData` table model to `columns` and `groupby`
-                            // models accepted by nsd.
-                            _.each($scope.myData, function(obj) {
-                                $scope.view.columns.push({ name: obj.name, expression: obj.expression });
-                                if (obj.groupby === true) {
-                                    $scope.view.groupby.push(obj.name);
-                                }
+                            $validator.validate($scope, 'view').success(function() {
+                                $scope.view.columns = [];
+                                $scope.view.groupby = [];
+
+                                // transform `myData` table model to `columns` and `groupby`
+                                // models accepted by nsd.
+                                _.each($scope.myData, function(obj) {
+                                    $scope.view.columns.push({ name: obj.name, expression: obj.expression });
+                                    if (obj.groupby === true) {
+                                        $scope.view.groupby.push(obj.name);
+                                    }
+                                });
+
+                                self.nsd.views.push($scope.view);
+                                $scope.closeThisDialog();
+
                             });
-                        
-                            self.nsd.views.push($scope.view);
-                            $scope.closeThisDialog();
                         }
                         
                     };
@@ -381,7 +384,7 @@ define(['underscore',
                 template: 'templates/create_view.html',
                 className: 'ngdialog-theme-default new-view-dialog',
                 closeByDocument: false,
-                controller: ['$scope', function($scope) {
+                controller: ['$scope', '$validator', function($scope, $validator) {
                     $scope.mode = {
                         update: true
                     };
@@ -477,26 +480,29 @@ define(['underscore',
                     $scope.initializeBaseDatasets();
                     
                     $scope.updateView = function() {
-                        view.name = $scope.view.name;
-                        view.table_filter = $scope.view.table_filter;
-                        view.base_tables = $scope.view.base_tables;
-                        
-                        $scope.view.columns = [];
-                        $scope.view.groupby = [];
+                        $validator.validate($scope, 'view').success(function() {
+                            view.name = $scope.view.name;
+                            view.table_filter = $scope.view.table_filter;
+                            view.base_tables = $scope.view.base_tables;
 
-                        // transform `myData` table model to `columns` and `groupby`
-                        // models accepted by nsd.
-                        _.each($scope.myData, function(obj) {
-                            $scope.view.columns.push({ name: obj.name, expression: obj.expression });
-                            if (obj.groupby === true) {
-                                $scope.view.groupby.push(obj.name);
-                            }
+                            $scope.view.columns = [];
+                            $scope.view.groupby = [];
+
+                            // transform `myData` table model to `columns` and `groupby`
+                            // models accepted by nsd.
+                            _.each($scope.myData, function(obj) {
+                                $scope.view.columns.push({ name: obj.name, expression: obj.expression });
+                                if (obj.groupby === true) {
+                                    $scope.view.groupby.push(obj.name);
+                                }
+                            });
+
+                            view.columns = $scope.view.columns;
+                            view.groupby = $scope.view.groupby;
+
+                            $scope.closeThisDialog();
                         });
                         
-                        view.columns = $scope.view.columns;
-                        view.groupby = $scope.view.groupby;
-                        
-                        $scope.closeThisDialog();
                     };
                     
                     // Called when dialog's cancel button is clicked - just dismisses the dialog
