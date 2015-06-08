@@ -282,7 +282,8 @@ def change_admin_status(username, is_admin):
 
 @apierror
 def verify_password(username, password):
-    return Manager.get_user(username).password==password
+    user = Manager.get_user(username)
+    return user is not None and user.password==password
 
 @apierror
 def login(username, password):
