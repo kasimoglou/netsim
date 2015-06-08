@@ -8,7 +8,7 @@ from models.nsdplot import PlotModel, DATA_TABLE, DerivedTable, Table,  Column, 
     PLUS, MINUS, DIV, MULT
 from datavis.database import less_equal, less_than, greater_than, greater_equal, not_equal, like, not_like, between
 from datavis.create_plot import pm_defaults
-from models.validation import Context, inform, fail
+from models.validation import Context, inform, fail, fatal
 import re
 
 
@@ -167,8 +167,11 @@ class ViewsPlotsDecoder:
         nv = ExprGenNodeVisitor(types)
         eq_regex = re.compile(r"(?<![=><])=(?![=><])")  # regular expression to find a single =
         expr_str = eq_regex.sub("==", expr_str)  # replaces = with ==
-        node = ast.parse(expr_str)
-        return nv.visit(node)
+        try:
+            node = ast.parse(expr_str)
+            return nv.visit(node)
+        except SyntaxError as ex:
+            fatal("Syntax Error: %s" % ex.text)
 
     def get_table_by_name(self, name):
         """
