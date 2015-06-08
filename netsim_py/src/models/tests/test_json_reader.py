@@ -1,6 +1,7 @@
 
 from models.mf import *
 from models.json_reader import *
+from models.validation import Context
 import pytest
 import json, logging
 
@@ -56,7 +57,7 @@ json_txt = '''
 def test_json_reader_descend():
 	json_obj = json.loads(json_txt)
 
-	jr = JSONReader(logging.root)
+	jr = JSONReader()
 	foo = Foo()
 	jr.populate_modeled_instance(foo, json_obj)
 
@@ -78,10 +79,13 @@ def test_json_reader_descend():
 
 def test_json_reader_require():
 
-	jr = JSONReader(logging.root)
+	jr = JSONReader()
 	baz = Baz()
 
 	json_obj = json.loads('''{ "no": 4}''')
-	with pytest.raises(RequiredMissingError):
+	with Context() as c:
 		jr.populate_modeled_instance(baz, json_obj)
+	assert not c.success
+
+
 
