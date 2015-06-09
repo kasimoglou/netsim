@@ -8513,3 +8513,39 @@ multiselect.hide-check-buttons .dropdown-menu li[ng-show="multiple"] {
   opacity: 0.8;
   background: url(../images/Preloader_2.gif) center no-repeat #fff;
 }
+
+/* line 215, ../../app/styles/main.scss */
+.vectorl-output {
+  border: 2px groove #eee;
+  margin-bottom: 20px;
+  display: block;
+  padding: 5px 10px;
+  background-color: #f7f7f7;
+  min-height: 200px;
+}
+
+/* line 224, ../../app/styles/main.scss */
+.vectorl-output-title {
+  margin-left: 10px;
+  padding: 5px 10px;
+  width: auto;
+  font-size: 1em;
+  font-family: "Lucida Console", Monaco, monospace;
+  color: #2C3E50;
+  margin-bottom: 0px;
+}
+
+/* line 234, ../../app/styles/main.scss */
+my-vectorl-output {
+  font-family: "Lucida Console", Monaco, monospace;
+}
+
+/* line 238, ../../app/styles/main.scss */
+.strong {
+  font-weight: bold;
+}
+
+/* line 242, ../../app/styles/main.scss */
+.italics {
+  font-style: italic;
+}
