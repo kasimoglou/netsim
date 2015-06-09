@@ -9,6 +9,7 @@ from datavis.database import Relation
 from models.validation import warn, fail
 import traceback
 import re
+import os
 from models.validation import CheckFail
 
 
@@ -118,6 +119,8 @@ class Plot():
                 out, err = p.communicate(timeout=0.2)
                 err_str = err.decode("utf-8") if err else ""
                 if err_str != "" and re.search("gnuplot>\ ", err_str):
+                    if os.path.isfile(self.output + ".png"):
+                        os.remove(self.output + ".png")
                     fail("plot \"%s\" generation failed, gnuplot_stderr:\n%s" % (self.title, err_str))
         except CheckFail as ex:
             raise ex
