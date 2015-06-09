@@ -760,14 +760,46 @@ define(['underscore',
                     .error(function(error) {
                         // in case of conflict get the returned `_rev`
                         // and try again
-                        if (error.status == 409) {
+                        if (error.status === 409) {
                             $scope.nsd._rev = error.current_object._rev;
                             $scope.saveNsd();
                             return;
                         }
-                        console.log('Error updating nsd.');
-                        alert('Error updating nsd.');
+                        console.log(error.details);
+                        alert(error.details);
             });
+        };
+        
+        $scope.output = [
+            { level: '', message: 'No output messages'}
+        ];
+        
+        $scope.validateNsd = function() {
+            $scope.output = [{ level: 'INFO', message: 'Validation started... Please Wait...'}];
+            API.nsdValidate($routeParams.id)
+                .success(function(response) {
+                    // Show validation output at first
+                    var output = [{level: '', message: 'Validation output'}];
+                    output = output.concat(response.messages);
+
+                    // If stdout message exists, show it
+                    if (response.stdout !== '') {
+                        output.push({level: '', message: 'Stdout output'});
+                        output.push({level: 'INFO', message: response.stdout});
+                    }
+
+                    // If stderr message exists show it
+//                    if (response.stderr !== '') {
+//                        output.push({level: '', message: 'Stderr output'});
+//                        output.push({level: 'ERROR', message: response.stderr});
+//                    }
+
+                    $scope.output = output;
+                })
+                .error(function(error) {
+                    console.log(error.details);
+                    alert(error.details);
+                });
         };
 
         $scope.dismiss = function() {

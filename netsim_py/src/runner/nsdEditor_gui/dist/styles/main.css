@@ -8515,7 +8515,7 @@ multiselect.hide-check-buttons .dropdown-menu li[ng-show="multiple"] {
 }
 
 /* line 215, ../../app/styles/main.scss */
-.vectorl-output {
+.console-output {
   border: 2px groove #eee;
   margin-bottom: 20px;
   display: block;
@@ -8525,7 +8525,7 @@ multiselect.hide-check-buttons .dropdown-menu li[ng-show="multiple"] {
 }
 
 /* line 224, ../../app/styles/main.scss */
-.vectorl-output-title {
+.console-output-title {
   margin-left: 10px;
   padding: 5px 10px;
   width: auto;
@@ -8536,7 +8536,7 @@ multiselect.hide-check-buttons .dropdown-menu li[ng-show="multiple"] {
 }
 
 /* line 234, ../../app/styles/main.scss */
-my-vectorl-output {
+my-output .my-output-div {
   font-family: "Lucida Console", Monaco, monospace;
 }
 

@@ -48,6 +48,9 @@
                         <li class="cursor-pointer" ng-class="{'active': tabs.main_selected === 4}">
                             <a data-toggle="tab" ng-click="setSelectedTab(4)">Output</a>
                         </li>
+                        <li class="cursor-pointer" ng-class="{'active': tabs.main_selected === 5}">
+                            <a data-toggle="tab" ng-click="setSelectedTab(5)">Validation</a>
+                        </li>
                     </ul>
                     <div class="tab-content">
                         <div class="tab-pane" ng-class="{'active': tabs.main_selected === 1}">
@@ -269,6 +272,18 @@
                                             </div>
                                         </div>
                                     </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="tab-pane" ng-class="{'active': tabs.main_selected === 5}">
+                            <div class="row top20">
+                                <div class="col-md-3">
+                                    <a class="btn btn-primary btn-block" ng-click="validateNsd()">Start Nsd Validation</a>
+                                </div>
+                            </div>
+                            <div class="row top20">
+                                <div class="col-md-12">
+                                    <my-output ng-model="output"></my-output>
                                 </div>
                             </div>
                         </div>

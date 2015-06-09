@@ -92,6 +92,15 @@ define(['underscore', 'angular'], function(_) {
             
             return httpPromise(config);
         }
+        
+        function apiNsdValidate(id) {
+            var config = {
+                url: '/nsd/' + id + '/validate',
+                method: 'GET'
+            };
+            
+            return httpPromise(config);
+        }
 
         // Lists all nsds stored to the system
         function apiNsdsRead() {
@@ -205,6 +214,7 @@ define(['underscore', 'angular'], function(_) {
             nsdRead: apiNsdRead,
             nsdUpdate: apiNsdUpdate,
             nsdDelete: apiNsdDelete,
+            nsdValidate: apiNsdValidate,
             nsdsRead: apiNsdsRead,
             vectorlCreate: apiVectorlCreate,
             vectorlRead: apiVectorlRead,

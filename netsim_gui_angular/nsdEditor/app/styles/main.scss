@@ -211,8 +211,8 @@ multiselect.hide-check-buttons .dropdown-menu li[ng-show="multiple"] {
     background: url(../images/Preloader_2.gif) center no-repeat #fff;
 }
 
-// Vectorl compile-run output
-.vectorl-output {
+// Console compile-run output
+.console-output {
     border: 2px groove #eee;
     margin-bottom: 20px;
     display: block;
@@ -221,7 +221,7 @@ multiselect.hide-check-buttons .dropdown-menu li[ng-show="multiple"] {
     min-height: 200px;
 }
 
-.vectorl-output-title {
+.console-output-title {
     margin-left: 10px;
     padding: 5px 10px;
     width: auto;
@@ -231,7 +231,7 @@ multiselect.hide-check-buttons .dropdown-menu li[ng-show="multiple"] {
     margin-bottom: 0px;
 }
 
-my-vectorl-output {
+my-output .my-output-div {
     font-family: "Lucida Console", Monaco, monospace;
 }
 

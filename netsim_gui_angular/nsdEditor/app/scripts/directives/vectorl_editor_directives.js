@@ -39,16 +39,19 @@ define(['underscore',
         };
     }]);
 
-    // myVectorlOutput directive
-    // Displays vectorl compile and run messages to output
-    vectorlEditorDirectives.directive('myVectorlOutput', [function() {
+    // myOutput directive
+    // Displays compile and run messages to output
+    vectorlEditorDirectives.directive('myOutput', [function() {
         return {
             restrict: 'EA',
             require: 'ngModel',
+            templateUrl: 'templates/console_output.html',
             scope: {
                 ngModel: '='
             },
             link: function(scope, element) {
+                var output_div = element.find('.my-output-div');
+                
                 scope.$watch('ngModel', function(output_array) {
                     scope.showOutput(output_array);
                 }, true);
@@ -80,7 +83,7 @@ define(['underscore',
                         scope.display.message += '<span class=\'' + text_color_class +'\'>' +
                                 new_message + '</span><br/>';
                     });
-                    element.html(scope.display.message);
+                    output_div.html(scope.display.message);
                 };
             }
         };
