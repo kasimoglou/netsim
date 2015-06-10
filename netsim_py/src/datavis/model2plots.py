@@ -152,16 +152,16 @@ def create_plot_for_model(pm, ds, jo):
         if plot.make_plot():
             # add plot to JsonOutput jo
             plot2json(jo, pm, plot.output + ".png")
-            inform("plot \"%s\" generated" % pm.title)
+            inform("generated")
     elif pm.model_type == "parameter":
         # generate the parameter (statistic)
         res = plot.make_parameter()
         if len(res) != 0:
             # add the parameter to JsonOutput jo
             parameter2json(jo, pm, res)
-            inform("statistic \"%s\" generated" % pm.title)
+            inform("generated")
         else:
-            warn("no data found for statistic \"%s\"" % pm.title)
+            warn("no data found")
 
     else:
         logging.error("invalid model type: \"%s\"" % pm.model_type)

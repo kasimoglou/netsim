@@ -121,12 +121,12 @@ class Plot():
                 if err_str != "" and re.search("gnuplot>\ ", err_str):
                     if os.path.isfile(self.output + ".png"):
                         os.remove(self.output + ".png")
-                    fail("plot \"%s\" generation failed, gnuplot_stderr:\n%s" % (self.title, err_str))
+                    fail("generation failed, gnuplot reported error:\n%s" % err_str)
         except CheckFail as ex:
             raise ex
-        except BaseException:
+        except BaseException as ex:
             logging.critical(traceback.format_exc())
-            fail("generation of plot \"%s\" failed" % self.title)
+            fail("generation failed")
         finally:
             p.stdin.close()
         return ret
@@ -156,7 +156,7 @@ class Plot():
                 sbh.add_label_values(g.output_data())
             values = sbh.get_values()
             if not values:
-                warn("no data found for plot \"%s\"" % self.title)
+                warn("no data found")
                 return None
             for i in range(len(values[0])-1):
                 for row in values:
@@ -172,7 +172,7 @@ class Plot():
                     script += graph_data
                     has_data = True
             if not has_data:
-                warn("no data found for plot \"%s\"" % self.title)
+                warn("no data found")
                 return None
 
         return script
