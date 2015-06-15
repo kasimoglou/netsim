@@ -92,6 +92,7 @@ define(['underscore',
                             $scope.fetchSelectedPlan($scope.nsd.plan_id);
                         }
                         
+                        $scope.initializeHil($scope.nsd);
                         $scope.initializeParameters($scope.nsd);
                         $scope.initializeEnvironment($scope.nsd);
                         $scope.initializeOutput($scope.nsd);
@@ -204,6 +205,7 @@ define(['underscore',
         };
         
         $scope.selected_plan = {};
+        $scope.hil_nodes = [];
         // Every time user selects a different plan for this project
         // we have to update its details. So on select change this function
         // is called and we fetch specific plan's details.
@@ -213,6 +215,8 @@ define(['underscore',
                 API.planRead(plan_id)
                         .success(function(response) {
                             $scope.selected_plan = _.omit(response, ['_id', '_rev']);
+                            $scope.hil_nodes = _.pluck($scope.selected_plan.NodePosition, 'nodeId');
+                            //console.log($scope.hil_nodes);
                 })
                         .error(function(error) {
                             console.log(error.details);
@@ -228,6 +232,15 @@ define(['underscore',
         // clicks `Show/Hide Plan Details` toggle button
         $scope.togglePlanDetails = function() {
             $scope.temp.planDetailsShown = !$scope.temp.planDetailsShown;
+        };
+        
+        /////////////////////// ### HIL related data and methods
+        $scope.temp.hil = false;
+        
+        $scope.initializeHil = function(nsd) {
+            if (nsd.hil) {
+                $scope.temp.hil = true;
+            }
         };
         
         /////////////////////// ### Environment related data and methods
@@ -749,6 +762,11 @@ define(['underscore',
                     type: 'vectorl',
                     vectrol_id: $scope.temp.environment.vectorl_id
                 };
+            }
+            
+            // Save changes made to HIL tab
+            if (!$scope.temp.hil || !$scope.nsd.plan_id) {
+                delete $scope.nsd.hil;
             }
             
             API.nsdUpdate($routeParams.id, $scope.nsd)

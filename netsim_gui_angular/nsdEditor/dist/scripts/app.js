@@ -75,6 +75,20 @@ define(['angular',
                 });
         }
     ]);
+    
+    nsdEditorApp.config(function($validatorProvider) {
+        return $validatorProvider.register('notSameHilNodes', {
+            invoke: 'watch',
+            validator: function(value, scope) {
+                if (typeof scope.nsd.hil === 'undefined') {
+                    return true;
+                }
+                
+                return value !== scope.nsd.hil.node1;
+            },
+            error: 'Node 2 should not match Node 1'
+        });
+    });
 
 
     return nsdEditorApp;
