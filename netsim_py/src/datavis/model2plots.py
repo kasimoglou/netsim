@@ -85,7 +85,7 @@ def get_select_columns(col):
         if ret is None:
             # This should only happen if there was some error in expression parsing, and the expression passed to
             # expression2sql is malformed
-            fatal("error in views generation")
+            fail("error in views generation")
     else:
         if col.parent:
             ret = col.parent.name + "." + col.name
@@ -107,7 +107,7 @@ def derived2sql(dt):
         if where_expr is None:
             # This should only happen if there was some error in expression parsing, and the expression passed to
             # expression2sql is malformed
-            fatal("error in views generation")
+            fail("error in views generation")
         sql += " WHERE " + where_expr
     if dt.groupby:
         sql += " GROUP BY " + ",".join(list(map(lambda x: x.name, dt.groupby)))
@@ -120,11 +120,7 @@ def create_view_for_derived(ds, dt):
     Create an SQL view in ds for given DerivedTable dt.
     """
     sql = derived2sql(dt)
-    try:
-        ds.create_view(dt.name, sql)
-    except BaseException as ex:
-        logging.critical(traceback.format_exc())
-        fatal(str(ex))
+    ds.create_view(dt.name, sql)
 
 
 def create_plot_for_model(pm, ds, jo):
@@ -152,14 +148,14 @@ def create_plot_for_model(pm, ds, jo):
         if plot.make_plot():
             # add plot to JsonOutput jo
             plot2json(jo, pm, plot.output + ".png")
-            inform("generated")
+            inform("generated successfully")
     elif pm.model_type == "parameter":
         # generate the parameter (statistic)
         res = plot.make_parameter()
         if len(res) != 0:
             # add the parameter to JsonOutput jo
             parameter2json(jo, pm, res)
-            inform("generated")
+            inform("generated sucessfully")
         else:
             warn("no data found")
 

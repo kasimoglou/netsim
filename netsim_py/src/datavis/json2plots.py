@@ -55,7 +55,7 @@ class ViewsPlotsDecoder:
             # inform("\"%s\" not given a value, defaulting to \"%s\"" % (attr, pm_defaults[attr]))
             return pm_defaults[attr]
         else:
-            fatal("Bad argument \"%s\"" % attr)
+            fail("Bad argument \"%s\"" % attr)
 
     @staticmethod
     def gen_plotmodel(rel, d):
@@ -171,7 +171,7 @@ class ViewsPlotsDecoder:
             node = ast.parse(expr_str)
             return nv.visit(node)
         except SyntaxError as ex:
-            fatal("Syntax Error: %s" % ex.text)
+            fail("Syntax Error: %s" % ex.text)
 
     def get_table_by_name(self, name):
         """
@@ -185,7 +185,7 @@ class ViewsPlotsDecoder:
             for c in self.derived_tables:
                 if c.name == name:
                     return c
-            fatal("Table: \"%s\" does not exist" % name)
+            fail("View \"%s\" does not exist" % name)
 
 
 
@@ -253,7 +253,7 @@ def col_str2col_obj(col_str, col_obj):
         if c:
             cols.append(c)
         else:  # this should never happen
-            fatal("column: \"%s\" does not exist" % s)
+            fail("column \"%s\" does not exist" % s)
     return cols
 
 
@@ -424,9 +424,6 @@ class SelectorParser():
             namespace.update({name:name for name in colnames})
             selector = eval("{"+selector_text+"}", {}, SelectorParser.StrictDict(namespace))
         except:
-            if testing:
-                raise ValueError("The selector {%s} is malformed" % selector_text)
-            else:
-                fatal("The selector {%s} is malformed" % selector_text)
+            fail("The selector '%s' is malformed" % selector_text, ooc=ValueError)
         return selector
 

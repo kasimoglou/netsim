@@ -25,8 +25,12 @@ class DatavisHandler(logging.Handler):
         self.setFormatter(DatavisFormatter())
 
     def emit(self, record):
-        print(self.format(record))
-        self.records.append(self.format(record))
+        message = self.format(record)
+        rec = {
+            'level': record.levelname,
+            'message': message
+        }
+        self.records.append(rec)
 
 
 class DatavisProcess(Process):
@@ -41,15 +45,16 @@ class DatavisProcess(Process):
 
     def __init__(self, record_list, name=None):
         self.record_list = record_list
-        self.logger = logging.getLogger('datavis.proc')
+        self.logger = logging.getLogger('datavis')
         self.logger.setLevel(logging.INFO)
-        self.logger.propagate = False
+        self.logger.propagate = True
         super().__init__(name=name, logger=self.logger)
+        self.suppress(Exception)
         self.addScopeHandler(DatavisHandler(self.record_list))
 
     @staticmethod
     def new_factory(blist):
         def factory(*args, **kwargs):
             return DatavisProcess(blist, *args, **kwargs)
-
         return factory
+

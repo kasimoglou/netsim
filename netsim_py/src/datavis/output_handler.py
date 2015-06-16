@@ -2,13 +2,17 @@ import json
 import base64
 import logging
 import os
+import sys
 from datavis.json2plots import ViewsPlotsDecoder
 from datavis.model2plots import create_simulation_results
 from datavis.datavis_logger import DatavisProcess
-from models.validation import fatal
+from models.validation import fatal, inform
 from datavis.results2json import JsonOutput
 
 from simgen.datastore import context
+
+
+logger = logging.getLogger('datavis')
 
 
 class SimOutputHandler:
@@ -97,15 +101,7 @@ class SimOutputHandler:
         jsonfile.close()
 
 
-def generate_output(fileloc=None):
-    logging.getLogger().setLevel('DEBUG')
-    try:
-        generate(fileloc)
-    except Exception as e:
-        logging.root.info("Caught exception", exc_info=True)
-
-
-def generate(fileloc):
+def generate_output():
     """
     Main function for output generation.
 
@@ -113,73 +109,76 @@ def generate(fileloc):
     generated plots and files to the Project Repository.
     """
 
-    # TODO
-    # until we integrate correctly
-    if not hasattr(context, "validate"):
-        context.validate = False
-    # /TODO
-
-
-    if fileloc is None:
-        fileloc = os.getcwd()
-
+    # output_list will hold all info/error messages of GenerateResultsProcess
     simulation_id = context.datastore.sim_id
-    filename = "nsd.json"
     castalia_data = "simout.txt"
 
-    # output_list will hold all info/error messages of GenerateResultsProcess
     output_list = []
     pf = DatavisProcess.new_factory(output_list)
     results_json = None
+    with pf(name='GenerateResultsProcess') as proc:
+        
+        plot_models = transform_nsd_plots()
+
+        if proc.success:
+            #
+            # Get the results of the simulation
+            #
+            results_json = create_simulation_results(simulation_id, plot_models, castalia_data)
+            results_json_string = json.dumps(results_json, default=lambda o: o.__dict__, indent=2)
+
+            with open("results.json", "w") as f:
+                print(results_json_string, file=f)
+
+    if not proc.success:
+        for msg in output_list:
+            print(msg['level'],msg['message'], file=sys.stderr)
+        raise RuntimeError("The output generation stage has failed")
+
+
+    if results_json is None:
+        jo = JsonOutput("simulation_results", simulation_id)
+        results_json = jo.get_json()
+
+    simoutput_handler = SimOutputHandler()
+    simoutput_handler.finish_job(results_json)
+
+
+
+def validate_output():
+    """
+    Validate the NSD and create the plot models
+    """
+    context.validate = True
+    transform_nsd_plots()
+    inform("NSD data analysis validated.")
+
+
+def transform_nsd_plots():
+
+    filename = "nsd.json"
 
     #
     # GenerateResultsProcess
     #   context.validate == True  --> validate only
     #   context.validate == False --> results generation
     #
-    with pf(name='GenerateResultsProcess'):
-        vpd = ViewsPlotsDecoder()
-        with open(filename, "r") as f:
-            json_str = f.read()
+    vpd = ViewsPlotsDecoder()
+    with open(filename, "r") as f:
+        json_str = f.read()
 
-        nsd = json.loads(json_str)
-        logging.root.debug("The nsd is:\n%s", json.dumps(nsd, indent=2))
+    nsd = json.loads(json_str)
 
-        if "views" not in nsd:
-            nsd["views"] = []
+    if "views" not in nsd:
+        inform("There are no output definitions in the NSD")
+        nsd["views"] = []
 
-        #
-        #  DerivedTable, PlotModel creation from nsd
-        #
-        #  if this fails we abort result generation
-        #  this is what happens when we validate the nsd
-        #
-        try:
-            derived_tables, plot_models = vpd.decode(nsd["views"])
-        except Exception as ex:
-            fatal("{}\nAborting results generation".format(ex))
+    #
+    #  DerivedTable, PlotModel creation from nsd
+    #
+    #  if this fails we abort result generation
+    #  this is what happens when we validate the nsd
+    #
+    derived_tables, plot_models = vpd.decode(nsd["views"])
 
-        if not context.validate:
-            #
-            # Get the results of the simulation
-            #
-            results_json = create_simulation_results(simulation_id, plot_models, castalia_data)
-            results_json_string = json.dumps(results_json, default=lambda o: o.__dict__, indent=2)
-            logging.root.debug("Results in json are:\n%s", json.dumps(json.loads(results_json_string), indent=2))
-            with open(fileloc + "/results.json", "w") as f:
-                print(results_json_string, file=f)
-
-
-    # if we only validate we cannot generate results
-    if not context.validate:
-        # if GenerateResultsProcess failed we should still return something
-        if results_json is None:
-            jo = JsonOutput("simulation_results", simulation_id)
-            results_json = jo.get_json()
-
-        simoutput_handler = SimOutputHandler()
-        simoutput_handler.finish_job(results_json)
-
-    #just for testing, print all GenerateResultsProcess's logged messages
-    for i in output_list:
-        print(i)
+    return plot_models 

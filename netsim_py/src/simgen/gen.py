@@ -100,7 +100,6 @@ def generate_simulation(fileloc=None, loglevel=logging.DEBUG, raises=True, valid
         # Get the root object
         try:
             context.validate = validate
-
             dstore = context.datastore
             sim = context.datastore.get_root_object()
         except Exception as e:

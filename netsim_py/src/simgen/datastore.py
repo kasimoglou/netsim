@@ -216,6 +216,7 @@ class Context:
         self.sim_url = get_root_url(self.fileloc)
         self.__datastore = None
         self.__sim_id = None
+        self.validate=False
 
     def finalize(self):
         """Called to clean up the context, before the subprocess ends."""
