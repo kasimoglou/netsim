@@ -6,3 +6,4 @@ simrunner.log
 __pycache__
 *~
 parser.out
+parsetab.py
