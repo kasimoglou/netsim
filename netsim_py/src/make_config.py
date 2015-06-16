@@ -37,7 +37,7 @@ BASIC_TEMPLATE_3 = \
 #
 
 omnetpp_path = %(execdir)s/omnetpp-4.4
-castalia_path = %(execdir)s/Castalia-3.2
+castalia_path = %(execdir)s/NetSim-Castalia-3.2
 
 #
 # Path where the direct monitor jobs are to be stored

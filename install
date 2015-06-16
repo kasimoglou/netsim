@@ -14,5 +14,5 @@ DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
 cd $DIR/..
 
 # run the server
-exec make -f netsim/netsim_install.mak NETSIM_DISTR=$DIR $*
+exec make -f netsim/netsim_install.mak NETSIM_DISTR=$DIR "$*"
 

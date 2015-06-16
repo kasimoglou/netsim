@@ -42,10 +42,7 @@ NETSIM_DIR=$(PWD)/netsim
 #----------------------------------------------------------------
 
 OMNETPP_SRC_FILE= $(INSTALL_DIR)/omnetpp-4.4-src.tgz
-CASTALIA_SRC_FILE= $(INSTALL_DIR)/Castalia-3.2.tar.gz
-
-
-
+CASTALIA_SRC_FILE= $(INSTALL_DIR)/NetSim-Castalia-3.2.tgz
 
 
 
@@ -96,7 +93,8 @@ check_dbconn:
 	@false
 else
 check_dbconn:
-	@echo "Will use database at " $(DBCONN)
+	@echo "Will use database at " "$(DBCONN)"
+	$(PYTHON) $(NETSIM_DIR)/check_dbconn.py "$(DBCONN)"
 endif
 
 
@@ -124,7 +122,7 @@ NETSIM_PY= $(NETSIM_DIR)/netsim_py
 NETSIM_SRC= $(NETSIM_PY)/src
 
 OMNETPP_ROOT= $(INSTALL_DIR)/omnetpp-4.4
-CASTALIA_ROOT= $(INSTALL_DIR)/Castalia-3.2
+CASTALIA_ROOT= $(INSTALL_DIR)/NetSim-Castalia-3.2
 
 install_omnetpp: $(OMNETPP_ROOT)/bin/opp_run
 
