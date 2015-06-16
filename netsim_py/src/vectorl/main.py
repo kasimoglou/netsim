@@ -10,8 +10,11 @@ from os.path import dirname, basename, join
 import argparse
 
 
+factory = None
 
 def main():
+
+    global factory
 
     parser = argparse.ArgumentParser(description='''
     This is a compiler and executor for vectorl. It takes as input a uri to the
@@ -22,6 +25,12 @@ def main():
     
     parser.add_argument("--path", '-p', type=str, help="""Provide a list of directories separated by
         : to search in vectorl files.""", default="")
+
+    parser.add_argument("--until", "-u", type=float, help="""The simulation time at which 
+the simulation will end. The default is 'no limit'""" , default=None)
+
+    parser.add_argument("--steps", "-s", type=int, help="""The maximum number of steps (events) to process.
+ The default is 'no limit'""", default=None)
 
     parser.add_argument("--compile", '-c',
                         action="store_true",
@@ -37,6 +46,7 @@ def main():
     args = parser.parse_args()
 
     fmf = FileModelFactory()
+    factory = fmf
     for d in args.path.split(':'):
         fmf.add(d)
 
@@ -53,15 +63,21 @@ def main():
         model = fmf.get_model(bname)
 
     if not compile.success:
-        return
+        return fmf
 
     if not (args.compile or args.gen):
-        Runner(fmf).start()
+        runner = Runner(fmf)
+        fmf.runner = runner
+        runner.start(until=args.until, steps=args.steps)
+        if runner.event_queue:
+            print("Finished at time=", runner.now,"after", 
+                runner.step, "steps, unprocessed events=",len(runner.event_queue))
     elif args.gen:
         gen=CppGenerator(fmf, bname)
         gen.generate()
         print(gen.output_hh)
         print(gen.output_cc)
+
 
     return fmf
 

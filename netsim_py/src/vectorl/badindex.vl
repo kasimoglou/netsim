@@ -1,0 +1,14 @@
+
+import sys;
+
+var int x = [1,2,3];
+
+var int i = 4;
+
+on sys.Init {
+  print("Hello world");
+  print("Result=", x[1]/0);
+  
+  print("Result=", x[i]);
+
+}

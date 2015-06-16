@@ -6,7 +6,7 @@ from vectorl.model import ModelFactory
 from vectorl.runtime import Runner
 from simgen.utils import execute_function
 from models.project_repo import VECTORL
-from models.validation import Process
+from models.validation import Process, inform
 import tempfile
 import logging
 import os.path
@@ -63,13 +63,11 @@ class ProcProcess(Process):
 	for this class, bound to a specified list.
 	'''
 
-	def __init__(self, record_list, name=None):
+	def __init__(self, record_list, name=None, logger=logging.getLogger('vectorl.proc')):
+		super().__init__(name=name, logger = logger)
 		self.record_list = record_list
-		self.logger = logging.getLogger('vectorl.proc')
-		self.logger.setLevel(logging.INFO)
-		self.logger.propagate = False
-		super().__init__(name=name, logger = self.logger)
-		self.addScopeHandler(JsonHandler(self.record_list))
+		if logger:
+			self.addScopeHandler(JsonHandler(self.record_list))
 
 	@staticmethod
 	def new_factory(blist):
@@ -78,7 +76,7 @@ class ProcProcess(Process):
 		return factory
 
 
-def process_vectorl(project_id, model_name, run=False):
+def process_vectorl(project_id, model_name, run=False, until=None, steps=None):
 	'''
 	Compile and return results.
 	'''
@@ -87,9 +85,12 @@ def process_vectorl(project_id, model_name, run=False):
 	pf = ProcProcess.new_factory(output_list)
 	factory = ProjectModelFactory(project_id, pf)
 
-	with pf(name='top process') as top:
+	with pf(name='top process', logger=None) as top:
 		top.suppress(Exception)
 		factory.get_model(model_name)
+		inform("Got model")
+
+	logging.info("Output list: %s",output_list)
 
 	comp_output = {
 		'type': 'vectorl_compiler_output',
@@ -116,8 +117,10 @@ def process_vectorl(project_id, model_name, run=False):
 	del output_list[:]
 
 	assert top.success
+	runner = None
 	with top:
-		Runner(factory).start()
+		runner = Runner(factory)
+		runner.start(until, steps)
 
 	result.update({
 		'type': 'vectorl_run_output',
@@ -125,16 +128,24 @@ def process_vectorl(project_id, model_name, run=False):
 		'run_output': output_list
 		})
 
+	if runner is not None:
+		result.update({
+			'maximum_steps': str(steps),
+			'maximum_time': str(until),
+			'run_steps': runner.step,
+			'end_time': runner.now
+			})
+
 	return result
 
 
-def proc_vectorl_model(project_id, model_name, run=False):
+def proc_vectorl_model(project_id, model_name, run=False, until=None, steps=None):
 	'''
 	Entry function for processing vectorl files in another process.
 	'''
 	with tempfile.TemporaryDirectory() as fileloc:
 		retval = execute_function(fileloc, process_vectorl, 'vl', True, 
-			project_id, model_name, run=run)
+			project_id, model_name, run=run, until=until, steps=steps)
 		with open(os.path.join(fileloc, 'stdout.vl.txt'), 'r') as f:
 			retval['stdout'] = f.read()
 		with open(os.path.join(fileloc, 'stderr.vl.txt'), 'r') as f:

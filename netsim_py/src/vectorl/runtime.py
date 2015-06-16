@@ -1,9 +1,11 @@
 
 from vectorl.builtins import SysBuiltin
 from vectorl.model import *
+from models.validation import snafu
 
 import numpy as np
 import heapq
+import sys
 from collections import deque
 
 #
@@ -30,6 +32,7 @@ class StackMachine:
 		self.event_queue = [] 	# the event queue
 		self.event_count = 0  	# event counter
 		self.now = TIME(0)    	# the current time
+		self.step = 0
 
 	def emit(self, evt, args, after):
 		'''
@@ -50,7 +53,8 @@ class StackMachine:
 
 	def run(self, prog):
 		'''
-		Load a program on the ostack and iterate until it is empty.
+		Load a program on the ostack and iterate until it is empty, or the
+		time limit is reached. If time limit is None, no time limit is set.
 		'''
 		self.ostack.extend(prog.prog)
 		while self.ostack:
@@ -60,40 +64,47 @@ class StackMachine:
 			try:
 				op(self)
 			except Exception as e:
-				print("Exception=",e)
+				print("Exception=",e, file=sys.stderr)
 				self.print_state(op)
 				self.print_stack_labels()
 				raise
 
+
 	def print_state(self, op=None):
-		if op: print("Processing ",op)
-		print("now=", self.now)
-		print("Data stack:", self.dstack)
-		print("Oper stack:", self.ostack)
-		print("Pending:", self.event_queue)
-		print()
+		print("step=",self.step,"now=", self.now, file=sys.stderr)
+		if op: print("Processing ",op, file=sys.stderr)
+		print("Data stack:", self.dstack, file=sys.stderr)
+		print("Pending:", self.event_queue, file=sys.stderr)
+		print(file=sys.stderr)
 
 	def print_stack_labels(self):
-		print('Stack trace (top to bottom)')
+		print('Stack trace (top to bottom)', file=sys.stderr)
 		for item in reversed(self.ostack):
 			if isinstance(item, label):
-				print(item)
+				print(item, file=sys.stderr)
 			else:
-				print('\t\t',item)
+				print('\t',item, file=sys.stderr)
 
 
-	def start(self, until=None):
+	def start(self, until=None, steps=None):
 		'''
 		Process queue events until the specified time,
-		or forever when None
+		or forever when None, or until the number of 'steps'
+		is performed, unless None.
+
+		Note that a 'step' is an event dispatch
 		'''
 		while self.event_queue:
+			if until is not None and self.now>until:
+				break
+			if steps is not None and self.step>=steps:
+				break
+
 			item = heapq.heappop(self.event_queue)
+			self.step+=1
 			if self.trace:
 				self.print_state(item)
 			self.now, _, evt, args = item
-			if until is not None and self.now>until:
-				break
 			self.trigger(evt, args)
 
 
@@ -392,7 +403,7 @@ class Runner(StackMachine):
 			all_actions.append(StmtProg(action.statement, "on %s" % evt.name))
 		return Prog(all_actions,"actions(%s)" % evt.name)
 
-	def start(self, until=None):
+	def start(self, until=None, steps=None):
 		self.emit(self.model.sysmodel['Init'], [], 0)
-		super().start(until)
+		super().start(until, steps)
 

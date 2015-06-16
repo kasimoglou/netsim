@@ -92,6 +92,7 @@ define(['underscore',
                             $scope.fetchSelectedPlan($scope.nsd.plan_id);
                         }
                         
+                        $scope.initializeHil($scope.nsd);
                         $scope.initializeParameters($scope.nsd);
                         $scope.initializeEnvironment($scope.nsd);
                         $scope.initializeOutput($scope.nsd);
@@ -136,6 +137,14 @@ define(['underscore',
             if (nsd.environment) {
                 $scope.temp.env_model = nsd.environment.type;
                 $scope.temp.environment.vectorl_id = nsd.environment.vectrol_id;
+                
+                for (var i=0; i<5; i++) {
+                    if (nsd.environment['sensor' + i]) {
+                        $scope.temp.environment['sensor' + i] = nsd.environment['sensor' + i];
+                    }
+                }
+                
+                $scope.validateVectorl();
             }
         };
         
@@ -204,6 +213,7 @@ define(['underscore',
         };
         
         $scope.selected_plan = {};
+        $scope.hil_nodes = [];
         // Every time user selects a different plan for this project
         // we have to update its details. So on select change this function
         // is called and we fetch specific plan's details.
@@ -213,6 +223,8 @@ define(['underscore',
                 API.planRead(plan_id)
                         .success(function(response) {
                             $scope.selected_plan = _.omit(response, ['_id', '_rev']);
+                            $scope.hil_nodes = _.pluck($scope.selected_plan.NodePosition, 'nodeId');
+                            //console.log($scope.hil_nodes);
                 })
                         .error(function(error) {
                             console.log(error.details);
@@ -230,6 +242,15 @@ define(['underscore',
             $scope.temp.planDetailsShown = !$scope.temp.planDetailsShown;
         };
         
+        /////////////////////// ### HIL related data and methods
+        $scope.temp.hil = false;
+        
+        $scope.initializeHil = function(nsd) {
+            if (nsd.hil) {
+                $scope.temp.hil = true;
+            }
+        };
+        
         /////////////////////// ### Environment related data and methods
         $scope.vectorls = [];
         
@@ -244,6 +265,49 @@ define(['underscore',
                         console.log(error.details);
                         alert(error.details);
             });
+        };
+        
+        $scope.temp.valid_vectorl = false;
+        $scope.alerts = {
+            validating_vectorl: false,
+            valid_vectorl: false,
+            invalid_vectorl: false
+        };
+        
+        $scope.vectorl_vars = [];
+        $scope.validateVectorl = function() {
+            if ($scope.temp.environment.vectorl_id) {
+                $scope.alerts.valid_vectorl = false;
+                $scope.alerts.invalid_vectorl = false;
+                $scope.alerts.validating_vectorl = true;
+            
+                API.vectorlCompile($scope.temp.environment.vectorl_id)
+                    .success(function(response) {
+                        if (response.success) {
+                            $scope.alerts.validating_vectorl = false;
+                            $scope.alerts.invalid_vectorl = false;
+                            $scope.alerts.valid_vectorl = true;
+                            
+                            $scope.vectorl_vars = ['foo', 'bar', 'test', 'sth', 'var_name']; //response.variables
+                        } else {
+                            $scope.alerts.validating_vectorl = false;
+                            $scope.alerts.valid_vectorl = false;
+                            $scope.alerts.invalid_vectorl = true;
+                        }
+                    })
+                    .error(function(error) {
+                        console.log(error.details);
+                        alert(error.details);
+                    });
+            } else {
+                $scope.alerts.valid_vectorl = false;
+                $scope.alerts.invalid_vectorl = false;
+                $scope.alerts.validating_vectorl = false;
+            }
+        };
+        
+        $scope.goToVectorl = function(id) {
+            $location.path('/vectorl/' + id);
         };
         
         // ### Output tab related data and methods
@@ -267,7 +331,7 @@ define(['underscore',
                 className: 'ngdialog-theme-default new-view-dialog',
                 closeByDocument: false,
                 // This controller controls create_view template
-                controller: ['$scope', function($scope) {
+                controller: ['$scope', '$validator', function($scope, $validator) {
                         
                     // Boolean value used to customize 
                     // buttons in the template
@@ -346,20 +410,23 @@ define(['underscore',
                     $scope.createView = function() {
                         
                         if ($scope.view) {
-                            $scope.view.columns = [];
-                            $scope.view.groupby = [];
-                            
-                            // transform `myData` table model to `columns` and `groupby`
-                            // models accepted by nsd.
-                            _.each($scope.myData, function(obj) {
-                                $scope.view.columns.push({ name: obj.name, expression: obj.expression });
-                                if (obj.groupby === true) {
-                                    $scope.view.groupby.push(obj.name);
-                                }
+                            $validator.validate($scope, 'view').success(function() {
+                                $scope.view.columns = [];
+                                $scope.view.groupby = [];
+
+                                // transform `myData` table model to `columns` and `groupby`
+                                // models accepted by nsd.
+                                _.each($scope.myData, function(obj) {
+                                    $scope.view.columns.push({ name: obj.name, expression: obj.expression });
+                                    if (obj.groupby === true) {
+                                        $scope.view.groupby.push(obj.name);
+                                    }
+                                });
+
+                                self.nsd.views.push($scope.view);
+                                $scope.closeThisDialog();
+
                             });
-                        
-                            self.nsd.views.push($scope.view);
-                            $scope.closeThisDialog();
                         }
                         
                     };
@@ -381,7 +448,7 @@ define(['underscore',
                 template: 'templates/create_view.html',
                 className: 'ngdialog-theme-default new-view-dialog',
                 closeByDocument: false,
-                controller: ['$scope', function($scope) {
+                controller: ['$scope', '$validator', function($scope, $validator) {
                     $scope.mode = {
                         update: true
                     };
@@ -477,26 +544,29 @@ define(['underscore',
                     $scope.initializeBaseDatasets();
                     
                     $scope.updateView = function() {
-                        view.name = $scope.view.name;
-                        view.table_filter = $scope.view.table_filter;
-                        view.base_tables = $scope.view.base_tables;
-                        
-                        $scope.view.columns = [];
-                        $scope.view.groupby = [];
+                        $validator.validate($scope, 'view').success(function() {
+                            view.name = $scope.view.name;
+                            view.table_filter = $scope.view.table_filter;
+                            view.base_tables = $scope.view.base_tables;
 
-                        // transform `myData` table model to `columns` and `groupby`
-                        // models accepted by nsd.
-                        _.each($scope.myData, function(obj) {
-                            $scope.view.columns.push({ name: obj.name, expression: obj.expression });
-                            if (obj.groupby === true) {
-                                $scope.view.groupby.push(obj.name);
-                            }
+                            $scope.view.columns = [];
+                            $scope.view.groupby = [];
+
+                            // transform `myData` table model to `columns` and `groupby`
+                            // models accepted by nsd.
+                            _.each($scope.myData, function(obj) {
+                                $scope.view.columns.push({ name: obj.name, expression: obj.expression });
+                                if (obj.groupby === true) {
+                                    $scope.view.groupby.push(obj.name);
+                                }
+                            });
+
+                            view.columns = $scope.view.columns;
+                            view.groupby = $scope.view.groupby;
+
+                            $scope.closeThisDialog();
                         });
                         
-                        view.columns = $scope.view.columns;
-                        view.groupby = $scope.view.groupby;
-                        
-                        $scope.closeThisDialog();
                     };
                     
                     // Called when dialog's cancel button is clicked - just dismisses the dialog
@@ -743,6 +813,17 @@ define(['underscore',
                     type: 'vectorl',
                     vectrol_id: $scope.temp.environment.vectorl_id
                 };
+                
+                for (var i=0; i<5; i++) {
+                    if ($scope.temp.environment['sensor' + i]) {
+                        $scope.nsd.environment['sensor' + i] = $scope.temp.environment['sensor' + i];
+                    }
+                }
+            }
+            
+            // Save changes made to HIL tab
+            if (!$scope.temp.hil || !$scope.nsd.plan_id) {
+                delete $scope.nsd.hil;
             }
             
             API.nsdUpdate($routeParams.id, $scope.nsd)
@@ -754,14 +835,46 @@ define(['underscore',
                     .error(function(error) {
                         // in case of conflict get the returned `_rev`
                         // and try again
-                        if (error.status == 409) {
+                        if (error.status === 409) {
                             $scope.nsd._rev = error.current_object._rev;
                             $scope.saveNsd();
                             return;
                         }
-                        console.log('Error updating nsd.');
-                        alert('Error updating nsd.');
+                        console.log(error.details);
+                        alert(error.details);
             });
+        };
+        
+        $scope.output = [
+            { level: '', message: 'No output messages'}
+        ];
+        
+        $scope.validateNsd = function() {
+            $scope.output = [{ level: 'INFO', message: 'Validation started... Please Wait...'}];
+            API.nsdValidate($routeParams.id)
+                .success(function(response) {
+                    // Show validation output at first
+                    var output = [{level: '', message: 'Validation output'}];
+                    output = output.concat(response.messages);
+
+                    // If stdout message exists, show it
+                    if (response.stdout !== '') {
+                        output.push({level: '', message: 'Stdout output'});
+                        output.push({level: 'INFO', message: response.stdout});
+                    }
+
+                    // If stderr message exists show it
+//                    if (response.stderr !== '') {
+//                        output.push({level: '', message: 'Stderr output'});
+//                        output.push({level: 'ERROR', message: response.stderr});
+//                    }
+
+                    $scope.output = output;
+                })
+                .error(function(error) {
+                    console.log(error.details);
+                    alert(error.details);
+                });
         };
 
         $scope.dismiss = function() {

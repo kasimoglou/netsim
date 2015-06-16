@@ -10,6 +10,7 @@ import os
 import re
 import csv
 import logging
+import json
 
 class Dataset(object):
     """
@@ -120,6 +121,7 @@ class StatsDatabase(Dataset):
             Attribute("data", "FLOAT")
         ]
         self.create_table("dataTable", alist)
+        self.nodemap = None
 
     def get_datatable(self):
         """
@@ -151,6 +153,39 @@ class StatsDatabase(Dataset):
         """
         return self.conn.execute(query).fetchall()
 
+    def __generate_nodemap(self, map_file):
+        """
+        parse map_file and generate a nodemap
+        that is a dictionary of the form {"castaliaID1":"planID1", "castaliaID12:"planID2", ...}
+        :param map_file: the file containing information to generate the nodemap
+        :return: the nodemap
+        """
+        with open(map_file, 'r') as f:
+            fjson = json.loads(f.read())
+            nodes = fjson["nodes"]
+            nodemap = {}
+            for n in nodes:
+                # print("%d = %s" % (n["simid"], n["nodeid"]))
+                nodemap[str(n["simid"])] = n["nodeid"]
+            return nodemap
+
+    def __castaliaID_2_planID(self, castalia_id):
+        """
+        translate a castalia node id to a plan node id
+        self.nodemap has to be generated with __generate_nodemap before this function is called or it will just return the id as is
+        if castalia node id == -1 it is returned as is
+        :param castalia_id: the castalia node id to translate
+        :return: the plan node id (translated castalia node id)
+        """
+        if self.nodemap is None or castalia_id is None or castalia_id == "" or castalia_id == -1:
+            return castalia_id
+
+        if str(castalia_id) in self.nodemap:
+            return self.nodemap[str(castalia_id)]
+        else:
+            logging.warning("castalia node id \"%s\" is not mapped to a plan id" % castalia_id)
+            return castalia_id
+
     def __save_output(self, m, n, i, o, bl, l, v):
         """
         Stores data representing a simple output or histogram to database
@@ -166,7 +201,10 @@ class StatsDatabase(Dataset):
         # ignore sim_label bl
 
         c = self.conn.cursor()
-        c.execute("INSERT INTO dataTable VALUES(?,?,?,?,?,?);", (m, n, o, l, i, v))  # chr(ord("A")+int(n))
+        # map castalia node ids to plan node ids
+        n = self.__castaliaID_2_planID(n)
+        i = self.__castaliaID_2_planID(i)
+        c.execute("INSERT INTO dataTable VALUES(?,?,?,?,?,?);", (m, n, o, l, i, v))
         self.conn.commit()
 
     @staticmethod
@@ -177,14 +215,20 @@ class StatsDatabase(Dataset):
         if type(num) != float: return False
         return int(num) == num
 
-    def load_castalia_output(self, file):
+    def load_castalia_output(self, castalia_output_file, node_mapping_file="nodemap.json"):
         """
         read data from Castalia output file and store them to an sqlite db in memory
         """
-        if not os.path.exists(file) or not os.path.isfile(file):
-            logging.warning("Could not load \"%s\" file" % file)
+        if not os.path.exists(castalia_output_file) or not os.path.isfile(castalia_output_file):
+            logging.warning("Could not load \"%s\" castalia output file" % castalia_output_file)
             return
-        with open(file, "r") as f:
+        if not os.path.exists(node_mapping_file) or not os.path.isfile(node_mapping_file):
+            logging.warning("Could not load \"%s\" node mapping file" % node_mapping_file)
+        else:
+            # generate the castalia to plan node map
+            self.nodemap = self.__generate_nodemap(node_mapping_file)
+
+        with open(castalia_output_file, "r") as f:
             lines = f.readlines()
 
         # prepare regex
@@ -310,7 +354,7 @@ class StatsDatabase(Dataset):
                     continue
 
             if r_what.match(line) or r_when.match(line): continue
-            logging.warning("Parsing file: \"%s\"\nUnknown input at level %s: %s" % (file, level, line))
+            logging.warning("Parsing file: \"%s\"\nUnknown input at level %s: %s" % (castalia_output_file, level, line))
 
 
 class Attribute:

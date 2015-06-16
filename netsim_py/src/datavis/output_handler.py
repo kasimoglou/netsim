@@ -1,26 +1,25 @@
-import json, base64
-from pprint import pprint
-import random
-import subprocess, shlex
-import urllib.request
-import logging, os
-import time
+import json
+import base64
+import logging
+import os
+import sys
 from datavis.json2plots import ViewsPlotsDecoder
-from runner.config import cfg
-
-from runner.config import resource_path
-from runner.default_json_simoutput import node_plot_results_default, node_parameter_results_default, network_plot_results_default, network_parameter_results_default, node_2_node_results_default
-from datavis.tests.test_results2json import executor_final_stage_test as efst
 from datavis.model2plots import create_simulation_results
+from datavis.datavis_logger import DatavisProcess
+from models.validation import fatal, inform
+from datavis.results2json import JsonOutput
 
 from simgen.datastore import context
+
+
+logger = logging.getLogger('datavis')
+
 
 class SimOutputHandler:
     def __init__(self):
         self.status = 'FINISHED'
-        
 
-    def finish_job(self,results_json):
+    def finish_job(self, results_json):
         try:
             if (self.status == 'ABORTED'):
                 self.create_null_SIMOUTPUT()
@@ -29,11 +28,12 @@ class SimOutputHandler:
         except:
             logging.exception("Cannot create json file")
 
-	
 
-	#
-	#Creates the SIMOUTPUT json file in case where ABORTED
-	#    
+
+        #
+        # Creates the SIMOUTPUT json file in case where ABORTED
+        #
+
     def create_null_SIMOUTPUT(self):
         data = context.datastore.get_root_object()
         try:
@@ -45,16 +45,16 @@ class SimOutputHandler:
             data["node_2_node_results"] = []
             data["type"] = "simoutput"
 
-            #Write json data to SIMOUTPUTx
+            # Write json data to SIMOUTPUTx
             logging.info("Data = %s", data)
-            context.datastore.put_root_object(data)
+            context.datastore.update_root_object(data)
 
         except:
             logging.exception("Wrong json content")
 
 
     #
-    #Creates the SIMOUTPUT json file and stores
+    # Creates the SIMOUTPUT json file and stores
     #all the simulation results
     #
     def create_SIMOUTPUT(self, results_json):
@@ -75,7 +75,7 @@ class SimOutputHandler:
 
             #Write json data to SIMOUTPUTx
             logging.info("Data = %s", data)
-            context.datastore.put_root_object(data)
+            context.datastore.update_root_object(data)
 
         except:
             logging.exception("Wrong json content")
@@ -101,15 +101,7 @@ class SimOutputHandler:
         jsonfile.close()
 
 
-def generate_output(fileloc=None):
-    logging.getLogger().setLevel('DEBUG')
-    try:
-        generate(fileloc)
-    except Exception as e:
-        logging.root.info("Caught exception", exc_info=True)
-
-
-def generate(fileloc):
+def generate_output():
     """
     Main function for output generation.
 
@@ -117,34 +109,76 @@ def generate(fileloc):
     generated plots and files to the Project Repository.
     """
 
-    if fileloc is None:
-        fileloc = os.getcwd()
-
+    # output_list will hold all info/error messages of GenerateResultsProcess
     simulation_id = context.datastore.sim_id
-    filename = "nsd.json"
     castalia_data = "simout.txt"
 
-    #
-    # Get the results of the simulation
-    #
+    output_list = []
+    pf = DatavisProcess.new_factory(output_list)
+    results_json = None
+    with pf(name='GenerateResultsProcess') as proc:
+        
+        plot_models = transform_nsd_plots()
 
+        if proc.success:
+            #
+            # Get the results of the simulation
+            #
+            results_json = create_simulation_results(simulation_id, plot_models, castalia_data)
+            results_json_string = json.dumps(results_json, default=lambda o: o.__dict__, indent=2)
+
+            with open("results.json", "w") as f:
+                print(results_json_string, file=f)
+
+    if not proc.success:
+        for msg in output_list:
+            print(msg['level'],msg['message'], file=sys.stderr)
+        raise RuntimeError("The output generation stage has failed")
+
+
+    if results_json is None:
+        jo = JsonOutput("simulation_results", simulation_id)
+        results_json = jo.get_json()
+
+    simoutput_handler = SimOutputHandler()
+    simoutput_handler.finish_job(results_json)
+
+
+
+def validate_output():
+    """
+    Validate the NSD and create the plot models
+    """
+    context.validate = True
+    transform_nsd_plots()
+    inform("NSD data analysis validated.")
+
+
+def transform_nsd_plots():
+
+    filename = "nsd.json"
+
+    #
+    # GenerateResultsProcess
+    #   context.validate == True  --> validate only
+    #   context.validate == False --> results generation
+    #
     vpd = ViewsPlotsDecoder()
     with open(filename, "r") as f:
         json_str = f.read()
 
-    logging.root.debug("The nsd is:\n%s", json.dumps(json.loads(json_str), indent=4))
-
     nsd = json.loads(json_str)
+
     if "views" not in nsd:
+        inform("There are no output definitions in the NSD")
         nsd["views"] = []
+
+    #
+    #  DerivedTable, PlotModel creation from nsd
+    #
+    #  if this fails we abort result generation
+    #  this is what happens when we validate the nsd
+    #
     derived_tables, plot_models = vpd.decode(nsd["views"])
 
-    results_json = create_simulation_results(simulation_id, plot_models, castalia_data)
-    results_json_string = json.dumps(results_json, default=lambda o: o.__dict__, indent=2)
-    logging.root.debug("Results in json are:\n%s", json.dumps(json.loads(results_json_string), indent=2))
-    with open(fileloc + "/results.json", "w") as f:
-        print(results_json_string, file=f)
-
-    simoutput_handler = SimOutputHandler()
-    simoutput_handler.finish_job(results_json)
-        
+    return plot_models 

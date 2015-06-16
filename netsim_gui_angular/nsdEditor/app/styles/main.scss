@@ -55,6 +55,10 @@ $icon-font-path: "../bower_components/bootstrap-sass-official/assets/fonts/boots
     margin-top: 20px;
 }
 
+input[type="checkbox"] {
+    margin-right: 5px;
+}
+
 .new-nsd-btn, .new-vectorl-btn {
     margin-bottom: 15px;
 }
@@ -210,4 +214,37 @@ multiselect.hide-check-buttons .dropdown-menu li[ng-show="multiple"] {
     opacity: 0.8;
     background: url(../images/Preloader_2.gif) center no-repeat #fff;
 }
+
+// Console compile-run output
+.console-output {
+    border: 2px groove #eee;
+    margin-bottom: 20px;
+    display: block;
+    padding: 5px 10px;
+    background-color: #f7f7f7;
+    min-height: 200px;
+}
+
+.console-output-title {
+    margin-left: 10px;
+    padding: 5px 10px;
+    width: auto;
+    font-size: 1em;
+    font-family: "Lucida Console", Monaco, monospace;
+    color: #2C3E50;
+    margin-bottom: 0px;
+}
+
+my-output .my-output-div {
+    font-family: "Lucida Console", Monaco, monospace;
+}
+
+.strong {
+    font-weight: bold;
+}
+
+.italics {
+    font-style: italic;
+}
+
 

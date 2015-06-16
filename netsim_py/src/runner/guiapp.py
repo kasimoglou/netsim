@@ -48,5 +48,3 @@ def start_gui(args, guiaddr):
         quiet=True)
     logging.info("Stopped web server")
 
-
-

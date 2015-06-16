@@ -8,7 +8,7 @@ from models.nsdplot import PlotModel, DATA_TABLE, DerivedTable, Table,  Column, 
     PLUS, MINUS, DIV, MULT
 from datavis.database import less_equal, less_than, greater_than, greater_equal, not_equal, like, not_like, between
 from datavis.create_plot import pm_defaults
-import json
+from models.validation import Context, inform, fail, fatal
 import re
 
 
@@ -52,9 +52,10 @@ class ViewsPlotsDecoder:
             else:
                 return d[attr]
         elif attr in pm_defaults:
+            # inform("\"%s\" not given a value, defaulting to \"%s\"" % (attr, pm_defaults[attr]))
             return pm_defaults[attr]
         else:
-            Exception("ViewsPlotsDecoder: Bad argument \"%s\"" % attr)
+            fail("Bad argument \"%s\"" % attr)
 
     @staticmethod
     def gen_plotmodel(rel, d):
@@ -66,7 +67,7 @@ class ViewsPlotsDecoder:
 
         sel = ViewsPlotsDecoder.get_attr("select", d)
         if sel != pm_defaults["select"]:
-            sel = SelectorParser.parse(sel,rel)
+            sel = SelectorParser.parse(sel, rel)
 
         pm = PlotModel(
             d["model_type"],
@@ -111,8 +112,9 @@ class ViewsPlotsDecoder:
         rel is the relation these plots are connected with
         """
         for p in d_plot_list:
-            pm = self.gen_plotmodel(rel, p)
-            self.plot_models.append(pm)
+            with Context(plot=p):
+                pm = self.gen_plotmodel(rel, p)
+                self.plot_models.append(pm)
 
     def gen_derived_table(self, d):
         """
@@ -143,12 +145,16 @@ class ViewsPlotsDecoder:
         returns a tuple of lists (list_DerivedTable, list_plotModel)
         """
         for v in views:
-            if v["name"] == "dataTable":
-                rel = DATA_TABLE
-            else:
-                rel = self.gen_derived_table(v)
-            if "plots" in v:
-                self.gen_plots(rel, v["plots"])
+            with Context(view=v):
+                allowed_chars = re.compile(r"^[a-zA-Z0-9_]+$")
+                if not allowed_chars.match(v["name"]):
+                    fail("View name can contain only upper/lower case letters, numbers and underscores")
+                if v["name"] == "dataTable":
+                    rel = DATA_TABLE
+                else:
+                    rel = self.gen_derived_table(v)
+                if "plots" in v:
+                    self.gen_plots(rel, v["plots"])
 
         return self.derived_tables, self.plot_models
 
@@ -161,8 +167,11 @@ class ViewsPlotsDecoder:
         nv = ExprGenNodeVisitor(types)
         eq_regex = re.compile(r"(?<![=><])=(?![=><])")  # regular expression to find a single =
         expr_str = eq_regex.sub("==", expr_str)  # replaces = with ==
-        node = ast.parse(expr_str)
-        return nv.visit(node)
+        try:
+            node = ast.parse(expr_str)
+            return nv.visit(node)
+        except SyntaxError as ex:
+            fail("Syntax Error: %s" % ex.text)
 
     def get_table_by_name(self, name):
         """
@@ -176,7 +185,8 @@ class ViewsPlotsDecoder:
             for c in self.derived_tables:
                 if c.name == name:
                     return c
-        raise Exception("Table name: \"%s\" does not exist" % name)
+            fail("View \"%s\" does not exist" % name)
+
 
 
 def gen_types(columns=None, tables=None):
@@ -243,7 +253,7 @@ def col_str2col_obj(col_str, col_obj):
         if c:
             cols.append(c)
         else:  # this should never happen
-            raise Exception("column name: \"%s\" does not exist" % s)
+            fail("column \"%s\" does not exist" % s)
     return cols
 
 
@@ -300,7 +310,8 @@ class ExprGenNodeVisitor(ast.NodeVisitor):
             elif self.types[name] == "table":
                 return name
         else:
-            raise Exception("Unknown Name: \"%s\"" % name)
+            return name
+            # raise Exception("Unknown Name: \"%s\"" % name)
 
     def visit_Num(self, node):
         num = str(node.n)
@@ -337,7 +348,7 @@ class ExprGenNodeVisitor(ast.NodeVisitor):
         elif name == "Div":
             return DIV
 
-        raise Exception("func \"%s\" unknown" % name)
+        fail("unknown function: \"%s\"" % name)
 
 
 class SelectorParser():
@@ -401,7 +412,7 @@ class SelectorParser():
 
 
     @staticmethod
-    def parse(selector_text, rel):
+    def parse(selector_text, rel, testing=None):
         assert isinstance(selector_text, str)
         assert isinstance(rel, Table)
 
@@ -412,8 +423,7 @@ class SelectorParser():
             SelectorParser.validate(selector_text, colnames)
             namespace.update({name:name for name in colnames})
             selector = eval("{"+selector_text+"}", {}, SelectorParser.StrictDict(namespace))
-        except Exception as e:
-            print(e)
-            raise ValueError("The selector {%s} is malformed" % selector_text)
+        except:
+            fail("The selector '%s' is malformed" % selector_text, ooc=ValueError)
         return selector
 

@@ -1,5 +1,48 @@
 {"views":
 [
+        {
+           "columns": [
+               {
+                   "name": "node"
+               },
+               {
+                   "name": "name"
+               },
+               {
+                   "name": "module"
+               },
+               {
+                   "name": "label"
+               },
+               {
+                   "name": "n_index"
+               },
+               {
+                   "name": "data"
+               }
+           ],
+           "name": "dataTable",
+           "groupby": [
+           ],
+           "base_tables": [
+           ],
+           "table_filter": "",
+           "plots": [
+               {
+                   "rel": "dataTable",
+                   "y": "data",
+                   "x": "node",
+                   "style": "histogram",
+                   "xlabel": "node",
+                   "model_type": "plot",
+                   "select": "name: \"Consumed Energy\"",
+                   "stat_type": "network",
+                   "title": "Consumed Energy",
+                   "ylabel": "joule"
+               }
+           ]
+       },
+
     	{
            "table_filter": "name = \"Consumed Energy\"",
            "plots": [
@@ -25,6 +68,7 @@
            ],
            "name": "TotalEnergy"
        },
+       
        {
            "table_filter": "module = \"ResourceManager\"",
            "plots": [

@@ -36,16 +36,42 @@
             </div>
         </div>
     </div>
-    <div class="row">
-        <div class="col-md-12">
-            <a class="btn btn-warning btn-sm"><span class="glyphicon glyphicon-ok"></span> Compile</a>
-            <a class="btn btn-success btn-sm"><span class="glyphicon glyphicon-play-circle"></span> Run</a>
-        </div>
-    </div>
     <div class="row top10 bottom10">
         <div class="col-md-12">
             <textarea my-code-editor class="form-control not-resizable" ng-model="vectorl.code">
             </textarea>
         </div>
     </div>
+    <div class="row top20">
+        <div class="col-md-12">
+            <a class="btn btn-warning btn-sm" ng-click="saveVectorl('compile')"><span class="glyphicon glyphicon-ok"></span> Compile</a>
+            <a class="btn btn-success btn-sm" ng-click="saveVectorl('run')"><span class="glyphicon glyphicon-play-circle"></span> Run</a>
+        </div>
+    </div>
+    <form novalidate class="new-nsd-form">
+        <div class="row top10">
+            <div class="col-md-4">
+                <div class="form-group">
+                    <label for="until">Run until:</label>
+                    <input type="text" ng-model="run_params.until" validator="/^([0-9]+([.][0-9]+)?)?$/"
+                        validator-error="This must be a float number" validator-invoke="watch"
+                        class="form-control" id="until" placeholder="maximum simulation time"/>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="form-group">
+                    <label for="steps">Run steps:</label>
+                    <input type="text" ng-model="run_params.steps" validator="/^[0-9]*$/"
+                        validator-error="This must be an integer" validator-invoke="watch"
+                        class="form-control" id="steps" placeholder="maximum events"/>
+                </div>
+            </div>
+        </div>
+    </form>
+    <div class="row">
+        <div class="col-md-12">
+            <my-output ng-model="output"></my-output>
+        </div>
+    </div>
+    
 </div>

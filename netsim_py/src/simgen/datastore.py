@@ -10,11 +10,15 @@ Created on Sep 24, 2014
 
 
 import os.path, json, logging
-from urllib.parse import urlparse, urlunparse
+from urllib.parse import urlparse, urlunparse, urldefrag
 from simgen.utils import get_file, put_file, execute_function
 from runner import dpcmrepo, config
 from models.project_repo import SIM
 from io import StringIO
+
+
+logger = logging.getLogger('codegen')
+
 
 def set_root_url(fileloc, url):
     """Store the root url into the simulation home.
@@ -83,16 +87,7 @@ class DataStore:
         self.put_root_object(sim)
         return sim
 
-    def put_attachment(self, data, name, content_type):
-        """Add an attachment to root object, under name. 'data' must be either bytes or
-        a file-like object."""
-        raise NotImplementedError
-
-    def get_nsd(self, oid):
-        """Retrieve the NSD for the given oid"""
-        raise NotImplementedError
-
-    def get_plan(self, oid):
+    def get(self, entity, oid):
         """Retrieve plan for the given oid"""
         raise NotImplementedError
 
@@ -124,7 +119,7 @@ class ProjectRepoStore(DataStore):
         
         # The simulation id is the last element of the url of the root object
         self.sim_id = os.path.basename(self.parsed_root_url.path)
-        logging.root.debug("Datastore initialized: %s\n%s", self.parsed_root_url.path, self.sim_id)
+        logger.debug("Datastore initialized: %s\n%s", self.parsed_root_url.path, self.sim_id)
 
 
     def get_root_object(self):
@@ -135,41 +130,6 @@ class ProjectRepoStore(DataStore):
         """Save the root object sim."""
         self.simdb.save(sim)
 
-    def put_attachment(self, data, name, content_type):
-        """Add an attachment to root object, under name. 'data' must be either bytes or
-        a file-like object."""
-        self.simdb.put_attachment(self.sim_id, data, name, content_type)
-
-    def get_attachment(self, docid, filename):
-        """GET an attachment from root object, fiename is the attachment name docid the doc attached to"""
-        assert docid is not None
-        assert filename is not None
-        return self.simdb.get_attachment(self.ptdb, docid, filename)
-
-    def get_nsd(self, oid):
-        """Read the NSD."""
-        assert oid is not None
-        return self.simdb.get(oid)
-
-    def get_plan(self, oid):
-        """Retrieve plan for the given oid"""
-        assert oid is not None
-        return self.ptdb.get(oid)
-        
-    def get_project(self, oid):
-        """Retrieve plan for the given oid"""
-        assert oid is not None
-        return self.ptdb.get(oid)
-
-    def get_nodedef(self, oid):
-        """Retrieve plan for the given oid"""
-        assert oid is not None
-        return self.ptdb.get(oid)
-
-    def get_RFsimulation(self, oid):
-        """Retrieve rfsimulation for the given oid"""
-        assert oid is not None
-        return self.ptdb.get(oid)
 
     def get(self, entity, oid):
         """
@@ -186,11 +146,41 @@ class ProjectRepoStore(DataStore):
             return db.get(oid)
 
 
+class NsdValidationRepoStore(ProjectRepoStore):
+    def __init__(self, root_url, repo=None):
+        '''
+        Initialize a datastore for the project repo, without a simulation.
+        root_url is actually the url of the nsd in the repostore.
+        '''
+        super().__init__(root_url, repo)
+        # Since root_url is actually the url of the nsd, 
+        # some magic is needed both after we call the 
+        # parent constructor.
+        self.nsdid = self.sim_id
+        self.sim_id = None
 
-# Mapping from UROL scheme to datastore class (module-private)
+        self.root_object = {
+           "type": "simoutput",
+           "generator": "Castalia",
+           "nsdid": self.nsdid
+        }
+
+
+    def get_root_object(self):
+        """Read the root object."""
+        return self.root_object
+        
+    def put_root_object(self, sim):
+        """Save the root object sim."""
+        self.root_object = sim
+
+
+# Mapping from URL scheme to datastore class (module-private)
 _SCHEME_TO_DATASTORE = {
     'http': ProjectRepoStore,
+    'validate': NsdValidationRepoStore
 }
+
 
 def register_datastore_proxy(scheme, cls):
     _SCHEME_TO_DATASTORE[scheme] = cls
@@ -200,8 +190,12 @@ def create_datastore_proxy(url):
     
     Currently, this is using the URL schema.
     """
-    U = urlparse(url)
-    return _SCHEME_TO_DATASTORE[U.scheme](U)
+
+    # defrag the url
+    basic_url, fragment = urldefrag(url)
+    U = urlparse(basic_url)
+    scheme = fragment if fragment else U.scheme
+    return _SCHEME_TO_DATASTORE[scheme](U)
 
 
 
@@ -222,6 +216,7 @@ class Context:
         self.sim_url = get_root_url(self.fileloc)
         self.__datastore = None
         self.__sim_id = None
+        self.validate=False
 
     def finalize(self):
         """Called to clean up the context, before the subprocess ends."""

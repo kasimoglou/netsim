@@ -13,11 +13,13 @@ Created on Mar 3, 2014
 
 import runner.api as api
 import runner.AAA as AAA
-from runner.config import gui_file_path
+from runner.config import gui_file_path, cfg
 from runner.monitor import Manager
 from runner.AAA import User
+from runner.dpcmrepo import repo_url
 
 from models.constraints import ConstraintViolation
+from models.project_repo import NSD, SIM, PROJECT, PLAN
 
 import sys
 import logging, os
@@ -150,7 +152,9 @@ def view_simhome(xtor, name):
 	job_created = job.tscreated.strftime("%y/%m/%d %H:%M:%S")
 	job_runtime = str(job.tsinstatus - job.tscreated)
 
+
 	basic_url = "/admin/simhomes/%s/%s" % (xtor, name)
+	repo_simoutput = repo_url(SIM, Manager.get_simid(xtor,name))
 
 	def myurl(sel=selected_file):
 		if sel is None:
@@ -205,39 +209,62 @@ def index_html():
 def get_css():
 	return static_file("mainpage.css", root=gui_file_path())
 
-'''
-# These are not useful !
-@app.route("/download_nsd.html")
-@view("download_nsd.html")
-@AAA.logged_in
-def show_job_form():
-	refresh_page = False
-	thispage = "/admin/download_nsd.html"
-	return locals()
-
-@app.route("/nsd_simulations.html")
-@view("nsd_simulations.html")
-@AAA.logged_in
-def show_nsd_simulations():
-	refresh_page = False
-	thispage = "/admin/nsd_simulations.html"
-	return locals()
-'''
 
 
-@app.post("/run_simulation")
-@view("job_table.html")
+
+@app.get("/run_simulation")
 @AAA.logged_in
 def submit_nsd():
-	nsdid = request.forms.nsdid
+	nsdid = request.query.nsdid
+
+	if request.query.action=="Validate":
+		return validate_nsd(nsdid)
+	if request.query.action=="Run":
+		return run_nsd(nsdid)
+	if request.query.action=="Edit":
+		redirect(api.nsd_editor_path(NSD, nsdid))
+	raise HTTPError(api.BadRequest, body="You did not provide a valid action.")
+
+
+@view("nsd_validate.html")
+def validate_nsd(nsdid):
 	try:
-		try:
-			sim = api.create_simulation(nsdid)
-		except:
-			pass
+		result = api.validate_nsd(nsdid)
+
+		success = result['success']
+		messages = result['messages']
+
+		refresh_page = False
+		thispage = "/admin/nsd_validate.html"
+		return locals()
+	except api.Error as e:
+		logging.debug("In validate_nsd(%s)",nsdid,exc_info=1)
+		body = ["The nsd was not validated."]
+		for k, v in e.kwargs.items():
+			body.append("%s: %s" % (k,v))
+		raise HTTPError(status=e.httpcode, body="\n".join(body))
+	except ValueError as e:
+		loggging.debug("In restapi.post_simulation", exc_info=1)
+		raise HTTPError(status=403, body="The provided NSD id was not legal")
+	except:
+		logging.debug("In restapi.post_simulation", exc_info=1)
+		raise HTTPError(status=500, body="An unknown error has occurred.")
+	
+
+
+@view("job_table.html")
+def run_nsd(nsdid):
+	try:
+		sim = api.create_simulation(nsdid)
 		refresh_page = False
 		thispage = "/admin/jobs.html"
 		return locals()
+	except api.Error as e:
+		logging.debug("In create_simulation(%s)",nsdid,exc_info=1)
+		body = ["The simulation was not created."]
+		for k, v in e.kwargs.items():
+			body.append("%s: %s" % (k,v))
+		raise HTTPError(status=e.httpcode, body="\n".join(body))
 	except ValueError as e:
 		loggging.debug("In restapi.post_simulation", exc_info=1)
 		raise HTTPError(status=403, body="The provided NSD id was not legal")
@@ -252,6 +279,64 @@ def submit_nsd():
 def show_nsd_table():
 	refresh_page = True
 	thispage = "/admin/nsd_table.html"
+	return locals()
+
+@app.route("/vectorl_table.html")
+@view("vectorl_table.html")
+@AAA.logged_in
+def show_nsd_table():
+	refresh_page = True
+	thispage = "/admin/nsd_table.html"
+	return locals()
+
+@app.route("/run_vectorl")
+@view("vectorl_results.html")
+@AAA.logged_in
+def process_vectorl():
+	vectorl_id = request.query.vectorl_id
+	if request.query.action not in ('Edit', 'Compile', 'Run'):
+		raise HTTPError(status=403, body="The request is illegal")
+
+	if request.query.action=='Edit':
+		redirect("/nsdEdit/html/index.html#!/vectorl/%s" % vectorl_id)
+
+	runit = request.query.action=='Run'
+
+	if request.query.until:
+		try:
+			until = float(request.query.until)
+		except:
+			return show_alert("Bad end time", 
+				"The end-time must be a floating point decimal number.",
+				"/admin/vectorl_table.html")
+	else:
+		until=''
+
+	if request.query.steps:
+		try:
+			steps = int(request.query.steps)
+		except:
+			return show_alert("Bad maximum number of events", 
+				"The maximum number of events must be an integer.",
+				"/admin/vectorl_table.html")
+	else:
+		steps=1000
+
+
+	result = api.process_vectorl(vectorl_id, runit, 
+		until=until if isinstance(until, (int,float)) else None, 
+		steps=steps)
+	compiler = result['compiler'] if runit else result
+	assert compiler['type']=="vectorl_compiler_output"
+	run = result if runit else None
+	assert run is None or run['type']=="vectorl_run_output"
+
+	success = compiler['success']
+	main_module = compiler['vectorl_model_name']
+	project_id = compiler['project_id']
+	output = json.dumps(result, indent=2)
+		
+	refresh_page = False
 	return locals()
 
 
@@ -393,6 +478,7 @@ def show_acl():
 
 
 @app.error(400)
+@app.error(403)
 @app.error(500)
 @view('generror.html')
 def show_generic_error(e):

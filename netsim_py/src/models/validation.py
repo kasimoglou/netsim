@@ -5,7 +5,7 @@ Created on Oct 24, 2014
 '''
 from contextlib import contextmanager, ContextDecorator
 from sys import exc_info
-from traceback import extract_tb, format_exception_only
+from traceback import extract_tb, format_exception_only, format_exception
 from os.path import basename
 import logging
 import threading
@@ -146,8 +146,8 @@ class CheckScope(ContextDecorator):
 
     @property
     def parent(self):
-        if self.stack_positions and self.stack_positions[-1] > 0:
-            return scope_stack[self.stack_positions[-1] - 1]
+        if self.stack_positions and self.stack_positions[0]:
+            return scope_stack[self.stack_positions[0]-1]
         else:
             return None
 
@@ -193,7 +193,8 @@ class CheckScope(ContextDecorator):
                 catch = self.catches(exc_type, exc)
 
                 if catch and exc_type not in self.suppress_types:
-                    self.log.exception("an unexpected error occurred")
+                    self.log.exception("An unexpected error occurred:\n%s", 
+                        ''.join(format_exception(exc_type, exc, tb)))
 
                 return catch
         finally:
@@ -264,14 +265,28 @@ class Context(CheckScope):
 
     def __init__(self, name=None, **extra):
         super().__init__(name)
-        self.extra = extra if extra else None
+        self.extra_own = extra if extra else {}
+
+    def add(**kwargs):
+        self.extra.update(kwargs)
 
     def __enter__(self):
         super().__enter__()
-        if self.extra:
-            self.logger_adapter = logging.LoggerAdapter(self.logger, self.extra)
-        return self
 
+        # go down the stack and create the extras for the logger adapter
+        pc = self.parent
+        if pc is not None and hasattr(pc,'extra'):
+            extra = dict(pc.extra)
+        else:
+            extra = {}
+
+        if self.extra_own:
+            extra.update(self.extra_own)
+        self.extra = extra
+
+        if extra:
+            self.logger_adapter = logging.LoggerAdapter(self.logger, extra)
+        return self
 
 
 #
@@ -291,6 +306,15 @@ def _out_of_context(msg, args, kwargs):
     else:
         raise RuntimeError(msg, args, kwargs)
 
+
+def add_context(**kwargs):
+    """
+    Add context bindings to the current context (stack top).
+    This method does not check for errors.
+    """
+    scope_stack.top().add(**kwargs)
+
+
 def fail(msg=None, *args, **kwargs):
     '''
     Raise to abort this context or process, or the context named
@@ -303,7 +327,7 @@ def fail(msg=None, *args, **kwargs):
     if not scope_stack:
         return _out_of_context(msg, args, kwargs)
     if msg:
-        scope_stack[-1].log.critical(msg, *args, extra=kwargs)
+        scope_stack[-1].log.error(msg, *args, extra=kwargs)
     raise CheckFail(scope=_check_scope(kwargs))
 
 def fatal(msg=None, *args, **kwargs):
@@ -318,7 +342,7 @@ def fatal(msg=None, *args, **kwargs):
     if not scope_stack:
         return _out_of_context(msg, args, kwargs)
     if msg:
-        scope_stack[-1].log.error(msg, *args, extra=kwargs)
+        scope_stack[-1].log.critical(msg, *args, extra=kwargs)
     raise CheckFatal(scope=_check_scope(kwargs))
 
 def inform(msg, *args, **kwargs):
@@ -347,7 +371,8 @@ def snafu(msg=None, *args, **kwargs):
     However, processing continues normally.
     '''
     if not scope_stack:
-        logging.getLogger().error(msg, args, extra=kwargs)
+        if msg:
+            logging.getLogger().error(msg, args, extra=kwargs)
         return
     if msg:
         scope_stack[-1].log.error(msg, *args, extra=kwargs)
