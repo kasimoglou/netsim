@@ -25,7 +25,6 @@ namespace vectorl
 	//----------------------------------------------
 
 	using namespace std;
-	using namespace boost;
 
 
 	namespace detail {
