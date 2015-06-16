@@ -55,6 +55,10 @@ $icon-font-path: "../bower_components/bootstrap-sass-official/assets/fonts/boots
     margin-top: 20px;
 }
 
+input[type="checkbox"] {
+    margin-right: 5px;
+}
+
 .new-nsd-btn, .new-vectorl-btn {
     margin-bottom: 15px;
 }
@@ -242,4 +246,5 @@ my-output .my-output-div {
 .italics {
     font-style: italic;
 }
+
 

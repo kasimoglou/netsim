@@ -8335,17 +8335,22 @@ input:focus {
 }
 
 /* line 58, ../../app/styles/main.scss */
+input[type="checkbox"] {
+  margin-right: 5px;
+}
+
+/* line 62, ../../app/styles/main.scss */
 .new-nsd-btn, .new-vectorl-btn {
   margin-bottom: 15px;
 }
 
 @media (min-width: 992px) {
-  /* line 63, ../../app/styles/main.scss */
+  /* line 67, ../../app/styles/main.scss */
   .relative-positioning {
     position: relative;
   }
 
-  /* line 67, ../../app/styles/main.scss */
+  /* line 71, ../../app/styles/main.scss */
   .new-nsd-bottom-align,
   .new-vectorl-bottom-align {
     position: absolute;
@@ -8353,129 +8358,129 @@ input:focus {
     right: 0;
   }
 
-  /* line 74, ../../app/styles/main.scss */
+  /* line 78, ../../app/styles/main.scss */
   .new-vectorl-bottom-align {
     margin-right: 15%;
   }
 }
-/* line 79, ../../app/styles/main.scss */
+/* line 83, ../../app/styles/main.scss */
 .same-line.form-control {
   display: inline-block;
   width: auto;
 }
 
-/* line 84, ../../app/styles/main.scss */
+/* line 88, ../../app/styles/main.scss */
 .not-resizable {
   resize: none;
 }
 
-/* line 88, ../../app/styles/main.scss */
+/* line 92, ../../app/styles/main.scss */
 .CodeMirror {
   border: 1px solid #eee;
   box-shadow: 0px 0px 10px 0px rgba(0, 0, 0, 0.15);
   height: auto;
 }
 
-/* line 94, ../../app/styles/main.scss */
+/* line 98, ../../app/styles/main.scss */
 .nav-tabs > li.active > a, .nav-tabs > li.active > a:hover, .nav-tabs > li.active > a:focus {
   background-color: #eee;
 }
 
-/* line 98, ../../app/styles/main.scss */
+/* line 102, ../../app/styles/main.scss */
 .no-left-right-padding {
   padding-left: 0;
   padding-right: 0;
 }
 
-/* line 103, ../../app/styles/main.scss */
+/* line 107, ../../app/styles/main.scss */
 .listing-delete-btn, .listing-edit-btn {
   padding-top: 0;
 }
 
-/* line 107, ../../app/styles/main.scss */
+/* line 111, ../../app/styles/main.scss */
 .listing-delete-dialog-btn {
   margin: 10px;
 }
 
-/* line 111, ../../app/styles/main.scss */
+/* line 115, ../../app/styles/main.scss */
 .selected-view-row {
   background-color: #D4D7DB;
 }
 
-/* line 115, ../../app/styles/main.scss */
+/* line 119, ../../app/styles/main.scss */
 .available-field {
   padding: 0 5px;
 }
 
-/* line 119, ../../app/styles/main.scss */
+/* line 123, ../../app/styles/main.scss */
 .delete-field-cell {
   text-align: center;
 }
 
-/* line 124, ../../app/styles/main.scss */
+/* line 128, ../../app/styles/main.scss */
 .animate-show {
   opacity: 1;
   padding: 10px;
 }
 
-/* line 129, ../../app/styles/main.scss */
+/* line 133, ../../app/styles/main.scss */
 .animate-show.ng-hide-add.ng-hide-add-active,
 .animate-show.ng-hide-remove.ng-hide-remove-active {
   -webkit-transition: all linear 0.5s;
   transition: all linear 0.5s;
 }
 
-/* line 135, ../../app/styles/main.scss */
+/* line 139, ../../app/styles/main.scss */
 .animate-show.ng-hide {
   line-height: 0;
   opacity: 0;
   padding: 0 10px;
 }
 
-/* line 141, ../../app/styles/main.scss */
+/* line 145, ../../app/styles/main.scss */
 .tab-content-custom {
   background-color: aliceblue;
   min-height: 400px;
 }
 
-/* line 146, ../../app/styles/main.scss */
+/* line 150, ../../app/styles/main.scss */
 .border-bottom {
   border-bottom: 1px solid black !important;
 }
 
-/* line 150, ../../app/styles/main.scss */
+/* line 154, ../../app/styles/main.scss */
 .new-plot-dialog .ngdialog-content, .new-view-dialog .ngdialog-content {
   min-width: 800px;
 }
 
-/* line 154, ../../app/styles/main.scss */
+/* line 158, ../../app/styles/main.scss */
 .clone-nsd-dialog .ngdialog-content {
   min-width: 200px;
 }
 
-/* line 159, ../../app/styles/main.scss */
+/* line 163, ../../app/styles/main.scss */
 multiselect.full-width .btn-group,
 multiselect.full-width .btn-group .dropdown-menu {
   width: 100%;
 }
 
-/* line 164, ../../app/styles/main.scss */
+/* line 168, ../../app/styles/main.scss */
 multiselect.full-width .btn-group .btn {
   width: 100%;
   display: block;
 }
 
-/* line 169, ../../app/styles/main.scss */
+/* line 173, ../../app/styles/main.scss */
 multiselect.hide-filter .dropdown-menu li input[ng-model="searchText.label"] {
   display: none;
 }
 
-/* line 173, ../../app/styles/main.scss */
+/* line 177, ../../app/styles/main.scss */
 multiselect.hide-check-buttons .dropdown-menu li[ng-show="multiple"] {
   display: none;
 }
 
-/* line 178, ../../app/styles/main.scss */
+/* line 182, ../../app/styles/main.scss */
 .gridStyle {
   border: 1px solid #d4d4d4;
   width: 100%;
@@ -8483,13 +8488,13 @@ multiselect.hide-check-buttons .dropdown-menu li[ng-show="multiple"] {
   margin: 10px 0;
 }
 
-/* line 185, ../../app/styles/main.scss */
+/* line 189, ../../app/styles/main.scss */
 .ngGrid input[type="checkbox"] {
   margin-top: 10px;
   margin-left: 30px;
 }
 
-/* line 191, ../../app/styles/main.scss */
+/* line 195, ../../app/styles/main.scss */
 .json-formatter-div {
   padding: 15px;
   border: 1px solid #dce4ec;
@@ -8497,12 +8502,12 @@ multiselect.hide-check-buttons .dropdown-menu li[ng-show="multiple"] {
   background-color: #f5f5f5;
 }
 
-/* line 199, ../../app/styles/main.scss */
+/* line 203, ../../app/styles/main.scss */
 .nsds-container, .vectorls-container {
   position: relative;
 }
 
-/* line 203, ../../app/styles/main.scss */
+/* line 207, ../../app/styles/main.scss */
 .wait-loader {
   position: absolute;
   left: 0px;
@@ -8514,7 +8519,7 @@ multiselect.hide-check-buttons .dropdown-menu li[ng-show="multiple"] {
   background: url(../images/Preloader_2.gif) center no-repeat #fff;
 }
 
-/* line 215, ../../app/styles/main.scss */
+/* line 219, ../../app/styles/main.scss */
 .console-output {
   border: 2px groove #eee;
   margin-bottom: 20px;
@@ -8524,7 +8529,7 @@ multiselect.hide-check-buttons .dropdown-menu li[ng-show="multiple"] {
   min-height: 200px;
 }
 
-/* line 224, ../../app/styles/main.scss */
+/* line 228, ../../app/styles/main.scss */
 .console-output-title {
   margin-left: 10px;
   padding: 5px 10px;
@@ -8535,17 +8540,17 @@ multiselect.hide-check-buttons .dropdown-menu li[ng-show="multiple"] {
   margin-bottom: 0px;
 }
 
-/* line 234, ../../app/styles/main.scss */
+/* line 238, ../../app/styles/main.scss */
 my-output .my-output-div {
   font-family: "Lucida Console", Monaco, monospace;
 }
 
-/* line 238, ../../app/styles/main.scss */
+/* line 242, ../../app/styles/main.scss */
 .strong {
   font-weight: bold;
 }
 
-/* line 242, ../../app/styles/main.scss */
+/* line 246, ../../app/styles/main.scss */
 .italics {
   font-style: italic;
 }
