@@ -40,16 +40,19 @@
                             <a data-toggle="tab" ng-click="setSelectedTab(1)">Network</a>
                         </li>
                         <li class="cursor-pointer" ng-class="{'active': tabs.main_selected === 2}">
-                            <a data-toggle="tab" ng-click="setSelectedTab(2)">Parameters</a>
+                            <a data-toggle="tab" ng-click="setSelectedTab(2)">HIL</a>
                         </li>
                         <li class="cursor-pointer" ng-class="{'active': tabs.main_selected === 3}">
-                            <a data-toggle="tab" ng-click="setSelectedTab(3)">Environment</a>
+                            <a data-toggle="tab" ng-click="setSelectedTab(3)">Parameters</a>
                         </li>
                         <li class="cursor-pointer" ng-class="{'active': tabs.main_selected === 4}">
-                            <a data-toggle="tab" ng-click="setSelectedTab(4)">Output</a>
+                            <a data-toggle="tab" ng-click="setSelectedTab(4)">Environment</a>
                         </li>
                         <li class="cursor-pointer" ng-class="{'active': tabs.main_selected === 5}">
-                            <a data-toggle="tab" ng-click="setSelectedTab(5)">Validation</a>
+                            <a data-toggle="tab" ng-click="setSelectedTab(5)">Output</a>
+                        </li>
+                        <li class="cursor-pointer" ng-class="{'active': tabs.main_selected === 6}">
+                            <a data-toggle="tab" ng-click="setSelectedTab(6)">Validation</a>
                         </li>
                     </ul>
                     <div class="tab-content">
@@ -96,6 +99,53 @@
                             </div>
                         </div>
                         <div class="tab-pane" ng-class="{'active': tabs.main_selected === 2}">
+                            <div class="row top20">
+                                <div class="col-md-12">
+                                    <input type="checkbox" ng-model="temp.hil"/>Enable Hardware in the Loop
+                                </div>
+                            </div>
+                            <form novalidate class="new-nsd-form">
+                                <div class="row top20" ng-show="!nsd.plan_id && temp.hil">
+                                    <div class="col-md-4">
+                                        <div class="alert alert-danger">
+                                            Please make sure you have selected a plan in order to be able to
+                                            configure HIL settings
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="row top20">
+                                    <div class="col-md-4">
+                                        <div class="form-group">
+                                            <label for="node1" class="control-label">
+                                                Node 1:
+                                            </label>
+                                            <select class="form-control" id="node1"
+                                                    ng-disabled="!temp.hil || !nsd.plan_id"
+                                                    ng-options="nodeId for nodeId in hil_nodes track by nodeId"
+                                                    ng-model="nsd.hil.node1">
+                                                <option value="">-- select first node --</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="form-group">
+                                            <label for="node2" class="control-label">
+                                                Node 2:
+                                            </label>
+                                            <select class="form-control" id="node2"
+                                                    ng-disabled="!temp.hil || !nsd.plan_id"
+                                                    ng-options="nodeId for nodeId in hil_nodes track by nodeId"
+                                                    ng-model="nsd.hil.node2" validator="[notSameHilNodes]">
+                                                <option value="">-- select second node --</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                        <div class="tab-pane" ng-class="{'active': tabs.main_selected === 3}">
                             <div class="container">
                                 <div class="row top20">
                                     <div class="col-md-12">
@@ -138,7 +188,7 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="tab-pane" ng-class="{'active': tabs.main_selected === 3}">
+                        <div class="tab-pane" ng-class="{'active': tabs.main_selected === 4}">
                             <div class="row top20">
                                 <div class="col-md-12">
                                     <label>Select environment model:</label>
@@ -163,9 +213,47 @@
                                                     <select class="form-control" id="vectorlSelect"
                                                             ng-disabled="temp.env_model !== 'vectorl'"
                                                             ng-options="vectorl._id as vectorl.name for vectorl in vectorls"
-                                                            ng-model="temp.environment.vectorl_id">
+                                                            ng-model="temp.environment.vectorl_id"
+                                                            ng-change="validateVectorl()">
                                                         <option value="">-- select VectorL file --</option>
                                                     </select>
+                                                </div>
+                                            </div>
+                                            <div class="row top20 left10">
+                                                <div class="col-md-5">
+                                                    <div class="alert alert-info" ng-show="alerts.validating_vectorl">
+                                                        Validating selected vectorl module. Please wait...
+                                                    </div>
+                                                    <div class="alert alert-success" ng-show="alerts.valid_vectorl">
+                                                        Selected vectorl module validated successfully. <br/>
+                                                        You may now proceed to sensor mapping.
+                                                    </div>
+                                                    <div class="alert alert-danger" ng-show="alerts.invalid_vectorl">
+                                                        Validation of selected vectorl module failed. <br/>
+                                                        <a class="cursor-pointer" ng-click="goToVectorl(temp.environment.vectorl_id)">
+                                                            Open module in VectorL Editor
+                                                        </a>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div ng-show="alerts.valid_vectorl" class="bottom10">
+                                                <div class="row top20 left10">
+                                                    <div class="col-md-12">
+                                                        <h4>Sensor mapping</h4>
+                                                    </div>
+                                                </div>
+                                                <div class="row top10 left10" ng-repeat="index in [0, 1, 2, 3, 4]">
+                                                    <div class="col-md-2">
+                                                        <label class="control-label">Sensor [[index]]:</label>
+                                                    </div>
+                                                    <div class="col-md-3">
+                                                        <select class="form-control"
+                                                            ng-disabled="temp.env_model !== 'vectorl'"
+                                                            ng-options="var for var in vectorl_vars track by var"
+                                                            ng-model="temp.environment['sensor' + index]">
+                                                            <option value="">-- select vectorl variable --</option>
+                                                        </select>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
@@ -173,7 +261,7 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="tab-pane" ng-class="{'active': tabs.main_selected === 4}">
+                        <div class="tab-pane" ng-class="{'active': tabs.main_selected === 5}">
                             <div class="row top20">
                                 <div class="col-md-7">
                                     <div class="panel panel-primary">
@@ -275,7 +363,7 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="tab-pane" ng-class="{'active': tabs.main_selected === 5}">
+                        <div class="tab-pane" ng-class="{'active': tabs.main_selected === 6}">
                             <div class="row top20">
                                 <div class="col-md-3">
                                     <a class="btn btn-primary btn-block" ng-click="validateNsd()">Start Nsd Validation</a>
