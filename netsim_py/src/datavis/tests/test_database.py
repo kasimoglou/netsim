@@ -80,6 +80,36 @@ def test_readcastaliaoutput():
     d.conn.close()
 
 
+def test_readcastaliaoutput_with_nodemapping():
+    data_list = [('ResourceManager', 'plan0', 'Consumed Energy', '', -1, 6.79813),
+                 ('Communication.Radio', 'plan0', 'RX pkt breakdown', 'Failed with NO interference', -1, 96.0),
+                 ('Communication.Radio', 'plan0', 'RX pkt breakdown', 'Failed, below sensitivity', -1, 101.0),
+                 ('Communication.Radio', 'plan0', 'RX pkt breakdown', 'Received with NO interference', -1, 131.0),
+                 ('Application', 'plan0', 'Packets received per node', '', 'plan1', 60.0),
+                 ('Application', 'plan0', 'Packets received per node', '', 'plan2', 71.0),
+                 ('Application', 'plan0', 'Application level latency, in ms', '[0,20)', 'plan0', 0.0),
+                 ('Application', 'plan0', 'Application level latency, in ms', '[20,40)', 'plan1', 0.0),
+                 ('Application', 'plan0', 'Application level latency, in ms', '[40,60)', 'plan2', 0.0),
+                 ('Application', 'plan0', 'Application level latency, in ms', '[60,80)', 'plan3', 131.0),
+                 ('Application', 'plan0', 'Application level latency, in ms', '[80,100)', 'plan4', 0.0),
+                 ('Application', 'plan0', 'Application level latency, in ms', '[100,120)', 'plan5', 0.0),
+                 ('Application', 'plan0', 'Application level latency, in ms', '[120,140)', 'plan6', 0.0),
+                 ('Application', 'plan0', 'Application level latency, in ms', '[140,160)', 'plan7', 0.0),
+                 ('Application', 'plan0', 'Application level latency, in ms', '[160,180)', 8, 0.0),
+                 ('Application', 'plan0', 'Application level latency, in ms', '[180,200)', 9, 0.0),
+                 ('Application', 'plan0', 'Application level latency, in ms', '[200,inf)', 10, 0.0),
+                 ('ResourceManager', 'plan1', 'Consumed Energy', '', -1, 6.28785),
+                 ('Communication.Radio', 'plan1', 'TXed pkts', 'TX pkts', -1, 499.0),
+                 ('ResourceManager', 'plan2', 'Consumed Energy', '', -1, 6.28569),
+                 ('Communication.Radio', 'plan2', 'TXed pkts', 'TX pkts', -1, 499.0)]
+    d = StatsDatabase()
+    d.load_castalia_output(castalia_output_file(), os.path.join(runner.config.resource_path(), "datavis/dummy_nodemap.json"))
+    dt = d.get_datatable()
+    for i in data_list:
+        assert(i in dt)
+    d.conn.close()
+
+
 def test_createview():
     d = StatsDatabase()
     d.load_castalia_output(castalia_output_file())
