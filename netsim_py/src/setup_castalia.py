@@ -43,7 +43,7 @@ def buildCastaliaSharedLib():
     cmd = "opp_makemake -f -r --deep -s -o castalia -u Cmdenv -P %s -M release -X Simulations -X out -X bin" % castalia_path()
     os.chdir(castalia_path())
     echoExec(cmd)
-    echoExec("make")
+    echoExec("make -j4")
 
 # Create a makefile fragment with all include paths
 def buildIncludePath():

@@ -1,0 +1,6 @@
+# Compile OmNet++
+
+cd $1
+./configure
+make -j4
+
