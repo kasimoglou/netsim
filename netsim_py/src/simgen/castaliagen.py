@@ -1,5 +1,5 @@
 
-import os.path, logging
+import os.path, logging, json
 from runner.config import castalia_path, omnetpp_path
 
 from simgen.validation import Context, fail, fatal, inform, warn, add_context
@@ -143,9 +143,21 @@ class CastaliaModelBuilder:
                 node = Node(self.nodes, 'node', num)
                 num += 1
                 node.name = mote.node_id
-                node.mote = mote
+                node.mote = mote        
 
         assert net.numNodes == len(self.nodes.submodules)
+
+        # Create the nodemap.json
+        nodemap = []
+        for node in self.nodes.submodules:
+            mapped_node = {
+                "simid": node.index,
+                "nodeid": node.name
+            }
+            nodemap.append(mapped_node)
+        with open("nodemap.json", 'w') as outfile:
+            json.dump({ "nodes": nodemap }, outfile)
+
 
         # adjust node coordinates and compute Area Of Interest
         AOI = self.compute_positions(self.nodes.submodules)

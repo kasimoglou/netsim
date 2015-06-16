@@ -18,6 +18,7 @@ from .castaliagen import generate_castalia
 from models.nsd import NSD, Network, Mote, Position, Plan, Project,\
     CastaliaEnvironment, VectorlEnvironment, NodeDef, ConnectivityMatrix
 
+from datavis.output_handler import validate_output
 
 logger = logging.getLogger('codegen')
 
@@ -189,6 +190,7 @@ class CastaliaGen:
  Cannot continue with the generation. The simulation has failed.""")
 
     def validate(self):
+        validate_output()
         inform("NSD validated.")
         
     
