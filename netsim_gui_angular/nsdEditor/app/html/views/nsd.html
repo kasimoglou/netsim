@@ -213,9 +213,47 @@
                                                     <select class="form-control" id="vectorlSelect"
                                                             ng-disabled="temp.env_model !== 'vectorl'"
                                                             ng-options="vectorl._id as vectorl.name for vectorl in vectorls"
-                                                            ng-model="temp.environment.vectorl_id">
+                                                            ng-model="temp.environment.vectorl_id"
+                                                            ng-change="validateVectorl()">
                                                         <option value="">-- select VectorL file --</option>
                                                     </select>
+                                                </div>
+                                            </div>
+                                            <div class="row top20 left10">
+                                                <div class="col-md-5">
+                                                    <div class="alert alert-info" ng-show="alerts.validating_vectorl">
+                                                        Validating selected vectorl module. Please wait...
+                                                    </div>
+                                                    <div class="alert alert-success" ng-show="alerts.valid_vectorl">
+                                                        Selected vectorl module validated successfully. <br/>
+                                                        You may now proceed to sensor mapping.
+                                                    </div>
+                                                    <div class="alert alert-danger" ng-show="alerts.invalid_vectorl">
+                                                        Validation of selected vectorl module failed. <br/>
+                                                        <a class="cursor-pointer" ng-click="goToVectorl(temp.environment.vectorl_id)">
+                                                            Open module in VectorL Editor
+                                                        </a>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div ng-show="alerts.valid_vectorl" class="bottom10">
+                                                <div class="row top20 left10">
+                                                    <div class="col-md-12">
+                                                        <h4>Sensor mapping</h4>
+                                                    </div>
+                                                </div>
+                                                <div class="row top10 left10" ng-repeat="index in [0, 1, 2, 3, 4]">
+                                                    <div class="col-md-2">
+                                                        <label class="control-label">Sensor [[index]]:</label>
+                                                    </div>
+                                                    <div class="col-md-3">
+                                                        <select class="form-control"
+                                                            ng-disabled="temp.env_model !== 'vectorl'"
+                                                            ng-options="var for var in vectorl_vars track by var"
+                                                            ng-model="temp.environment['sensor' + index]">
+                                                            <option value="">-- select vectorl variable --</option>
+                                                        </select>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>

@@ -137,6 +137,14 @@ define(['underscore',
             if (nsd.environment) {
                 $scope.temp.env_model = nsd.environment.type;
                 $scope.temp.environment.vectorl_id = nsd.environment.vectrol_id;
+                
+                for (var i=0; i<5; i++) {
+                    if (nsd.environment['sensor' + i]) {
+                        $scope.temp.environment['sensor' + i] = nsd.environment['sensor' + i];
+                    }
+                }
+                
+                $scope.validateVectorl();
             }
         };
         
@@ -257,6 +265,49 @@ define(['underscore',
                         console.log(error.details);
                         alert(error.details);
             });
+        };
+        
+        $scope.temp.valid_vectorl = false;
+        $scope.alerts = {
+            validating_vectorl: false,
+            valid_vectorl: false,
+            invalid_vectorl: false
+        };
+        
+        $scope.vectorl_vars = [];
+        $scope.validateVectorl = function() {
+            if ($scope.temp.environment.vectorl_id) {
+                $scope.alerts.valid_vectorl = false;
+                $scope.alerts.invalid_vectorl = false;
+                $scope.alerts.validating_vectorl = true;
+            
+                API.vectorlCompile($scope.temp.environment.vectorl_id)
+                    .success(function(response) {
+                        if (response.success) {
+                            $scope.alerts.validating_vectorl = false;
+                            $scope.alerts.invalid_vectorl = false;
+                            $scope.alerts.valid_vectorl = true;
+                            
+                            $scope.vectorl_vars = ['foo', 'bar', 'test', 'sth', 'var_name']; //response.variables
+                        } else {
+                            $scope.alerts.validating_vectorl = false;
+                            $scope.alerts.valid_vectorl = false;
+                            $scope.alerts.invalid_vectorl = true;
+                        }
+                    })
+                    .error(function(error) {
+                        console.log(error.details);
+                        alert(error.details);
+                    });
+            } else {
+                $scope.alerts.valid_vectorl = false;
+                $scope.alerts.invalid_vectorl = false;
+                $scope.alerts.validating_vectorl = false;
+            }
+        };
+        
+        $scope.goToVectorl = function(id) {
+            $location.path('/vectorl/' + id);
         };
         
         // ### Output tab related data and methods
@@ -762,6 +813,12 @@ define(['underscore',
                     type: 'vectorl',
                     vectrol_id: $scope.temp.environment.vectorl_id
                 };
+                
+                for (var i=0; i<5; i++) {
+                    if ($scope.temp.environment['sensor' + i]) {
+                        $scope.nsd.environment['sensor' + i] = $scope.temp.environment['sensor' + i];
+                    }
+                }
             }
             
             // Save changes made to HIL tab
