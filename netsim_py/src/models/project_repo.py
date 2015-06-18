@@ -44,6 +44,7 @@ class Entity(Named):
 	fields = refs()
 	database = ref(inv=Database.entities)
 	referents = refs()
+	design = ref()
 
 	def __init__(self, name, db):
 		super().__init__(name)
@@ -204,6 +205,7 @@ class ApiEntity(Entity):
 
 DB_PT = Database('planning_tool_database')
 DB_SIM = Database('netsim_database')
+DB_NSLIB = Database('netsim_lib_database')
 
 USER = ApiEntity('user', DB_PT, read_only=True)
 USER.add_field('userName')
@@ -227,7 +229,6 @@ NSD.set_primary_key('project_id','name')
 NSD.add_fetch_field('plan', 'plan_id')
 
 
-
 VECTORL = ApiEntity('vectorl', DB_SIM)
 VECTORL.add_foreign_key('project_id', PROJECT)
 VECTORL.add_field('name')
@@ -238,8 +239,21 @@ SIM.add_foreign_key('nsdid', NSD)
 SIM.add_foreign_key('project_id', PROJECT)
 SIM.add_foreign_key('plan_id', PLAN)
 
-DATABASES = [ DB_PT, DB_SIM ]
-ENTITIES = [ USER, PROJECT, PLAN, NODEDEF, NSD, VECTORL, SIM ]
+
+# Library entities
+NS_NODEDEF = ApiEntity('ns_nodedef', DB_NSLIB, read_only=True)
+NS_NODEDEF.add_foreign_key('nodeLib_id', NODEDEF)
+
+NS_COMPONENT = ApiEntity('ns_component', DB_NSLIB, read_only=True)
+
+
+
+
+DATABASES = [ DB_PT, DB_SIM, DB_NSLIB ]
+ENTITIES = [ USER, PROJECT, PLAN, NODEDEF, NSD, VECTORL, SIM, NS_NODEDEF, NS_COMPONENT ]
+
+
+
 
 #
 # models for project repository entity handling
@@ -272,6 +286,17 @@ class Design(Named):
 
 		return ddoc
 
+	def named_view(self, name):
+		"""
+		Return the view with the given name, or None if no such
+		view exists.
+		"""
+		for view in self.views:
+			if view.name == name:
+				return view
+		return None
+
+
 
 @model
 class DbDesign(Design):
@@ -292,8 +317,7 @@ class CouchDesign(Design):
 	'''
 
 	# The entity this model is about
-	entity = attr(Entity, nullable=False)
-
+	entity = ref(inv=Entity.design)
 
 	@property 
 	def database(self):

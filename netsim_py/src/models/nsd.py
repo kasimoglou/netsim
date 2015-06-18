@@ -124,9 +124,32 @@ class NodeDef:
     motes = refs()
     nsd = ref()
 
+    ns_nodedef = ref()
+
     # couch entities
     _id = attr(str)
     _rev = attr(str)
+
+
+@repository(prm.NS_NODEDEF)
+@model
+class NsNodeDef:
+
+    nodedef = ref(inv=NodeDef.ns_nodedef)
+
+    ResourceManager = attr(object)
+    SensorManager = attr(object)
+    Routing = attr(object)
+    Mac = attr(object)
+    Radio = attr(object)
+
+    # couch entities
+    _id = attr(str)
+    _rev = attr(str)
+
+
+
+
 
 @model
 class Mote:

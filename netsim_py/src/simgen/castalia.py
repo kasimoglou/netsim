@@ -8,6 +8,8 @@ import os.path
 import json
 import logging
 
+from models.project_repo import NS_NODEDEF, NS_COMPONENT
+
 from models.json_reader import JSONReader, repository
 from simgen.validation import *
 
@@ -16,7 +18,8 @@ from simgen.utils import docstring_template
 from .castaliagen import generate_castalia
 
 from models.nsd import NSD, Network, Mote, Position, Plan, Project,\
-    CastaliaEnvironment, VectorlEnvironment, NodeDef, ConnectivityMatrix
+    CastaliaEnvironment, VectorlEnvironment, NodeDef, ConnectivityMatrix,\
+    NsNodeDef
 
 from datavis.output_handler import validate_output
 
@@ -77,8 +80,13 @@ class NSDReader(JSONReader):
 
         nodeDefJson = {}
         for oid in nodeDefOids:
+            # Get the nodedef from the plan
             with Context(stage='Analyzing node type %s'%oid):
                 nodeDefJson[oid] = self.read_object(oid, self.nodeDefs[oid])
+            # Get the mapped ns_nodedef
+            with Context(stage="Mapping simulation component for node type %s" % oid):
+                self.get_ns_nodedef(self.nodeDefs[oid])
+
 
         self.create_jsonfile(nodeDefJson, "nodedefs.json")
         nsd.nodedefs = set(self.nodeDefs.values())
@@ -95,6 +103,39 @@ class NSDReader(JSONReader):
         self.create_network()
 
         return nsd
+
+
+
+    def get_ns_nodedef(self, nodedef):
+        # Get by query the id of the object
+        oid = nodedef._id
+        try:
+            ns_nodedef_json = self.datastore.get_by(NS_NODEDEF, 'by_nodeLib_id', oid)
+        except Exception as e:
+            print("Exception in get_by",e)
+            logger.exception("In get_ns_nodedef oid=%s",oid)
+
+            fail("Failed to map node type for %s in the library." % oid)
+
+        # We did not find a mapping
+        if ns_nodedef_json is None:
+            warn("We did not find a mapping for node type %s", oid)
+            return
+
+        # create the object
+        ns = NsNodeDef()
+        nodedef.ns_nodedef = ns
+
+        # Now read the ns nodedef from the library
+        self.populate_modeled_instance(ns, ns_nodedef_json)
+
+        # now, read the components into the attributes
+        for attr in ('SensorManager', 'ResourceManager', 'Routing', 'Mac', 'Radio'):
+            if hasattr(ns, attr):
+                oid = getattr(ns, attr)
+                comp_json = self.datastore.get(NS_COMPONENT, oid)
+                setattr(ns, attr, comp_json)
+
 
     def read_object(self, oid, obj):
         '''

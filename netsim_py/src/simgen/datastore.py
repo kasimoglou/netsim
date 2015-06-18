@@ -138,12 +138,33 @@ class ProjectRepoStore(DataStore):
         """
         db = self.repo.db_of(entity)
 
-        if isinstance(oid, (tuple,list)) and len(oid)==2:
-            doc, fname = oid
-            data = db.get_attachment(doc, fname)
-            return json.loads(data.decode('utf-8'))
-        else:
-            return db.get(oid)
+        try:
+            if isinstance(oid, (tuple,list)) and len(oid)==2:
+                doc, fname = oid
+                data = db.get_attachment(doc, fname)
+                return json.loads(data.decode('utf-8'))
+            else:
+                return db.get(oid)
+        except dpcmrepo.NotFound:
+            fail("The object %s of type %s does not exist in the project repository", oid, entity.name)
+
+    def get_by(self, entity, view, key):
+        """
+        Given an entity type and a view on it, get the (unique) object whose view
+        matches the key, or None, if not found.
+        """
+        db = self.repo.db_of(entity)
+        resource = entity.design.named_view(view).resource
+
+        kwds = {'include_docs': True, 'key': key }
+        qry = list( db.query(resource, **kwds) )
+
+        if len(qry)>1:
+            fail("There are multiple mappings for the given object")
+        if len(qry)==0:
+            return None
+
+        return qry[0]['doc']
 
 
 class NsdValidationRepoStore(ProjectRepoStore):
