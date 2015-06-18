@@ -24,7 +24,7 @@
            "name": "dataTable",
            "filename": "simout.txt",
            "format": "dataTable",
-           "node_mapping": ['node'. 'n_index'],
+           "node_mapping": ["node", "n_index"],
            "groupby": [
            ],
            "base_tables": [
