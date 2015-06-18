@@ -117,10 +117,27 @@ class CastaliaModule:
         '''
         return CastaliaModule(None, self.__base_name(), self.index)
 
+
+    def set(self, pname, pvalue):
+        self.__param_map[pname] = pvalue
+
+    def all_parameters(self):
+        for pname, pvalue in self.__param_map.items():
+            yield pname, pvalue
+        for param in self.__model_class__.all_attributes:
+            if Param.has(param):
+                yield param.name, getattr(self, param.name, None)
+
+
+
     def __init__(self, parent, name, index=None):
         self.parent = parent
         self.subname = name
         self.index = index
+        self.__param_map = {}
+
+
+
 
 
 #

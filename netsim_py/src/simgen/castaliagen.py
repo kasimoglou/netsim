@@ -30,6 +30,12 @@ def generate_castalia(gen):
     logger.debug("Code generated from NSD")
 
 
+def copy_json_params(module, jsobj):
+    for key in jsobj:
+        if key not in ('_id', '_rev', 'type', 'moduleType','name'):
+            module.set(key, jsobj[key])
+
+
 class CastaliaModelBuilder:
     '''
     A class containing the logic to transform an NSD to a castalia model.
@@ -269,7 +275,11 @@ class CastaliaModelBuilder:
         '''
         Configure resources.
         '''
-        pass
+        rman = nodeType.nodes.submodule('ResourceManager')
+        nsdef =  nodeType.nodeDef.ns_nodedef 
+        if nsdef is not None:
+            rman_json = nsdef.ResourceManager
+            copy_json_params(rman, rman_json)
 
 
     def config_sensors(self, nodeType):
@@ -314,11 +324,10 @@ def generate_omnetpp(gen, cm):
 
 def generate_omnetpp_for_module(omnetpp, m):
     # first, iterate over module parameters
-    mclass = m.__model_class__
-    pname = m.full_name
-    for param in mclass.all_attributes:
-        if Param.has(param):
-            omnetpp.write(omnetpp_module_param(m,pname,param))
+    mpath = m.full_name
+
+    for pname, pvalue in m.all_parameters():
+        omnetpp.write(omnetpp_module_param(m, mpath, pname,pvalue))
 
     # now, iterate over submodules
     for sm in m.submodules:
@@ -331,14 +340,13 @@ def generate_omnetpp_for_module(omnetpp, m):
 #
 
 @docstring_template
-def omnetpp_module_param(mod, modpath, param):
+def omnetpp_module_param(mod, modpath, pname, pvalue):
     """\
-% if value is not None:
-{{modpath}}.{{param.name}} = {{! value}}
+% if pvalue is not None:
+{{modpath}}.{{pname}} = {{! pvalue}}
 % end"""
-    value = getattr(mod, param.name, None)
-    if isinstance(value, str):
-        value = '"%s"' % value
+    if isinstance(pvalue, str):
+        pvalue = '"%s"' % pvalue
     return locals()
 
 
