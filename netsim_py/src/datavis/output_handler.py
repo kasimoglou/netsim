@@ -158,11 +158,6 @@ def transform_nsd_plots():
 
     filename = "nsd.json"
 
-    #
-    # GenerateResultsProcess
-    #   context.validate == True  --> validate only
-    #   context.validate == False --> results generation
-    #
     vpd = ViewsPlotsDecoder()
     with open(filename, "r") as f:
         json_str = f.read()
