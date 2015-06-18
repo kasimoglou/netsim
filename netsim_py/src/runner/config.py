@@ -109,6 +109,7 @@ def configure(sect, cfgfile=None):
 OPTIONS = [
     ('planning_tool_database', """The name of the PT database in the project repo."""),
     ('netsim_database', """The name of the network simulator database in the project repo."""),
+    ('netsim_lib_database', """The name of the network simulator library database in the project repo."""),
     ('omnetpp_path',"""The path where OmNet++ is installed."""),
     ('castalia_path', """The path where Castalia is installed."""),
     ('local_executor_path',"""The path where the local executor stores simulation homes."""),
