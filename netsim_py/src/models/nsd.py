@@ -49,11 +49,36 @@ class VectorlEnvironment(Environment):
 #  Application: part of an NSD
 ##############################
 
-'''
+
+@repository(prm.NS_COMPONENT)
 @model
-class SensorType:
+class RadioDevice:
+    """
+    Models a radio device.
+    """
+    RadioParametersFile = attr(str, default=None)
+    mode = attr(str, default="")
+    state = attr(str, default="RX")
+    TxOutputPower = attr(str, default="")
+    sleepLevel = attr(str, default="")
+    carrierFreq = attr(float, default=2400.0)
+    collisionModel = attr(int, default=2)
+    CCAthreshold = attr(float, default=-95.0)
+    symbolsForRSSI = attr(int, default=8)
+    carrierSenseInterruptEnabled = attr(bool, default=False)
+    bufferSize = attr(int, default=16)
+    maxPhyFrameSize = attr(int, default=1024)
+    phyFrameOverhead = attr(int, default=6)
+
+
+@repository(prm.NS_COMPONENT)
+@model
+class Sensor:
+    """
+    Models a sensor device.
+    """
     pwr_consuption = attr(float)  # energy consumed per reading
-    measurement = attr(str)  # quantity e.g. "temperature"
+    sensor_type = attr(str)  # quantity e.g. "temperature"
     max_sample_rate = attr(float)  #  samples per sec
     bias = attr(float)  # added to value
     drift = attr(float)  #  not used currently  (not used)
@@ -64,27 +89,24 @@ class SensorType:
     sensitivity = attr(float)  # the minimum physical value measured
 
 
+@repository(prm.NS_COMPONENT)
 @model
 class MoteType:
-    # The application code run by this mote. For now this is a string. 
-    code = attr(str)
-
-    #
-    # Mote components
-    # 
-
-    sensors = attr(list)  # of SensorType objects
+    """
+    Models the mote device.
+    """
 
     # resources
-    ram_size = attr(float)  # in kbytes
-    flash_size = attr(float)  # in kbytes
-    flash_write_cost = attr(float, nullable=True)
-    flash_read_cost = attr(float, nullable=True)
-    image_size = attr(float, nullable=True)
+    ramSize = attr(float, nullable=True)  # in kbytes
+    flashSize = attr(float, nullable=True)  # in kbytes
+    flashWriteCost = attr(float, nullable=True)
+    flashReadCost = attr(float, nullable=True)
+    imageSize = attr(float, nullable=True)
 
-    initial_energy = attr(float)
-    baseline_node_power = attr(float)
-'''
+    initialEnergy = attr(float, default=18720.0)
+    baselineNodePower = attr(float, default=6.0)
+
+
 
 # This type is used for Node coordinates (corresponds to PLNxxxx coord. triplet)
 Position = namedtuple('Position', ('lat', 'lon', 'alt'))
@@ -106,6 +128,10 @@ class FunctionalBlock:
 @repository(prm.NODEDEF)
 @model
 class NodeDef:
+    """
+    The Planning Tool's node definition.
+    """
+
     # some code word
     code = attr(str)
 
@@ -131,23 +157,26 @@ class NodeDef:
     _rev = attr(str)
 
 
+
+
 @repository(prm.NS_NODEDEF)
 @model
 class NsNodeDef:
+    """
+    The NetSim library node definition.
+    """
 
     nodedef = ref(inv=NodeDef.ns_nodedef)
 
-    ResourceManager = attr(object)
-    SensorManager = attr(object)
-    Routing = attr(object)
-    Mac = attr(object)
-    Radio = attr(object)
+    mote = attr(object)
+    sensors = attr(list)
+    routing = attr(object)
+    mac = attr(object)
+    radio = attr(object)
 
     # couch entities
     _id = attr(str)
     _rev = attr(str)
-
-
 
 
 

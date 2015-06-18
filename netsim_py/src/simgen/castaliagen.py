@@ -31,9 +31,8 @@ def generate_castalia(gen):
 
 
 def copy_json_params(module, jsobj):
-    for key in jsobj:
-        if key not in ('_id', '_rev', 'type', 'moduleType','name'):
-            module.set(key, jsobj[key])
+    for key, value in jsobj["parameters"].items():
+        module.set(key, value)
 
 
 class CastaliaModelBuilder:
@@ -259,9 +258,14 @@ class CastaliaModelBuilder:
         '''
         Configure the communication stack.
         '''
-        radio = Radio(nodeType.comm,'Radio')
-        radio.RadioParametersFile = "../Parameters/Radio/CC2420.txt"
-        radio.symbolsForRSSI = 8
+        nsdef =  nodeType.nodeDef.ns_nodedef 
+        if nsdef is not None:
+            radio_dev = nsdef.radio
+            radio = Radio(nodeType.comm, radio_dev)            
+        else:
+            radio = Radio(nodeType.comm)
+            radio.RadioParametersFile = "../Parameters/Radio/CC2420.txt"
+            radio.symbolsForRSSI = 8
 
 
     def config_application(self, nodeType):
@@ -275,18 +279,18 @@ class CastaliaModelBuilder:
         '''
         Configure resources.
         '''
-        rman = nodeType.nodes.submodule('ResourceManager')
         nsdef =  nodeType.nodeDef.ns_nodedef 
         if nsdef is not None:
-            rman_json = nsdef.ResourceManager
-            copy_json_params(rman, rman_json)
+            rman = ResourceManager(nodeType.nodes, nsdef.mote)
 
 
     def config_sensors(self, nodeType):
         '''
         Configure sensors.
         '''
-        pass
+        nsdef = nodeType.nodeDef.ns_nodedef
+        if nsdef is not None:
+            sensman = SensorManager(nodeType.nodes, nsdef.sensors)
 
 
 ##################################################
@@ -347,6 +351,8 @@ def omnetpp_module_param(mod, modpath, pname, pvalue):
 % end"""
     if isinstance(pvalue, str):
         pvalue = '"%s"' % pvalue
+    elif isinstance(pvalue, bool):
+        pvalue = str(pvalue).lower()
     return locals()
 
 

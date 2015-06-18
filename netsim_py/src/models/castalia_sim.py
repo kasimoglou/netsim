@@ -230,6 +230,8 @@ class Node(CastaliaModule):
     name = attr(str, nullable=False)
     mote = attr(Mote, nullable=False)
 
+
+
 @model
 class ResourceManager(CastaliaModule):
     '''
@@ -253,7 +255,15 @@ class ResourceManager(CastaliaModule):
         double baselineNodePower = default (6); // periodic energy consumption of node, in mWatts
         double periodicEnergyCalculationInterval = default (1000); // interval for energy calculation, in msec     
     '''
-    initialEnergy = parameter(float)
+    initialEnergy = parameter(float, default=18720.0)
+    baselineNodePower = parameter(float, default=6.0)
+    periodicEnergyCalculationInterval = parameter(float, default=6.0)
+
+    def __init__(self, parent, mote_type):
+        super().__init__(parent, "ResourceManager")
+        self.initialEnergy = mote_type.initialEnergy
+        self.baselineNodePower = mote_type.baselineNodePower
+
 
 @model
 class SensorManager(CastaliaModule):
@@ -290,10 +300,12 @@ class SensorManager(CastaliaModule):
                                                                                                     
     string devicesSaturation = default ("1000");    //holds the saturation value for each sensing device
     '''
+
     numSensingDevices = parameter(int)
+    corrPhyProcess = parameter(str)
+
     pwrConsumptionPerDevice = parameter(str)
     sensorTypes = parameter(str)
-    corrPhyProcess = parameter(str)
     maxSampleRates = parameter(str)
     devicesBias = parameter(str)
     devicesDrift = parameter(str)
@@ -302,6 +314,36 @@ class SensorManager(CastaliaModule):
     devicesSensitivity = parameter(str)
     devicesResolution = parameter(str)
     devicesSaturation = parameter(str)
+
+    sensors = attr(list)
+
+    def collect_values(self, attr, default):
+        val_array = []
+        for s in self.sensors:
+            val_array.append(str(getattr(s, attr, default)))
+        return " ".join(val_array)
+
+    def __init__(self, parent, sensors):
+        super().__init__(parent, "SensorManager")
+        self.sensors = sensors
+
+        # non-global devices
+        self.numSensingDevices = len(sensors)
+
+        # TODO: fix this for vectorl
+        self.corrPhyProcess = self.collect_values('corrPhyProcess', 0)
+
+        self.pwrConsumptionPerDevice = self.collect_values('power_consumption', 0.02)
+
+        self.sensorTypes = self.collect_values('sensor_type', "Temparature")
+        self.maxSampleRates = self.collect_values('max_sample_rate', 1.0)
+        self.devicesBias = self.collect_values('bias', 0.1)
+        self.devicesDrift = self.collect_values('drift', 0.0)
+        self.devicesNoise = self.collect_values('noise', 0.1)
+        self.devicesHysterisis = self.collect_values('hysterisis', 0.0)
+        self.devicesSensitivity = self.collect_values('sensitivity', 0.0)
+        self.devicesResolution = self.collect_values('resolution', 0.001)
+        self.devicesSaturation = self.collect_values('saturation', 1000.0)
 
 
 
@@ -327,6 +369,7 @@ class Communication(CastaliaModule):
     """
     MACProtocolName = parameter(str)
     RoutingProtocolName = parameter(str)
+
 
 @model
 class Radio(CastaliaModule):
@@ -377,6 +420,19 @@ class Radio(CastaliaModule):
     bufferSize = parameter(int)
     maxPhyFrameSize = parameter(int)
     phyFrameOverhead = parameter(int)
+
+
+    def __init__(self, parent, radio=None):
+        super().__init__(parent, "Radio")
+
+        if radio is None: return
+
+        for param in self.__model_class__.all_attributes:
+            if Param.has(param):
+                if hasattr(radio, param.name):
+                    val = getattr(radio, param.name)
+                    setattr(self, param.name, val)
+
 
 
 @model

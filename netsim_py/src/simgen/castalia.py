@@ -19,7 +19,7 @@ from .castaliagen import generate_castalia
 
 from models.nsd import NSD, Network, Mote, Position, Plan, Project,\
     CastaliaEnvironment, VectorlEnvironment, NodeDef, ConnectivityMatrix,\
-    NsNodeDef
+    NsNodeDef, Sensor, MoteType, RadioDevice
 
 from datavis.output_handler import validate_output
 
@@ -130,11 +130,64 @@ class NSDReader(JSONReader):
         self.populate_modeled_instance(ns, ns_nodedef_json)
 
         # now, read the components into the attributes
-        for attr in ('SensorManager', 'ResourceManager', 'Routing', 'Mac', 'Radio'):
+        for attr in ('routing', 'mac'):
             if hasattr(ns, attr):
                 oid = getattr(ns, attr)
                 comp_json = self.datastore.get(NS_COMPONENT, oid)
                 setattr(ns, attr, comp_json)
+
+        # read the sensor array
+        if hasattr(ns, 'sensors'):
+            if len(ns.sensors)>5:
+                fail("Too many sensors, at most five sensors per device are allowed")
+            for i in range(len(ns.sensors)):
+                sens_oid = ns.sensors[i]
+                sens = Sensor()
+                self.read_component(sens_oid, sens)
+                ns.sensors[i] = sens
+        else:
+            warn("There is no sensor specification.")
+
+        # read the mote type
+        if hasattr(ns, 'mote'):
+            mote_type = MoteType()
+            self.read_component(ns.mote, mote_type)
+            ns.mote = mote_type
+        else:
+            warn("There is no mote specification.")
+
+        # read the radio spec
+        if hasattr(ns, 'radio'):
+            radio = RadioDevice()
+            self.read_component(ns.radio, radio)
+            ns.radio = radio
+        else:
+            warn("There is no radio specification.")
+
+
+    def read_component(self, oid, obj):
+        '''
+        Read library component 'oid' from the repository, and populate model 'obj'.
+        '''
+        try:
+            entity = repository.get(obj.__class__).entity
+        except ValueError:
+            fail("It was not possible to determine the repository entity for %s",obj.name)
+
+        try:
+            # read parameters
+            json_obj = self.datastore.get(entity, oid)
+        except Exception as e:
+            fail("Failed to read %s with id='%s' from the project repository." % (entity.name, oid))
+
+        try:
+            self.populate_modeled_instance(obj, json_obj['parameters'])
+        except Exception as e:
+            logger.error("Failure in populate_modeled_instance(%s, %s)", obj, json_obj, exc_info=1)
+            fail("Failed to analyze %s with id='%s'." % (entity.name, oid))
+
+        logger.debug("%s=\n%s", entity.name, json.dumps(json_obj, indent=4))
+        return json_obj
 
 
     def read_object(self, oid, obj):

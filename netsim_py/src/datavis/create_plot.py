@@ -116,7 +116,10 @@ class Plot():
             if script:
                 p.stdin.write(script.encode("utf-8"))
                 ret = True
-                out, err = p.communicate(timeout=0.2)
+
+                # vsam: changed timeout to 10 sec (it was 0.2 but I was getting timeouts)
+                out, err = p.communicate(timeout=10)
+
                 err_str = err.decode("utf-8").splitlines()[:10] if err else ""
                 err_str = "\n".join(err_str)
                 if err_str != "" and re.search("gnuplot>\ ", err_str):
