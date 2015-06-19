@@ -44,12 +44,15 @@ class Table:
     Describes a table with columns
     """
 
-    def __init__(self, name, columns=[]):
+    def __init__(self, name, columns=[], filename=None, format=None, node_mapping=None):
         self.name = name
         self.columns = columns
         # just for easy access to columns by name
         #self.col = {self.columns[i].name: self.columns[i] for i in list(range(len(self.columns)))}
         self.col = {col.name:col for col in self.columns}
+        self.filename = filename
+        self.format = format
+        self.node_mapping = node_mapping
 
     # the name for this table
     name = attr(str, nullable=False)
@@ -183,7 +186,9 @@ class DerivedTable(Table):
 @model
 class DataTable(Table):
     """
+    Deprecated
     The table that will hold all information generated from the simulation
+    ============ ONLY USED DURING TESTS ============
     """
     def __init__(self):
         super().__init__('dataTable', [Column("module"),
@@ -192,9 +197,10 @@ class DataTable(Table):
                                        Column("label"),
                                        Column("n_index"),
                                        Column("data"),
-                                       ])
+                                       ], "simout.txt", "dataTable", ["node", "n_index"])
 
 
+# Deprecated (used only during tests)
 DATA_TABLE = DataTable()
 
 

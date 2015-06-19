@@ -121,7 +121,7 @@ def test_derived2sql():
 
 
 def test_createviewforderived():
-    d = StatsDatabase()
+    d = StatsDatabase(testing=True)
     alist = [Attribute("a", "int"),
              Attribute("b", "int"),
              Attribute("c", "int"),
@@ -186,8 +186,8 @@ def test_create_plot_for_model(tmp_dir):
     # network plot
     #
     #name = "Consumed Energy"
-    ds = StatsDatabase()
-    ds.load_castalia_output(castalia_output_file())
+    ds = StatsDatabase(testing=True)
+    ds.load_data_castalia(castalia_output_file())
     table_filter = Operator(EQ, [ColumnRef(DATA_TABLE.col["name"]), ConstantExpr("\"Consumed Energy\"")])
     dt = DerivedTable("test_create_plot_for_model", [Column("node"), Column("data"), Column("name")], [DATA_TABLE], table_filter)
     create_view_for_derived(ds, dt)

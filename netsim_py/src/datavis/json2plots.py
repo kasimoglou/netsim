@@ -119,7 +119,7 @@ class ViewsPlotsDecoder:
     def gen_derived_table(self, d):
         """
         generate a DerivedTable from specified dictionary d (the dictionary should represent only one derived table)
-        then add the generated DerivedTable to derived_tables (a list of DerivedTable)
+        then add the generated DerivedTable to derived_tables (a list of DerivedTable/Table)
         returns the DerivedTable
         """
         cols = self.gen_columns(d["columns"])
@@ -133,8 +133,25 @@ class ViewsPlotsDecoder:
             d["name"],
             cols,
             base_tables,
-            self.str_2_expr(d["table_filter"], gen_types(cols, base_tables)),
+            None if d["table_filter"] == "" else self.str_2_expr(d["table_filter"], gen_types(cols, base_tables)),
             groupby
+        )
+        self.derived_tables.append(dt)
+        return dt
+
+    def gen_table(self, d):
+        """
+        generate a Table from specified dictionary d (the dictionary should represent only one table)
+        then add the generated Table to derived_tables (a list of DerivedTable/Table)
+        returns the Table
+        """
+        cols = self.gen_columns(d["columns"])
+        dt = Table(
+            d["name"],
+            cols,
+            d["filename"],
+            d["format"],
+            d["node_mapping"]
         )
         self.derived_tables.append(dt)
         return dt
@@ -149,8 +166,8 @@ class ViewsPlotsDecoder:
                 allowed_chars = re.compile(r"^[a-zA-Z0-9_]+$")
                 if not allowed_chars.match(v["name"]):
                     fail("View name can contain only upper/lower case letters, numbers and underscores")
-                if v["name"] == "dataTable":
-                    rel = DATA_TABLE
+                if "filename" in v and v["filename"] != "":
+                    rel = self.gen_table(v)
                 else:
                     rel = self.gen_derived_table(v)
                 if "plots" in v:
@@ -179,13 +196,10 @@ class ViewsPlotsDecoder:
         """
         assert isinstance(name, str)
 
-        if name == "dataTable":
-            return DATA_TABLE
-        else:
-            for c in self.derived_tables:
-                if c.name == name:
-                    return c
-            fail("View \"%s\" does not exist" % name)
+        for c in self.derived_tables:
+            if c.name == name:
+                return c
+        fail("View \"%s\" does not exist" % name)
 
 
 

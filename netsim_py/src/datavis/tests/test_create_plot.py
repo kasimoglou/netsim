@@ -21,8 +21,8 @@ def test_plot(tmp_dir):
     # change dir so that the generated plots will go into that dir
     os.chdir(tmp_dir)
 
-    d = StatsDatabase()
-    d.load_castalia_output(castalia_output_file())
+    d = StatsDatabase(testing=True)
+    d.load_data_castalia(castalia_output_file())
     d.create_view("test_view", "SELECT node, name, data FROM dataTable")
     plot = make_plot(d.relations["test_view"], (Column("node"),), (Column("data"),), ["name"], select={"name": "Consumed Energy"}, terminal=PNG())
     plot.make_plot()
