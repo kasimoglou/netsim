@@ -238,6 +238,14 @@ class Network:
     # All nodes
     motes = refs(inv=Mote.network)
 
+    def find_mote(self, node_id):
+        """
+        Return a mote for the given node_id, or None if no such mote exists.
+        """
+        for mote in self.motes:
+            if mote.node_id == node_id:
+                return mote
+        return None
 
 
 #
@@ -245,6 +253,8 @@ class Network:
 #
 @model
 class Parameters:
+    "NSD parameters"
+
     nsd = ref()
 
     # The time reached when the simulation terminates (sec)
@@ -258,6 +268,14 @@ class Parameters:
     cpu_time_limit = attr(int, default=None)
 
 
+
+@model
+class HiL:
+    "The nsd configuration for HiL simulation"
+
+    nsd = ref()
+    node1 = attr(str, nullable=False)
+    node2 = attr(str, nullable=False)
 
 
 ######################################
@@ -314,7 +332,11 @@ class NSD:
     # Application
     #
 
+    # network object
     network = ref(inv=Network.nsd)
+
+    hil = ref(inv=HiL.nsd)
+    descend(hil)
 
     #
     #  Parameters
@@ -344,6 +366,7 @@ class NSD:
 @repository(prm.PLAN)
 @model
 class Plan:
+    " A PT plan object "
     nsd = ref(inv=NSD.plan)
 
     name = attr(str, nullable=False)
@@ -369,6 +392,7 @@ class Plan:
 @repository(prm.PLAN)
 @model
 class ConnectivityMatrix:
+    "The Connectivity matrix from the topology simulator."
     plan = ref(inv=Plan.connectivityMatrix)
 
     rfSimId = attr(str)
@@ -378,6 +402,7 @@ class ConnectivityMatrix:
 
 @model
 class Channel:
+    "A channel is an entry to the connectivity matrix"
     cm = ref(inv=ConnectivityMatrix.connectivity)
 
     channelId = attr(int)
@@ -404,6 +429,8 @@ class Channel:
 @repository(prm.PROJECT)
 @model 
 class Project:
+    "The project object"
+
     nsd = ref(inv=NSD.project)
 
     # the owner of the project

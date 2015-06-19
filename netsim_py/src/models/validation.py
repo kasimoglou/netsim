@@ -315,6 +315,10 @@ def add_context(**kwargs):
     scope_stack.top().add(**kwargs)
 
 
+def success():
+    return scope_stack.top().success
+
+
 def fail(msg=None, *args, **kwargs):
     '''
     Raise to abort this context or process, or the context named

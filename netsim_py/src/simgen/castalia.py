@@ -9,17 +9,16 @@ import json
 import logging
 
 from models.project_repo import NS_NODEDEF, NS_COMPONENT
-
 from models.json_reader import JSONReader, repository
-from simgen.validation import *
-
 from models.mf import Attribute
-from simgen.utils import docstring_template
-from .castaliagen import generate_castalia
 
 from models.nsd import NSD, Network, Mote, Position, Plan, Project,\
     CastaliaEnvironment, VectorlEnvironment, NodeDef, ConnectivityMatrix,\
     NsNodeDef, Sensor, MoteType, RadioDevice
+
+from simgen.validation import *
+from simgen.utils import docstring_template
+from simgen.castaliagen import generate_castalia
 
 from datavis.output_handler import validate_output
 
@@ -285,11 +284,26 @@ class CastaliaGen:
 
     def validate(self):
         validate_output()
-        inform("NSD validated.")
+
+        if self.nsd.hil is not None:
+            with Context(stage="Checking NSD HiL"):
+                n1 = self.nsd.hil.node1
+                n2 = self.nsd.hil.node2
+                if self.nsd.network.find_mote(n1) is None:
+                    fail("Node id %s does not exist in harware-in-the-loop spec.",n1)
+                if self.nsd.network.find_mote(n2) is None:
+                    fail("Node id %s does not exist in harware-in-the-loop spec.",n2)
+                inform("Hil configuration validated.")
+
+        if success():
+            inform("NSD validated.")
+        else:
+            inform("The NSD validation failed.")
         
     
-    def generate_code(self):        
+    def generate_code(self):
         generate_castalia(self)
-        inform("Simulation generated successfully.")
+        if success():
+            inform("Simulation generated successfully.")
 
 
