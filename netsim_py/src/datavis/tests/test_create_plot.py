@@ -22,7 +22,7 @@ def test_plot(tmp_dir):
     os.chdir(tmp_dir)
 
     d = StatsDatabase(testing=True)
-    d.load_castalia_output(castalia_output_file())
+    d.load_data_castalia(castalia_output_file())
     d.create_view("test_view", "SELECT node, name, data FROM dataTable")
     plot = make_plot(d.relations["test_view"], (Column("node"),), (Column("data"),), ["name"], select={"name": "Consumed Energy"}, terminal=PNG())
     plot.make_plot()

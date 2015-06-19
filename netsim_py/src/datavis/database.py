@@ -11,6 +11,10 @@ import re
 import csv
 import logging
 import json
+from models.nsdplot import Table as nsdTable
+from models.validation import fail, inform
+
+DEFAULT_NODEMAP_FILE = "nodemap.json"
 
 class Dataset(object):
     """
@@ -161,6 +165,12 @@ class StatsDatabase(Dataset):
         :param map_file: the file containing information to generate the nodemap
         :return: the nodemap
         """
+        if self.nodemap is not None:
+            return
+        if not os.path.exists(map_file) or not os.path.isfile(map_file):
+            logging.warning("Could not load \"%s\" node mapping file" % map_file)
+            return
+
         with open(map_file, 'r') as f:
             fjson = json.loads(f.read())
             nodes = fjson["nodes"]
@@ -168,7 +178,7 @@ class StatsDatabase(Dataset):
             for n in nodes:
                 # print("%d = %s" % (n["simid"], n["nodeid"]))
                 nodemap[str(n["simid"])] = n["nodeid"]
-            return nodemap
+        self.nodemap = nodemap
 
     def __castaliaID_2_planID(self, castalia_id):
         """
@@ -216,18 +226,69 @@ class StatsDatabase(Dataset):
         if type(num) != float: return False
         return int(num) == num
 
-    def load_castalia_output(self, castalia_output_file, table_name="dataTable", node_mapping_file="nodemap.json"):
+    def load_data_csv(self, table, node_mapping_file=DEFAULT_NODEMAP_FILE):
+        """
+        Load data from a CSV file to table
+        """
+        def assert_format():
+            """
+            checks table column number to be equal with column number in data file
+            """
+            file_cols = len(row)
+            if file_cols != table_cols:
+                fail("data file (\"%s\") format (%d columns) does not match table (\"%s\") format (%d columns)"
+                    % (filename, file_cols, table.name, table_cols))
+
+        def store_data():
+            """
+            stores data of a row to the appropriate table
+            """
+            def map_nodes():
+                """
+                maps castalia node ids to plan node ids, only for columns marked in table.node_mapping
+                """
+                for i in range(0, len(data)):
+                    if table.columns[i].name in table.node_mapping:
+                        data[i] = self.__castaliaID_2_planID(data[i])
+
+            sql = "INSERT INTO %s VALUES(%s)" % (table.name, ",".join(["?"]*table_cols))
+            c = self.conn.cursor()
+            data = [d.strip() for d in row]
+            if self.nodemap:
+                map_nodes()
+            c.execute(sql, tuple(data))
+            self.conn.commit()
+
+        #
+        # load_data_csv
+        #
+
+        assert isinstance(table, nsdTable)
+        filename = table.filename
+        table_cols = len(table.columns)
+
+        if not os.path.exists(filename) or not os.path.isfile(filename):
+            fail("Could not load \"%s\" csv data file" % filename)
+
+        # generate the castalia to plan node map
+        self.__generate_nodemap(node_mapping_file)
+
+        with open(filename, "r") as f:
+            reader = csv.reader(f)
+            for row in reader:
+                assert_format()
+                store_data()
+
+    def load_data_castalia(self, castalia_output_file, table_name="dataTable", node_mapping_file=DEFAULT_NODEMAP_FILE):
         """
         read data from Castalia output file and store them to an sqlite db in memory
         """
         if not os.path.exists(castalia_output_file) or not os.path.isfile(castalia_output_file):
             logging.warning("Could not load \"%s\" castalia output file" % castalia_output_file)
             return
-        if not os.path.exists(node_mapping_file) or not os.path.isfile(node_mapping_file):
-            logging.warning("Could not load \"%s\" node mapping file" % node_mapping_file)
-        else:
-            # generate the castalia to plan node map
-            self.nodemap = self.__generate_nodemap(node_mapping_file)
+
+        # generate the castalia to plan node map
+        self.__generate_nodemap(node_mapping_file)
 
         with open(castalia_output_file, "r") as f:
             lines = f.readlines()

@@ -187,7 +187,7 @@ def test_create_plot_for_model(tmp_dir):
     #
     #name = "Consumed Energy"
     ds = StatsDatabase(testing=True)
-    ds.load_castalia_output(castalia_output_file())
+    ds.load_data_castalia(castalia_output_file())
     table_filter = Operator(EQ, [ColumnRef(DATA_TABLE.col["name"]), ConstantExpr("\"Consumed Energy\"")])
     dt = DerivedTable("test_create_plot_for_model", [Column("node"), Column("data"), Column("name")], [DATA_TABLE], table_filter)
     create_view_for_derived(ds, dt)

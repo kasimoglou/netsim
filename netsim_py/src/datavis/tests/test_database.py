@@ -73,7 +73,7 @@ def test_readcastaliaoutput():
                  ('ResourceManager', 2, 'Consumed Energy', '', -1, 6.28569),
                  ('Communication.Radio', 2, 'TXed pkts', 'TX pkts', -1, 499.0)]
     d = StatsDatabase(testing=True)
-    d.load_castalia_output(castalia_output_file())
+    d.load_data_castalia(castalia_output_file())
     dt = d.get_datatable()
     for i in data_list:
         assert(i in dt)
@@ -103,7 +103,7 @@ def test_readcastaliaoutput_with_nodemapping():
                  ('ResourceManager', 'plan2', 'Consumed Energy', '', -1, 6.28569),
                  ('Communication.Radio', 'plan2', 'TXed pkts', 'TX pkts', -1, 499.0)]
     d = StatsDatabase(testing=True)
-    d.load_castalia_output(castalia_output_file(), node_mapping_file=os.path.join(runner.config.resource_path(), "datavis/dummy_nodemap.json"))
+    d.load_data_castalia(castalia_output_file(), node_mapping_file=os.path.join(runner.config.resource_path(), "datavis/dummy_nodemap.json"))
     dt = d.get_datatable()
     for i in data_list:
         assert(i in dt)
@@ -112,7 +112,7 @@ def test_readcastaliaoutput_with_nodemapping():
 
 def test_createview():
     d = StatsDatabase(testing=True)
-    d.load_castalia_output(castalia_output_file())
+    d.load_data_castalia(castalia_output_file())
     d.create_view("test_view", "SELECT node FROM dataTable")
     c = d.conn.cursor()
     res = c.execute(d.relations["test_view"].sql_fetch_all()).fetchall()
@@ -126,13 +126,13 @@ def test_createview():
 
 def test_getnodes():
     d = StatsDatabase(testing=True)
-    d.load_castalia_output(castalia_output_file())
+    d.load_data_castalia(castalia_output_file())
     assert d.get_nodes() == [0, 1, 2]
 
 
 def test_execute_exect_one():
     db = StatsDatabase(testing=True)
-    db.load_castalia_output(castalia_output_file())
+    db.load_data_castalia(castalia_output_file())
 
     with pytest.raises(Exception):
         db.execute_expect_one("SELECT node,data FROM dataTable WHERE name = 'Consumed Energy'")
@@ -142,7 +142,7 @@ def test_execute_exect_one():
 
 def test_execute():
     db = StatsDatabase(testing=True)
-    db.load_castalia_output(castalia_output_file())
+    db.load_data_castalia(castalia_output_file())
 
     assert db.execute("SELECT node,data FROM dataTable WHERE name = 'Consumed Energy'") == [(0, 6.79813), (1, 6.28785), (2, 6.28569)]
 

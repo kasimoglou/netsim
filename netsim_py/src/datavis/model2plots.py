@@ -121,11 +121,11 @@ def create_view_for_derived(ds, dt):
     Create an SQL view in ds for given DerivedTable dt.
     """
     sql = derived2sql(dt)
-    print(dt.name, sql)
+    # print(dt.name, sql)
     ds.create_view(dt.name, sql)
-    print(ds.execute("SELECT * FROM dataTable"))
+    # print(ds.execute("SELECT * FROM dataTable"))
     # print(ds.execute("SELECT * FROM %s" % dt.name))
-    print(ds.conn.execute("SELECT * FROM dataTable").description)
+    # print(ds.conn.execute("SELECT * FROM dataTable").description)
 
 
 def create_table(ds, dt):
@@ -184,10 +184,11 @@ def populate_table(ds, table, castalia_data=None):
     load data appropriate for this table in database ds
     if castalia_data is set, override the table's filename
     """
+    print(table.format + "<=========================================================================")
     if table.format == "dataTable":
-        ds.load_castalia_output(table.filename if castalia_data is None else castalia_data, table.name)
+        ds.load_data_castalia(table.filename if castalia_data is None else castalia_data, table.name)
     elif table.format == "csv":
-        pass
+        ds.load_data_csv(table)
     else:
         fail("unknown format %s" % table.format)
 
@@ -202,6 +203,8 @@ def model2plots(pml, jo, castalia_data=None):
     # Collect a list of tables, ordered according to dependence
     table_list = collect_tables_for_pml(pml)
 
+    for table in table_list:
+        print(table.name)
     # Create database
     ds = StatsDatabase()
 
