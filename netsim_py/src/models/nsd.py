@@ -344,7 +344,7 @@ class NSD:
 @repository(prm.PLAN)
 @model
 class Plan:
-    nsd = ref()
+    nsd = ref(inv=NSD.plan)
 
     name = attr(str, nullable=False)
 
@@ -404,7 +404,7 @@ class Channel:
 @repository(prm.PROJECT)
 @model 
 class Project:
-    nsd = ref()
+    nsd = ref(inv=NSD.project)
 
     # the owner of the project
     userId = attr(str)

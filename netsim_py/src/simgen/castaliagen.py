@@ -154,7 +154,11 @@ class CastaliaModelBuilder:
 
         # Create the nodemap.json
         nodemap = []
+        self.idmap_nsd2cast = {}
+        self.idmap_cast2nsd = {}
         for node in self.nodes.submodules:
+            self.idmap_nsd2cast[node.name] = node.index
+            self.idmap_cast2nsd[node.index] = node.name
             mapped_node = {
                 "simid": node.index,
                 "nodeid": node.name
@@ -174,6 +178,16 @@ class CastaliaModelBuilder:
 
         return net
         
+
+    def node_index(self, node_id):
+        "Return the Castalia index for a node id"
+        if not isinstance(node_id, str): node_id = str(node_id)
+        return self.idmap_nsd2cast.get(node_id, None)
+
+    def node_id(self, index):
+        "Return the NSD node id for the given index"
+        return self.idmap_cast2nsd[index]
+
 
     def compute_positions(self, node_modules):
         '''
@@ -238,9 +252,51 @@ class CastaliaModelBuilder:
     def create_wireless_channel(self):
         '''
         Configure the wireless channel.
-        '''
-        pass
-        # use the connectivity matrix
+        '''        
+        net = self.cm.network
+        wireless = WirelessChannel(net)
+
+        cmatrix = self.nsd.plan.connectivityMatrix
+        if cmatrix is not None:
+            # check to see if we are missing nodes!
+
+            # use the connectivity matrix to create a path loss file
+            path_loss = {}
+            used_channels = 0
+            for chan in cmatrix.connectivity:
+                n1 = self.node_index(chan.nodeId1)
+                n2 = self.node_index(chan.nodeId2)
+                loss = -chan.strengthDb
+
+                if n1 is None or n2 is None: continue
+                used_channels += 1
+
+                if n1 in path_loss:
+                    path_loss[n1].append((n2, -loss))
+                else:
+                    path_loss[n1] = [(n2, -loss)]
+
+                if n2 in path_loss:
+                    path_loss[n2].append((n1, -loss))
+                else:
+                    path_loss[n2] = [(n1, -loss)]
+
+            all_channels = (net.numNodes*(net.numNodes-1))/2
+            assert used_channels <= all_channels
+            if all_channels > used_channels:
+                warn("Channels missing in the connectivity map") 
+
+            with open("path_loss.txt","w") as f:
+                for nindex in path_loss:
+                    line = "%d>" % nindex
+                    plosses = path_loss[nindex]
+
+                    line += ",".join( ("%d:%d" % node_loss) 
+                        for node_loss in plosses)
+
+                    print(line, file=f)
+
+            wireless.pathLossMapFile = "path_loss.txt"
 
 
     def create_node_type(self, nodeType):

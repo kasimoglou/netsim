@@ -201,7 +201,12 @@ class WirelessChannel(CastaliaModule):
                             // is delivering signal messages to radio modules of 
                             // individual nodes
     """
-    pass
+
+    onlyStaticNodes = parameter(bool, default=True)
+    pathLossMapFile = parameter(str, default=None)
+
+    def __init__(self, parent, cmatrix=None):
+        super().__init__(parent, 'WirelessChannel')        
 
 
 @model
