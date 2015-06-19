@@ -263,7 +263,6 @@ def main():
 
     mp.set_start_method("forkserver")
 
-
     logging.info("Logging level: %s", logging.getLevelName(logging.root.getEffectiveLevel()))
     logging.info("Redirect: %s",args.redir)
 
@@ -273,6 +272,11 @@ def main():
         initialize_repo(args.repo)        
         view_model(repo(), NSD.design)
         return
+    else:
+        if args.src is None:
+            parser.print_usage()
+            parser.exit(1)
+        
 
     if not all(x in "PGCSF" for x in args.stages):
         logging.getLogger().error("Invalid stage sequence")
