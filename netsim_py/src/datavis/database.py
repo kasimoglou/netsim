@@ -110,29 +110,30 @@ class Dataset(object):
 
 class StatsDatabase(Dataset):
 
-    def __init__(self):
+    def __init__(self, testing=False):
         Dataset.__init__(self)
-        alist = [
-            Attribute("module", "VARCHAR"),
-            Attribute("node", "INT"),
-            Attribute("name", "VARCHAR"),
-            Attribute("label", "VARCHAR"),
-            Attribute("n_index", "INT"),
-            Attribute("data", "FLOAT")
-        ]
-        self.create_table("dataTable", alist)
+        if testing:
+            alist = [
+                Attribute("module", "VARCHAR"),
+                Attribute("node", "INT"),
+                Attribute("name", "VARCHAR"),
+                Attribute("label", "VARCHAR"),
+                Attribute("n_index", "INT"),
+                Attribute("data", "FLOAT")
+            ]
+            self.create_table("dataTable", alist)
         self.nodemap = None
 
     def get_datatable(self):
         """
-        :return: all rows of the datatable in a list of tuples
+        :return: all rows of the dataTable in a list of tuples
         eg.[('module1', 1, 'outName', '', -1, 5.0), ('simlabel2', 'module1', 1, 'outName', '', -1, 5.0)]
         """
         return self.conn.execute('SELECT * from dataTable').fetchall()
 
     def get_nodes(self):
         """
-        returns a list of all node ids in the database
+        returns a list of all node ids in the dataTable
         """
         return list(map(lambda x: x[0], self.conn.execute('SELECT DISTINCT node from dataTable').fetchall()))
 
@@ -186,7 +187,7 @@ class StatsDatabase(Dataset):
             logging.warning("castalia node id \"%s\" is not mapped to a plan id" % castalia_id)
             return castalia_id
 
-    def __save_output(self, m, n, i, o, bl, l, v):
+    def __save_output(self, m, n, i, o, bl, l, v, table_name):
         """
         Stores data representing a simple output or histogram to database
             m: module
@@ -204,7 +205,7 @@ class StatsDatabase(Dataset):
         # map castalia node ids to plan node ids
         n = self.__castaliaID_2_planID(n)
         i = self.__castaliaID_2_planID(i)
-        c.execute("INSERT INTO dataTable VALUES(?,?,?,?,?,?);", (m, n, o, l, i, v))
+        c.execute("INSERT INTO %s VALUES(?,?,?,?,?,?);" % table_name, (m, n, o, l, i, v))
         self.conn.commit()
 
     @staticmethod
@@ -215,7 +216,7 @@ class StatsDatabase(Dataset):
         if type(num) != float: return False
         return int(num) == num
 
-    def load_castalia_output(self, castalia_output_file, node_mapping_file="nodemap.json"):
+    def load_castalia_output(self, castalia_output_file, table_name="dataTable", node_mapping_file="nodemap.json"):
         """
         read data from Castalia output file and store them to an sqlite db in memory
         """
@@ -267,7 +268,7 @@ class StatsDatabase(Dataset):
                 # check for output data
                 m = r_output.match(line)
                 if m:
-                    self.__save_output(module, n, i, o, bl, m.group(2), m.group(1))
+                    self.__save_output(module, n, i, o, bl, m.group(2), m.group(1), table_name)
                     continue
                 else:
                     level = 2
@@ -294,7 +295,7 @@ class StatsDatabase(Dataset):
                         next = curr + step
                         if self.__is_int(next): next = int(next)
                         if next > histogram_max: next = "inf"
-                        self.__save_output(module, n, ival, o, bl, "[" + str(curr) + "," + str(next) + ")", val)
+                        self.__save_output(module, n, ival, o, bl, "[" + str(curr) + "," + str(next) + ")", val, table_name)
                         curr += step
                         ival += 1
                     level = 2

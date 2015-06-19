@@ -208,7 +208,7 @@ def test_JsonOutput():
 
 
 def test_add_node_type_parameter():
-    db = StatsDatabase()
+    db = StatsDatabase(testing=True)
     db.load_castalia_output(castalia_output_file())
 
     # node parameter
@@ -272,7 +272,7 @@ def test_add_node_type_parameter():
 
 
 def test_add_network_type_parameter():
-    db = StatsDatabase()
+    db = StatsDatabase(testing=True)
     db.load_castalia_output(castalia_output_file())
 
     # column name
@@ -319,7 +319,7 @@ def test_add_network_type_parameter():
 
 
 def test_add_node2node_type_parameter():
-    db = StatsDatabase()
+    db = StatsDatabase(testing=True)
     db.load_castalia_output(castalia_output_file())
 
     # DerivedTable for node2node parameter
@@ -382,7 +382,7 @@ def test_add_node2node_type_parameter():
 
 def test_plot2json():
     #name = "Consumed Energy"
-    ds = StatsDatabase()
+    ds = StatsDatabase(testing=True)
     ds.load_castalia_output(castalia_output_file())
     table_filter = Operator(EQ, [ColumnRef(DATA_TABLE.columns[3]), ConstantExpr("\"Consumed Energy\"")])
     dt = DerivedTable("test_plot2json1", [Column("node"), Column("data"), Column("name")], [DATA_TABLE], table_filter)

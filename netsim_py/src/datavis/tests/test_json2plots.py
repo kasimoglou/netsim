@@ -1,5 +1,4 @@
 from datavis.json2plots import *
-from datavis.predefined_plots import PlotsEncoder
 from datavis.database import Relation
 from datavis.json2plots import ViewsPlotsDecoder
 import os
@@ -15,16 +14,31 @@ def test_views_plots_decoder():
         # View 1
         #
         {
-            "name": "dataTable",  # not an actual view, this already exists in the database, used here to define plots
+            "name": "dataTable",
 
-            # ###### can be ignored/omitted for "dataTable"#######
-            "columns": [  # not required since columns in dataTable are hardcoded
-
+            "columns": [
+                {
+                    "name": "node"
+                },
+                {
+                    "name": "name"
+                },
+                {
+                    "name": "module"
+                },
+                {
+                    "name": "label"
+                },
+                {
+                    "name": "n_index"
+                },
+                {
+                    "name": "data"
+                }
             ],
-            "base_tables": [],  # None, this is the table that all views will derive from
-            "table_filter": "",  # not required, we are not generating this table it already exists
-            "groupby": [],  # not required
-            ####### ------------------------------------- #######
+            "filename": "simout.txt",
+            "format": "dataTable",
+            "node_mapping": ["node", "n_index"],
 
 
             "plots": [
@@ -102,16 +116,6 @@ def test_views_plots_decoder():
     decoder = ViewsPlotsDecoder()
     dts, pms = decoder.decode(Views)
 
-    for dt in dts:
-        dt_j = json.dumps(dt, cls=PlotsEncoder, indent=2)
-        print(dt_j)
-
-    for pm in pms:
-        pm_j = json.dumps(pm, cls=PlotsEncoder, indent=2)
-        print(pm_j)
-
-        # assert 0  # just to see the prints
-
 
 table = Table('foo', [Column('a'), Column('b'), Column('name'), Column('dummy')])
 
@@ -168,11 +172,11 @@ def test_plot_creation_through_nsd_read(tmp_dir):
     os.chdir("./test_plot_creation_through_nsd_read")
 
     vpd = ViewsPlotsDecoder()
-    filename = os.path.join(cfg.resource_path, "datavis/predefined_plots.json")
+    filename = "/home/george/netsim/netsim_py/resources/datavis/predefined_plots.json" #os.path.join(cfg.resource_path, "datavis/predefined_plots.json")
     with open(filename, "r") as f:
         json_str = f.read()
         derived_tables, plot_models = vpd.decode(json.loads(json_str)["views"])
-        create_simulation_results("asdf", plot_models, os.path.join(cfg.resource_path, "datavis/castalia_output2.txt"))
+        create_simulation_results("asdf", plot_models, "/home/george/netsim/netsim_py/resources/datavis/castalia_output2.txt")#os.path.join(cfg.resource_path, "datavis/castalia_output2.txt"))
 
     # restore the working directory to its previous value
     os.chdir(curdir)
