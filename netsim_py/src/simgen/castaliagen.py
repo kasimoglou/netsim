@@ -291,7 +291,7 @@ class CastaliaModelBuilder:
                     line = "%d>" % nindex
                     plosses = path_loss[nindex]
 
-                    line += ",".join( ("%d:%d" % node_loss) 
+                    line += ",".join( ("%d:%g" % node_loss) 
                         for node_loss in plosses)
 
                     print(line, file=f)
