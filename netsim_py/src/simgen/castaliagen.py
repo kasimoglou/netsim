@@ -1,15 +1,17 @@
 
 import os.path, logging, json
-from runner.config import castalia_path, omnetpp_path
+import pyproj
+import numpy as np
 
-from simgen.validation import Context, fail, fatal, inform, warn, add_context
+from runner.config import castalia_path, omnetpp_path, cfg
+
 from models.nsd import *
 from models.castalia_sim import *
 from models.mf import Attribute
+
+from simgen.validation import Context, fail, fatal, inform, warn, add_context
 from simgen.utils import docstring_template
 from simgen.datastore import context
-import pyproj
-import numpy as np
 
 logger = logging.getLogger('codegen')
 
@@ -74,6 +76,9 @@ class CastaliaModelBuilder:
         with Context(stage='Parameterize wireless channel'):
             self.create_wireless_channel()
 
+        with Context(stage="Configure for Hardware-in-the-Loop"):
+            self.configure_hil()
+
         with Context(stage='Configure simulation'):
             self.add_omnetpp_sections()
 
@@ -100,14 +105,12 @@ class CastaliaModelBuilder:
             s = Section(self.cm, 'NodeType_%s '% nodeType.nodeDef.code)
             nodeType.section = s
             s.modules.append(nodeType.nodes)
-        # make the names of node types legal!
 
-
-        # Add section for HiL
-        hil_section = Section(self.cm, 'HiL')
+        # TODO: make the names of node types legal!
 
         # Final, main section
-        ext = [hil_section]+[nt.section for nt in self.cm.nodeTypes]+[nodeSection]
+        ext = ([self.hil_section] if cfg.getboolean('hil_enabled') else [])  \
+            +[nt.section for nt in self.cm.nodeTypes]+[nodeSection]
         self.main_section = Section(self.cm, 'Main', extends=ext)
 
 
@@ -347,6 +350,27 @@ class CastaliaModelBuilder:
         nsdef = nodeType.nodeDef.ns_nodedef
         if nsdef is not None:
             sensman = SensorManager(nodeType.nodes, nsdef.sensors)
+
+
+    def configure_hil(self):
+        "Create HiL section."
+        self.hil_section = Section(self.cm, 'HiL')
+
+        hil = self.nsd.hil
+        if hil is not None:
+            n1 = self.node_index(hil.node1)
+            n2 = self.node_index(hil.node2)
+
+            net = self.cm.network.base()
+            nc1 = net.submodule('node',n1).submodule('Communication').submodule('Radio')
+            nc2 = net.submodule('node',n2).submodule('Communication').submodule('Radio')
+
+            nc1.set('enablePERHil', n2)
+            nc2.set('enablePERHil', n1)
+            nc2.set('selectForward', True)
+
+            self.hil_section.modules.append(net)
+
 
 
 ##################################################

@@ -195,6 +195,8 @@ class Mote:
     # the node type determines the hardware used
     nodeTypeId = attr(str)
     required(nodeTypeId)
+
+    # the nodedef object for this mote
     nodeType = ref(inv=NodeDef.motes)
 
     #Mote role (ROOT or MOTE)

@@ -282,6 +282,13 @@ class CastaliaGen:
  project repository has failed. \
  Cannot continue with the generation. The simulation has failed.""")
 
+    def validate_hil_mote(self, node_id):
+        mote = self.nsd.network.find_mote(node_id)
+        if mote is None:
+            fail("Node id %s does not exist.",node_id)
+        if mote.nodeType.nature == "NID":
+            fail("Node %s is an NID, cannot participate in HiL.", node_id)
+
     def validate(self):
         validate_output()
 
@@ -289,10 +296,12 @@ class CastaliaGen:
             with Context(stage="Checking NSD HiL"):
                 n1 = self.nsd.hil.node1
                 n2 = self.nsd.hil.node2
-                if self.nsd.network.find_mote(n1) is None:
-                    fail("Node id %s does not exist in harware-in-the-loop spec.",n1)
-                if self.nsd.network.find_mote(n2) is None:
-                    fail("Node id %s does not exist in harware-in-the-loop spec.",n2)
+
+                self.validate_hil_mote(n1)
+                self.validate_hil_mote(n2)
+                if n1==n2:
+                    fail("HiL simulation requested between node %s and itself!",n1)
+                    
                 inform("Hil configuration validated.")
 
         if success():
