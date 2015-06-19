@@ -25,6 +25,12 @@ omnetpp_path = %(execdir)s/omnetpp-4.4
 castalia_path = %(execdir)s/Castalia-3.2
 
 #
+# If this is true, the Hardware-in-the-Loop simulation is enabled at this server
+# 
+hil_enabled = no
+
+
+#
 # Path where the direct monitor jobs are to be stored
 #
 local_executor_path= %(execdir)s/Simulations
