@@ -145,7 +145,17 @@ class ViewsPlotsDecoder:
         then add the generated Table to derived_tables (a list of DerivedTable/Table)
         returns the Table
         """
+        
+        if 'name' not in d:
+            fail("Malformed data table is missing name!")
+        missing_attr = [key for key in (
+            'columns', 'filename', 'format', 'node_mapping'
+            ) if key not in d]
+        if missing_attr:
+            fail("Malformed data table %s is missing keys %s", d['name'], ",".join(missing_attr))
+
         cols = self.gen_columns(d["columns"])
+
         dt = Table(
             d["name"],
             cols,
@@ -166,10 +176,18 @@ class ViewsPlotsDecoder:
                 allowed_chars = re.compile(r"^[a-zA-Z0-9_]+$")
                 if not allowed_chars.match(v["name"]):
                     fail("View name can contain only upper/lower case letters, numbers and underscores")
+
+                # For backward compatibility
+                if v["name"]=="dataTable":
+                    v.setdefault("filename", "simout.txt")
+                    v.setdefault("format", "dataTable")
+                    v.setdefault("node_mapping", ["node", "n_index"])
+
                 if "filename" in v and v["filename"] != "":
                     rel = self.gen_table(v)
                 else:
                     rel = self.gen_derived_table(v)
+
                 if "plots" in v:
                     self.gen_plots(rel, v["plots"])
 

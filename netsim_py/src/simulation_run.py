@@ -50,9 +50,10 @@ class StandaloneLocalExecutor(LocalExecutor):
     '''This executor is used by test code. It allows to determine the
     name of the simulation home.
     '''
-    def __init__(self, name, homedir, fileloc):
+    def __init__(self, name, homedir, fileloc, stages):
         super().__init__(name, homedir, home_prefix = "run_")
         self.fileloc_base = fileloc
+        self.stages = stages
 
     def create_home_directory(self):
         '''
@@ -77,15 +78,19 @@ class StandaloneLocalExecutor(LocalExecutor):
             os.mkdir(fileloc)
 
         assert os.path.isdir(fileloc)
-        # We have a dir. Empty it...
-        for fobj in os.listdir(fileloc):
-            fobjpath = os.path.join(fileloc, fobj)
-            if os.path.isdir(fobjpath): 
-               shutil.rmtree(fobjpath)
-            else:
-                os.unlink(fobjpath)
 
-        # create dir
+        # We have a dir. Empty it...
+        # Addendum: no, do not empty it. Erase only according to stages. 
+        # NB. This is currently a patch!
+        if self.stages!="F":
+            for fobj in os.listdir(fileloc):
+                fobjpath = os.path.join(fileloc, fobj)
+                if os.path.isdir(fobjpath):
+                    shutil.rmtree(fobjpath)
+                else:
+                    os.unlink(fobjpath)
+
+        # created dir
         return fileloc
 
 
@@ -283,8 +288,8 @@ def main():
         sys.exit(1)
 
     # Create the simulation
-    executor = StandaloneLocalExecutor('test', local_executor_path(), args.name)
-    fileloc = create_simulation(executor, args)    
+    executor = StandaloneLocalExecutor('test', local_executor_path(), args.name, args.stages)
+    fileloc = create_simulation(executor, args)
     print("Simulation home: ", fileloc)
 
     # Run the simulation

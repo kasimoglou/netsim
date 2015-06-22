@@ -25,6 +25,7 @@ class Dataset(object):
     """
     def __init__(self):
         self.conn = sql.connect(':memory:')
+        #self.conn = sql.connect('datavis.sqlite3')
         self.relations = {}
 
     def add(self, relation):
@@ -32,8 +33,9 @@ class Dataset(object):
         Add relation to the dataset.
         """
         assert isinstance(relation, Relation)
-        logging.debug("Dataset.add, Relation.sql_create: " + relation.sql_create())
-        self.conn.execute(relation.sql_create())
+        sql_create_query = relation.sql_create()
+        logging.debug("Dataset.add, Relation.sql_create: %s", sql_create_query)
+        self.conn.execute(sql_create_query)
         if relation.name in self.relations:
             logging.error("In datavis.database.Dataset.add(): duplicate relation name: %s",relation.name)
             raise ValueError("This relation's name is already in use" % relation.name)            
@@ -215,7 +217,7 @@ class StatsDatabase(Dataset):
         # map castalia node ids to plan node ids
         n = self.__castaliaID_2_planID(n)
         i = self.__castaliaID_2_planID(i)
-        c.execute("INSERT INTO %s VALUES(?,?,?,?,?,?);" % table_name, (m, n, o, l, i, v))
+        c.execute("INSERT INTO %s(module,node,name,label,n_index,data) VALUES(?,?,?,?,?,?);" % table_name, (m, n, o, l, i, v))
         self.conn.commit()
 
     @staticmethod
