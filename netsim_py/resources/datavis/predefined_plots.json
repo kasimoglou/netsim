@@ -3,13 +3,13 @@
         {
            "columns": [
                {
+                   "name": "module"
+               },
+               {
                    "name": "node"
                },
                {
                    "name": "name"
-               },
-               {
-                   "name": "module"
                },
                {
                    "name": "label"

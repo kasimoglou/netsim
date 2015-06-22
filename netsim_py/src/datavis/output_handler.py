@@ -109,10 +109,10 @@ def generate_output():
     generated plots and files to the Project Repository.
     """
 
-    # output_list will hold all info/error messages of GenerateResultsProcess
-    simulation_id = context.datastore.sim_id
-    castalia_data = "simout.txt"
 
+    simulation_id = context.datastore.sim_id
+
+    # output_list will hold all info/error messages of GenerateResultsProcess
     output_list = []
     pf = DatavisProcess.new_factory(output_list)
     results_json = None
@@ -124,7 +124,7 @@ def generate_output():
             #
             # Get the results of the simulation
             #
-            results_json = create_simulation_results(simulation_id, plot_models, castalia_data)
+            results_json = create_simulation_results(simulation_id, plot_models)
             results_json_string = json.dumps(results_json, default=lambda o: o.__dict__, indent=2)
 
             with open("results.json", "w") as f:
@@ -139,6 +139,9 @@ def generate_output():
     if results_json is None:
         jo = JsonOutput("simulation_results", simulation_id)
         results_json = jo.get_json()
+
+    for i in output_list:
+        print(i["message"])
 
     simoutput_handler = SimOutputHandler()
     simoutput_handler.finish_job(results_json)

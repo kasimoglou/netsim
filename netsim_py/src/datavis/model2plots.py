@@ -8,6 +8,7 @@ from datavis.database import StatsDatabase
 from datavis.create_plot import make_plot, PNG, default_title
 from datavis.results2json import plot2json, JsonOutput, parameter2json
 from models.validation import Context, warn, inform, fail, fatal
+from datavis.database import Attribute
 import logging
 import traceback
 
@@ -120,7 +121,21 @@ def create_view_for_derived(ds, dt):
     Create an SQL view in ds for given DerivedTable dt.
     """
     sql = derived2sql(dt)
+    # print(dt.name, sql)
     ds.create_view(dt.name, sql)
+    # print(ds.execute("SELECT * FROM dataTable"))
+    # print(ds.execute("SELECT * FROM %s" % dt.name))
+    # print(ds.conn.execute("SELECT * FROM dataTable").description)
+
+
+def create_table(ds, dt):
+    """
+    Creates a Table in ds for given Table dt
+    """
+
+    assert isinstance(dt, Table)
+    alist = [Attribute(c.name, "VARCHAR") for c in dt.columns]
+    ds.create_table(dt.name, alist)
 
 
 def create_plot_for_model(pm, ds, jo):
@@ -152,7 +167,7 @@ def create_plot_for_model(pm, ds, jo):
     elif pm.model_type == "parameter":
         # generate the parameter (statistic)
         res = plot.make_parameter()
-        if len(res) != 0:
+        if len(res) != 0 and res[0] != (None,):
             # add the parameter to JsonOutput jo
             parameter2json(jo, pm, res)
             inform("generated sucessfully")
@@ -164,7 +179,21 @@ def create_plot_for_model(pm, ds, jo):
         fail("invalid model type: \"%s\"" % pm.model_type)
 
 
-def model2plots(pml, jo, castalia_data):
+def populate_table(ds, table, castalia_data=None):
+    """
+    load data appropriate for this table in database ds
+    if castalia_data is set, override the table's filename
+    """
+    print(table.format + "<=========================================================================")
+    if table.format == "dataTable":
+        ds.load_data_castalia(table.filename if castalia_data is None else castalia_data, table.name)
+    elif table.format == "csv":
+        ds.load_data_csv(table)
+    else:
+        fail("unknown format %s" % table.format)
+
+
+def model2plots(pml, jo, castalia_data=None):
     """Accepts a list of PlotModel objects and creates the corresponding plots/parameters(statistics).
     """
 
@@ -174,9 +203,19 @@ def model2plots(pml, jo, castalia_data):
     # Collect a list of tables, ordered according to dependence
     table_list = collect_tables_for_pml(pml)
 
+    for table in table_list:
+        print(table.name)
     # Create database
-    ds = StatsDatabase()  # load base table for Castalia stats
-    ds.load_castalia_output(castalia_data)
+    ds = StatsDatabase()
+
+    # create tables
+    for table in table_list:
+        if isinstance(table, Table) and not isinstance(table, DerivedTable):
+            # table_list.remove(table)
+            with Context(table=table):
+                create_table(ds, table)
+                populate_table(ds, table, castalia_data)
+
 
     # create views
     for table in table_list:
@@ -190,7 +229,7 @@ def model2plots(pml, jo, castalia_data):
             create_plot_for_model(pm, ds, jo)
 
 
-def create_simulation_results(simulation_id, plotModels, castalia_data="castalia_output.txt"):
+def create_simulation_results(simulation_id, plotModels, castalia_data=None):
     """
     generates plots, calculates statistics, ands returns all that info in json format
     :param simulation_id: the id of the current simulation
