@@ -84,10 +84,13 @@ def process_vectorl(project_id, model_name, run=False, until=None, steps=None):
 	output_list = []
 	pf = ProcProcess.new_factory(output_list)
 	factory = ProjectModelFactory(project_id, pf)
+	varlist = []
 
 	with pf(name='top process', logger=None) as top:
 		top.suppress(Exception)
 		factory.get_model(model_name)
+		if top.success:
+			 varlist = [v.full_name for v in factory.all_variables() if v.toplevel]
 		inform("Got model")
 
 	logging.info("Output list: %s",output_list)
@@ -99,8 +102,10 @@ def process_vectorl(project_id, model_name, run=False, until=None, steps=None):
 		'id_map' : factory.id_map,
 		'vectorl_object_map': factory.object_map,
 		'success': top.success,
-		'compiler_output': list(output_list)  # make a copy!
+		'compiler_output': list(output_list),  # make a copy!
+		"variables": varlist
 	}
+
 
 	if not run:
 		return comp_output

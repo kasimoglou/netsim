@@ -7,6 +7,8 @@ Created on Mar 3, 2014
 
 import logging
 import bottle
+from beaker.middleware import SessionMiddleware
+
 #from runner.config import gui_file_path, nsdEdit_file_path
 from runner.config import cfg
 
@@ -14,15 +16,16 @@ from runner.config import cfg
 import runner.admingui
 import runner.restapi
 import runner.nsdgui
+import runner.AAA as AAA
 
-from beaker.middleware import SessionMiddleware
+logger = logging.getLogger('GUI')
 
 root = bottle.Bottle()
-
 
 @root.get('/')
 def index():
 	bottle.redirect("/admin/")
+
 
 
 def start_gui(args, guiaddr):
@@ -38,7 +41,6 @@ def start_gui(args, guiaddr):
         'session.encrypt_key': 'dagfasvgavnhcfdngcfcaewancanogfogasdfdasfadsafdfadfadfdfdafadfdasncfeonawhcmcmhcfmhcfewopqwfeom',
         'session.secret': 'dagfasvfdasfdasfadsdfasfafadsffdasfadsgavnhcfdngcfcaewancanogfogncfeonawhcmcmhcfmhcfewopqwfeom'
     })
-
 
     bottle.debug(True)
     bottle.TEMPLATE_PATH.insert(0, cfg.gui_file_path)
