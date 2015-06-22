@@ -36,30 +36,29 @@
 
     <!-- Add your site or application content here -->
     <div class="header">
-      <div class="navbar navbar-default" role="navigation">
-        <div class="container">
-          <div class="navbar-header">
+        <div class="navbar navbar-default" role="navigation" ng-controller="homepageController">
+            <div class="container">
+              <div class="navbar-header">
 
-            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse"
-                    data-target="#js-navbar-collapse">
-              <span class="sr-only">Toggle navigation</span>
-              <span class="icon-bar"></span>
-              <span class="icon-bar"></span>
-              <span class="icon-bar"></span>
-            </button>
+                <button type="button" class="navbar-toggle collapsed" data-toggle="collapse"
+                        data-target="#js-navbar-collapse">
+                  <span class="sr-only">Toggle navigation</span>
+                  <span class="icon-bar"></span>
+                  <span class="icon-bar"></span>
+                  <span class="icon-bar"></span>
+                </button>
 
-            <a class="navbar-brand" href="#!/">NSD Editor</a>
-          </div>
-
-          <div class="collapse navbar-collapse" id="js-navbar-collapse" ng-controller="homepageController">
-
-              <ul class="nav navbar-nav navbar-right">
-                <li ng-class="{'active': getLocationPath() === '/'}"><a href="#!/">My Nsd Files</a></li>
-                <li ng-class="{'active': getLocationPath() === '/vectorl_files'}"><a href="#!/vectorl_files" >My VectorL Files</a></li>
-            </ul>
-          </div>
+                <a class="navbar-brand" href="#!/">NSD Editor</a>
+              </div>
+                <div class="collapse navbar-collapse" id="js-navbar-collapse">
+                    <ul class="nav navbar-nav navbar-right">
+                        <li ng-class="{'active': getLocationPath() === '/'}"><a href="#!/">My Nsd Files</a></li>
+                        <li ng-class="{'active': getLocationPath() === '/vectorl_files'}"><a href="#!/vectorl_files" >My VectorL Files</a></li>
+                        <li ng-show="session_info.dpcm_user" ng-cloak><a>Hello, [[session_info.dpcm_user]]</a></li>
+                    </ul>
+              </div>
+            </div>
         </div>
-      </div>
     </div>
 
     <div class="container">

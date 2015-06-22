@@ -74,6 +74,7 @@ define(['underscore',
             load_finished: false
         };
         $scope.temp.environment = {};
+        $scope.temp.environment.sensor_mapping = [];
         
         $scope.alerts = {
             save_success: false
@@ -137,12 +138,7 @@ define(['underscore',
             if (nsd.environment) {
                 $scope.temp.env_model = nsd.environment.type;
                 $scope.temp.environment.vectorl_id = nsd.environment.vectrol_id;
-                
-                for (var i=0; i<5; i++) {
-                    if (nsd.environment['sensor' + i]) {
-                        $scope.temp.environment['sensor' + i] = nsd.environment['sensor' + i];
-                    }
-                }
+                $scope.temp.environment.sensor_mapping = nsd.environment.mapping;
                 
                 $scope.validateVectorl();
             }
@@ -288,7 +284,7 @@ define(['underscore',
                             $scope.alerts.invalid_vectorl = false;
                             $scope.alerts.valid_vectorl = true;
                             
-                            $scope.vectorl_vars = ['foo', 'bar', 'test', 'sth', 'var_name']; //response.variables
+                            $scope.vectorl_vars = response.variables;
                         } else {
                             $scope.alerts.validating_vectorl = false;
                             $scope.alerts.valid_vectorl = false;
@@ -813,10 +809,10 @@ define(['underscore',
                     type: 'vectorl',
                     vectrol_id: $scope.temp.environment.vectorl_id
                 };
-                
-                for (var i=0; i<5; i++) {
-                    if ($scope.temp.environment['sensor' + i]) {
-                        $scope.nsd.environment['sensor' + i] = $scope.temp.environment['sensor' + i];
+                $scope.nsd.environment.mapping = [];
+                for (var i=0; i< $scope.temp.environment.sensor_mapping.length; i++) {
+                    if ($scope.temp.environment.sensor_mapping[i]) {
+                       $scope.nsd.environment.mapping.push($scope.temp.environment.sensor_mapping[i]);
                     }
                 }
             }
