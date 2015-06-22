@@ -11,9 +11,12 @@ Created on Sep 24, 2014
 
 import os.path, json, logging
 from urllib.parse import urlparse, urlunparse, urldefrag
-from simgen.utils import get_file, put_file, execute_function
-from runner import dpcmrepo, config
+
 from models.project_repo import SIM
+from simgen.validation import *
+from runner import dpcmrepo, config
+from simgen.utils import get_file, put_file, execute_function
+
 from io import StringIO
 
 
