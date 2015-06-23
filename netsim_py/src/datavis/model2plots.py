@@ -7,7 +7,7 @@ from models.nsdplot import PlotModel, Table, DerivedTable, ColumnExpr, \
 from datavis.database import StatsDatabase
 from datavis.create_plot import make_plot, PNG, default_title
 from datavis.results2json import plot2json, JsonOutput, parameter2json
-from models.validation import Context, warn, inform, fail
+from models.validation import Context, warn, inform, fail, fatal
 from datavis.database import Attribute
 import logging
 import traceback
@@ -121,7 +121,10 @@ def create_view_for_derived(ds, dt):
     Create an SQL view in ds for given DerivedTable dt.
     """
     sql = derived2sql(dt)
-    ds.create_view(dt.name, sql)
+    try:
+        ds.create_view(dt.name, sql)
+    except BaseException as ex:
+        fail(ex)
 
 
 def create_table(ds, dt):
@@ -217,8 +220,11 @@ def model2plots(pml, jo, castalia_data=None):
 
     # create plots
     for pm in pml:
-        with Context(view=pm.rel.name, plot=pm.title):
-            create_plot_for_model(pm, ds, jo)
+        if pm.rel.name in ds.relations:
+            with Context(view=pm.rel.name, plot=pm.title):
+                create_plot_for_model(pm, ds, jo)
+        else:
+            fail("View %s does not exist in database, some error occurred during its generation" % pm.rel.name)
 
 
 def create_simulation_results(simulation_id, plotModels, castalia_data=None):

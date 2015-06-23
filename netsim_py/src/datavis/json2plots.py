@@ -88,15 +88,24 @@ class ViewsPlotsDecoder:
             ViewsPlotsDecoder.get_attr("unit", d))
         return pm
 
-    def gen_columns(self, d):
+    def gen_columns(self, d, base_tables=None):
         """
         generate a list of Column objects from  d (d should be a list of dictionaries each representing a Column)
+        base_tables is a list of tables, if not None then the expressions in d will be validated using column names from these base tables
         returns the list of Column objects
         """
+        check_cols = []
+        if base_tables:
+            for bt in base_tables:
+                for col in bt.columns:
+                    check_cols.append(col)
+        else:
+            for c in d:
+                check_cols.append(Column(c["name"]))
         cols = []
         for c in d:
             if "expression" in c and c["expression"] != "":
-                expr = self.str_2_expr(c["expression"], gen_types(columns=cols))
+                expr = self.str_2_expr(c["expression"], gen_types(columns=check_cols))
                 temp_c = ColumnExpr(c["name"], expr)
             else:
                 temp_c = Column(c["name"])
@@ -120,8 +129,8 @@ class ViewsPlotsDecoder:
         then add the generated DerivedTable to derived_tables (a list of DerivedTable/Table)
         returns the DerivedTable
         """
-        cols = self.gen_columns(d["columns"])
         base_tables = [self.get_table_by_name(name) for name in d["base_tables"]]
+        cols = self.gen_columns(d["columns"], base_tables)
         if "groupby" in d and d["groupby"] not in ["", []]:
             groupby = col_str2col_obj(d["groupby"], cols)
         else:
@@ -324,6 +333,8 @@ class ExprGenNodeVisitor(ast.NodeVisitor):
     def visit_Attribute(self, node):
         p = self.visit(node.value)
         col_name = node.attr
+        if col_name not in self.types:
+            fail("Unknown Column name: \"%s\"" % col_name)
         c = Column(col_name, Table(p, []))
         c.table = Table(p, [])
         return ColumnRef(c)
@@ -338,7 +349,7 @@ class ExprGenNodeVisitor(ast.NodeVisitor):
             elif self.types[name] == "table":
                 return name
         else:
-            raise Exception("Unknown Name: \"%s\"" % name)
+            fail("Unknown Name: \"%s\"" % name)
 
     def visit_Num(self, node):
         num = str(node.n)
