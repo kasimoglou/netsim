@@ -67,6 +67,12 @@ class ViewsPlotsDecoder:
         if sel != pm_defaults["select"]:
             sel = SelectorParser.parse(sel, rel)
 
+        if "model_type" not in d:
+            fail("\"model_type\" must be specified")
+
+        if "stat_type" not in d:
+            fail("\"stat_type\" must be specified")
+
         pm = PlotModel(
             d["model_type"],
             d["stat_type"],
@@ -129,6 +135,8 @@ class ViewsPlotsDecoder:
         then add the generated DerivedTable to derived_tables (a list of DerivedTable/Table)
         returns the DerivedTable
         """
+        if "name" not in d:
+            fail("\"name\" must be specified")
         base_tables = [self.get_table_by_name(name) for name in d["base_tables"]]
         cols = self.gen_columns(d["columns"], base_tables)
         if "groupby" in d and d["groupby"] not in ["", []]:
@@ -179,6 +187,8 @@ class ViewsPlotsDecoder:
         returns a tuple of lists (list_DerivedTable, list_plotModel)
         """
         for v in views:
+            if "name" not in v:
+                fail("Malformed View, is missing name")
             with Context(view=v["name"]):
                 allowed_chars = re.compile(r"^[a-zA-Z0-9_]+$")
                 if not allowed_chars.match(v["name"]):
