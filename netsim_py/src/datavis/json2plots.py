@@ -7,7 +7,7 @@ from models.nsdplot import PlotModel, DerivedTable, Table,  Column, ColumnExpr, 
     PLUS, MINUS, DIV, MULT
 from datavis.database import less_equal, less_than, greater_than, greater_equal, not_equal, like, not_like, between
 from datavis.create_plot import pm_defaults
-from models.validation import Context, fail
+from models.validation import Context, fail, inform
 import re
 
 
@@ -128,6 +128,8 @@ class ViewsPlotsDecoder:
             with Context(plot=p["title"]):
                 pm = self.gen_plotmodel(rel, p)
                 self.plot_models.append(pm)
+                inform("plot validated.")
+
 
     def gen_derived_table(self, d):
         """
@@ -207,6 +209,7 @@ class ViewsPlotsDecoder:
 
                 if "plots" in v:
                     self.gen_plots(rel, v["plots"])
+                inform("View validated.")
 
         return self.derived_tables, self.plot_models
 

@@ -31,6 +31,15 @@ class DatavisHandler(logging.Handler):
         self.records.append(rec)
 
 
+
+class StdErrFormatter(DatavisFormatter):
+
+    def format(self, record):
+        lvl = record.levelname
+        msg = super().format(record)
+        return "%s: %s" % (lvl, msg)
+
+
 class DatavisProcess(Process):
     '''
     This class creates instances of binds the attribute to a fixed list.
@@ -49,6 +58,10 @@ class DatavisProcess(Process):
         super().__init__(name=name, logger=self.logger)
         self.suppress(Exception)
         self.addScopeHandler(DatavisHandler(self.record_list))
+        
+        stderr_handler = logging.StreamHandler()
+        stderr_handler.setFormatter(StdErrFormatter())
+        self.logger.addHandler(stderr_handler)
 
     @staticmethod
     def new_factory(blist):
