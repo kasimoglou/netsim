@@ -17,13 +17,13 @@ CASTALIA=$HOME/src/dpcm_run/Castalia-3.2
 
 # The following options are used by OMNeT's opp_makemake tool
 # For explanation and a complete list of options run: opp_makemake -h
-OPTS=" -f -r --deep -s -o netsim -u Cmdenv -P $ROOT -M debug"
+OPTS=" -f -r --deep -s -o netsim -u Cmdenv -P $ROOT -M debug "
 
 # -X excludes a directory from being considered
-EXCLUDEDIRS="-X out -X bin"
+EXCLUDEDIRS="-X src -X out -X bin -X doc"
 
 # Use options -I -L -l to include external header files or libraries
-EXTOPTS="-L$(CASTALIA) -lcastalia"
+EXTOPTS="-L$CASTALIA -lcastalia"
 
 # Run OMNeT's opp_makemake tool with the above options
 opp_makemake $OPTS $EXCLUDEDIRS $EXTOPTS
