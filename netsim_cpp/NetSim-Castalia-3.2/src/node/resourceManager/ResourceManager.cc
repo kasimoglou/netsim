@@ -107,6 +107,15 @@ void ResourceManager::finishSpecific()
 	calculateEnergySpent();
 	declareOutput("Consumed Energy");
 	collectOutput("Consumed Energy", "", getSpentEnergy());
+
+}
+
+ResourceManager::~ResourceManager()
+{
+	if(energyMsg) {
+		cancelAndDelete(energyMsg);
+		energyMsg=NULL;
+	}
 }
 
 double ResourceManager::getSpentEnergy(void)
