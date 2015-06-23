@@ -3,22 +3,28 @@
         {
            "columns": [
                {
-                   "name": "module"
+                   "name": "module",
+                   "type": "varchar"
                },
                {
-                   "name": "node"
+                   "name": "node",
+                   "type": "varchar"
                },
                {
-                   "name": "name"
+                   "name": "name",
+                   "type": "varchar"
                },
                {
-                   "name": "label"
+                   "name": "label",
+                   "type": "varchar"
                },
                {
-                   "name": "n_index"
+                   "name": "n_index",
+                   "type": "varchar"
                },
                {
-                   "name": "data"
+                   "name": "data",
+                   "type": "real"
                }
            ],
            "name": "dataTable",
@@ -91,7 +97,7 @@
                    "xlabel": "nodes",
                    "axes": [
                    ],
-                   "title": "Energy/None",
+                   "title": "Energy/Node",
                    "ylabel": "energy",
                    "y": "data",
                    "rel": "ResourceManager",

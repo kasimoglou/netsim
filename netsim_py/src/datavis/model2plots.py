@@ -72,11 +72,9 @@ def expression2sql(expr, prec_table=False):
     elif expr is None:
         return ""
     else:
-        try:
-            raise Exception("unknown expression type")
-        except Exception:
-                logging.critical(traceback.format_exc())
-        return None
+        # This should never happen, expression parsing should have generated a valid expression or handle possible errors
+        logging.critical(traceback.format_exc())
+        fail("unknown expression type \"%s\"" % type(expr).__name__, ooc=TypeError)
 
 
 def get_select_columns(col):
@@ -88,8 +86,8 @@ def get_select_columns(col):
             # expression2sql is malformed
             fail("error in views generation")
     else:
-        if col.parent:
-            ret = col.parent.name + "." + col.name
+        if col.origin_table:
+            ret = col.origin_table.name + "." + col.name
         else:
             ret = col.name
     return ret
@@ -124,6 +122,7 @@ def create_view_for_derived(ds, dt):
     try:
         ds.create_view(dt.name, sql)
     except BaseException as ex:
+        # this should be here to catch unhandled sql syntax errors
         fail(ex)
 
 
@@ -133,7 +132,7 @@ def create_table(ds, dt):
     """
 
     assert isinstance(dt, Table)
-    alist = [Attribute(c.name, "VARCHAR") for c in dt.columns]
+    alist = [Attribute(c.name, c.type) for c in dt.columns]
     ds.create_table(dt.name, alist)
 
 

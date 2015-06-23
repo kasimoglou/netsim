@@ -19,9 +19,10 @@ class Column:
 
     """
 
-    def __init__(self, name, parent=None):
+    def __init__(self, name, origin_table=None, type="varchar"):
         self.name = name
-        self.parent = parent
+        self.origin_table = origin_table
+        self.type = type
 
     # the column name
     name = attr(str)
@@ -29,7 +30,10 @@ class Column:
     # the table this column will be derived from when creating views
     # this is needed if the same column appears in two tables that are used to create a view
     # and the column will be present in the view
-    parent = attr(object)  # TODO: should be Table but generates errors
+    origin_table = attr(object)
+
+    # what type (sqlite) of data this column will hold
+    type = attr(str)
 
     # the table this column belongs to
     table = ref()
@@ -114,8 +118,8 @@ class ColumnExpr(Column):
     """
     A column in a derived table, defined by an expression.
     """
-    def __init__(self, name, expression, alias=None):
-        super().__init__(name)
+    def __init__(self, name, expression, alias=None, type="varchar", origin_table=None):
+        super().__init__(name, origin_table, type)
         self.expr = expression
         if alias:
             self.alias = alias
@@ -211,7 +215,7 @@ class PlotModel:
     #
     # applicable only to model_type "plot"
     #
-    axes = attr(list)  # TODO: applicable to both ?
+    axes = attr(list)
     style = attr(str, default='linespoints')   # e.g., 'linespoints',
     legend = attr(str, default='DEFAULT')  # DEFAULT,
     xlabel = attr(str)    # gnuplot syntax

@@ -94,10 +94,11 @@ class ViewsPlotsDecoder:
             ViewsPlotsDecoder.get_attr("unit", d))
         return pm
 
-    def gen_columns(self, d, base_tables=None):
+    def gen_columns(self, d, base_tables=None, cols_of_data_table=False):
         """
         generate a list of Column objects from  d (d should be a list of dictionaries each representing a Column)
         base_tables is a list of tables, if not None then the expressions in d will be validated using column names from these base tables
+        if the columns in d belong to a data table then cols_of_data_table must be true
         returns the list of Column objects
         """
         check_cols = []
@@ -109,12 +110,23 @@ class ViewsPlotsDecoder:
             for c in d:
                 check_cols.append(Column(c["name"]))
         cols = []
+        col_type = None
         for c in d:
+            if "name" not in c:
+                fail("Malformed column, has no name field")
+
+            if cols_of_data_table:
+                # if these are columns of a data table then field "type" has to be present
+                if "type" not in c:
+                    fail("Malformed Column, \"type\" is missing from column \"%s\"" % c["name"])
+                else:
+                    col_type = c["type"]
+
             if "expression" in c and c["expression"] != "":
                 expr = self.str_2_expr(c["expression"], gen_types(columns=check_cols))
-                temp_c = ColumnExpr(c["name"], expr)
+                temp_c = ColumnExpr(c["name"], expr, type=col_type)
             else:
-                temp_c = Column(c["name"])
+                temp_c = Column(c["name"], type=col_type)
             cols.append(temp_c)
         return cols
 
@@ -130,7 +142,6 @@ class ViewsPlotsDecoder:
                 self.plot_models.append(pm)
                 inform("plot validated.")
 
-
     def gen_derived_table(self, d):
         """
         generate a DerivedTable from specified dictionary d (the dictionary should represent only one derived table)
@@ -138,9 +149,9 @@ class ViewsPlotsDecoder:
         returns the DerivedTable
         """
         if "name" not in d:
-            fail("\"name\" must be specified")
+            fail("Malformed View, is missing name")
         base_tables = [self.get_table_by_name(name) for name in d["base_tables"]]
-        cols = self.gen_columns(d["columns"], base_tables)
+        cols = self.gen_columns(d["columns"], base_tables=base_tables)
         if "groupby" in d and d["groupby"] not in ["", []]:
             groupby = col_str2col_obj(d["groupby"], cols)
         else:
@@ -171,7 +182,7 @@ class ViewsPlotsDecoder:
         if missing_attr:
             fail("Malformed data table %s is missing keys %s", d['name'], ",".join(missing_attr))
 
-        cols = self.gen_columns(d["columns"])
+        cols = self.gen_columns(d["columns"], cols_of_data_table=True)
 
         dt = Table(
             d["name"],
@@ -191,6 +202,10 @@ class ViewsPlotsDecoder:
         for v in views:
             if "name" not in v:
                 fail("Malformed View, is missing name")
+
+            if "columns" not in v:
+                fail("Malformed View \"%s\", is missing columns" % v["name"])
+
             with Context(view=v["name"]):
                 allowed_chars = re.compile(r"^[a-zA-Z0-9_]+$")
                 if not allowed_chars.match(v["name"]):
@@ -201,6 +216,13 @@ class ViewsPlotsDecoder:
                     v.setdefault("filename", "simout.txt")
                     v.setdefault("format", "dataTable")
                     v.setdefault("node_mapping", ["node", "n_index"])
+
+                    for c in v["columns"]:
+                        if "type" not in c:
+                            if c["name"] == "data":
+                                c["type"] = "real"
+                            else:
+                                c["type"] = "varchar"
 
                 if "filename" in v and v["filename"] != "":
                     rel = self.gen_table(v)
