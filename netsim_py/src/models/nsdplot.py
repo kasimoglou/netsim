@@ -61,19 +61,6 @@ class Table:
     columns = ref_list(inv=Column.table)
 
 
-
-
-@model
-class AggregateFunction(Enum):
-    AVG = 0
-    COUNT = 1
-    FIRST = 2
-    LAST = 3
-    MAX = 4
-    MIN = 5
-    SUM = 6
-
-
 @model
 class Function:
     def __init__(self, name, isinline, isaggregate=False):
@@ -103,8 +90,6 @@ GREATER_EQ = Function('>=', True)
 
 AVG = Function('AVG', False, True)
 COUNT = Function('COUNT', False, True)
-FIRST = Function('FIRST', False, True)
-LAST = Function('LAST', False, True)
 MAX = Function('MAX', False, True)
 MIN = Function('MIN', False, True)
 SUM = Function('SUM', False, True)

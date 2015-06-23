@@ -2,7 +2,7 @@ import logging
 import ast
 from models.nsdplot import PlotModel, DATA_TABLE, DerivedTable, Table,  Column, ColumnExpr, ColumnRef, Expression, \
     ConstantExpr, Operator, \
-    AVG, COUNT, FIRST, LAST, MAX, MIN, SUM, \
+    AVG, COUNT, MAX, MIN, SUM, \
     EQ, NOTEQ, LESS, LESS_EQ, GREATER, GREATER_EQ, \
     LAND, LOR, \
     PLUS, MINUS, DIV, MULT
@@ -237,8 +237,6 @@ def gen_types(columns=None, tables=None):
     types = {
         "AVG": "function",
         "COUNT": "function",
-        "FIRST": "function",
-        "LAST": "function",
         "MAX": "function",
         "MIN": "function",
         "SUM": "function",
@@ -355,7 +353,7 @@ class ExprGenNodeVisitor(ast.NodeVisitor):
 
     @staticmethod
     def get_func_by_name(name):
-        funcs = [AVG, COUNT, FIRST, LAST, MAX, MIN, SUM, LAND, LOR]
+        funcs = [AVG, COUNT, MAX, MIN, SUM, LAND, LOR]
         for f in funcs:
             if name.lower() == f.name.lower():
                 return f
