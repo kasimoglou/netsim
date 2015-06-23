@@ -1,12 +1,11 @@
 import json
 import base64
 import logging
-import os
 import sys
 from datavis.json2plots import ViewsPlotsDecoder
 from datavis.model2plots import create_simulation_results
 from datavis.datavis_logger import DatavisProcess
-from models.validation import fatal, inform
+from models.validation import inform
 from datavis.results2json import JsonOutput
 
 from simgen.datastore import context
@@ -96,7 +95,6 @@ class SimOutputHandler:
     #
     def update_simoutput(self, doc):
         jsonfile = open(self.simoutput_file, 'w')
-        #data = json.load(doc)
         json.dump(doc, jsonfile)
         jsonfile.close()
 
@@ -139,9 +137,6 @@ def generate_output():
     if results_json is None:
         jo = JsonOutput("simulation_results", simulation_id)
         results_json = jo.get_json()
-
-    for i in output_list:
-        print(i["message"])
 
     simoutput_handler = SimOutputHandler()
     simoutput_handler.finish_job(results_json)

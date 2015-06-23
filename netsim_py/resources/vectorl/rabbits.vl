@@ -4,12 +4,12 @@
  */
 
 
- const int generations = 10;
+const int generations = 10;
 
- var int lastgen = 0;
- var int thisgen = 1;
+var int lastgen = 0;
+var int thisgen = 1;
 
- event generation(int n);
+event generation(int n);
 
 var int tmp = 0;
 

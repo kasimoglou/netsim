@@ -1,14 +1,13 @@
-import logging
 import ast
-from models.nsdplot import PlotModel, DATA_TABLE, DerivedTable, Table,  Column, ColumnExpr, ColumnRef, Expression, \
+from models.nsdplot import PlotModel, DerivedTable, Table,  Column, ColumnExpr, ColumnRef, \
     ConstantExpr, Operator, \
-    AVG, COUNT, FIRST, LAST, MAX, MIN, SUM, \
+    AVG, COUNT, MAX, MIN, SUM, \
     EQ, NOTEQ, LESS, LESS_EQ, GREATER, GREATER_EQ, \
     LAND, LOR, \
     PLUS, MINUS, DIV, MULT
 from datavis.database import less_equal, less_than, greater_than, greater_equal, not_equal, like, not_like, between
 from datavis.create_plot import pm_defaults
-from models.validation import Context, inform, fail, fatal
+from models.validation import Context, fail
 import re
 
 
@@ -52,7 +51,6 @@ class ViewsPlotsDecoder:
             else:
                 return d[attr]
         elif attr in pm_defaults:
-            # inform("\"%s\" not given a value, defaulting to \"%s\"" % (attr, pm_defaults[attr]))
             return pm_defaults[attr]
         else:
             fail("Bad argument \"%s\"" % attr)
@@ -68,6 +66,12 @@ class ViewsPlotsDecoder:
         sel = ViewsPlotsDecoder.get_attr("select", d)
         if sel != pm_defaults["select"]:
             sel = SelectorParser.parse(sel, rel)
+
+        if "model_type" not in d:
+            fail("\"model_type\" must be specified")
+
+        if "stat_type" not in d:
+            fail("\"stat_type\" must be specified")
 
         pm = PlotModel(
             d["model_type"],
@@ -90,15 +94,24 @@ class ViewsPlotsDecoder:
             ViewsPlotsDecoder.get_attr("unit", d))
         return pm
 
-    def gen_columns(self, d):
+    def gen_columns(self, d, base_tables=None):
         """
         generate a list of Column objects from  d (d should be a list of dictionaries each representing a Column)
+        base_tables is a list of tables, if not None then the expressions in d will be validated using column names from these base tables
         returns the list of Column objects
         """
+        check_cols = []
+        if base_tables:
+            for bt in base_tables:
+                for col in bt.columns:
+                    check_cols.append(col)
+        else:
+            for c in d:
+                check_cols.append(Column(c["name"]))
         cols = []
         for c in d:
             if "expression" in c and c["expression"] != "":
-                expr = self.str_2_expr(c["expression"], gen_types(columns=cols))
+                expr = self.str_2_expr(c["expression"], gen_types(columns=check_cols))
                 temp_c = ColumnExpr(c["name"], expr)
             else:
                 temp_c = Column(c["name"])
@@ -112,7 +125,7 @@ class ViewsPlotsDecoder:
         rel is the relation these plots are connected with
         """
         for p in d_plot_list:
-            with Context(plot=p):
+            with Context(plot=p["title"]):
                 pm = self.gen_plotmodel(rel, p)
                 self.plot_models.append(pm)
 
@@ -122,8 +135,10 @@ class ViewsPlotsDecoder:
         then add the generated DerivedTable to derived_tables (a list of DerivedTable/Table)
         returns the DerivedTable
         """
-        cols = self.gen_columns(d["columns"])
+        if "name" not in d:
+            fail("\"name\" must be specified")
         base_tables = [self.get_table_by_name(name) for name in d["base_tables"]]
+        cols = self.gen_columns(d["columns"], base_tables)
         if "groupby" in d and d["groupby"] not in ["", []]:
             groupby = col_str2col_obj(d["groupby"], cols)
         else:
@@ -172,7 +187,9 @@ class ViewsPlotsDecoder:
         returns a tuple of lists (list_DerivedTable, list_plotModel)
         """
         for v in views:
-            with Context(view=v):
+            if "name" not in v:
+                fail("Malformed View, is missing name")
+            with Context(view=v["name"]):
                 allowed_chars = re.compile(r"^[a-zA-Z0-9_]+$")
                 if not allowed_chars.match(v["name"]):
                     fail("View name can contain only upper/lower case letters, numbers and underscores")
@@ -237,8 +254,6 @@ def gen_types(columns=None, tables=None):
     types = {
         "AVG": "function",
         "COUNT": "function",
-        "FIRST": "function",
-        "LAST": "function",
         "MAX": "function",
         "MIN": "function",
         "SUM": "function",
@@ -328,6 +343,8 @@ class ExprGenNodeVisitor(ast.NodeVisitor):
     def visit_Attribute(self, node):
         p = self.visit(node.value)
         col_name = node.attr
+        if col_name not in self.types:
+            fail("Unknown Column name: \"%s\"" % col_name)
         c = Column(col_name, Table(p, []))
         c.table = Table(p, [])
         return ColumnRef(c)
@@ -342,8 +359,7 @@ class ExprGenNodeVisitor(ast.NodeVisitor):
             elif self.types[name] == "table":
                 return name
         else:
-            return name
-            # raise Exception("Unknown Name: \"%s\"" % name)
+            fail("Unknown Name: \"%s\"" % name)
 
     def visit_Num(self, node):
         num = str(node.n)
@@ -355,7 +371,7 @@ class ExprGenNodeVisitor(ast.NodeVisitor):
 
     @staticmethod
     def get_func_by_name(name):
-        funcs = [AVG, COUNT, FIRST, LAST, MAX, MIN, SUM, LAND, LOR]
+        funcs = [AVG, COUNT, MAX, MIN, SUM, LAND, LOR]
         for f in funcs:
             if name.lower() == f.name.lower():
                 return f

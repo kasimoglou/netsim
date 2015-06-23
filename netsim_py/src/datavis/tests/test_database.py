@@ -2,18 +2,28 @@
 
 Created on Jan 21, 2015
 
-@author: George Mantakos
+@author: GeoMSK
 '''
 
 
 import pytest
 import os.path, runner.config
-import hashlib
+from models.nsdplot import Table as nsdTable, Column
+from datavis.model2plots import create_table
 from datavis.database import StatsDatabase
 
 
 def castalia_output_file():
-    return os.path.join(runner.config.resource_path(),"datavis/castalia_output.txt")
+    return os.path.join(runner.config.resource_path(), "datavis/castalia_output.txt")
+
+
+def csv_data_file():
+    return os.path.join(runner.config.resource_path(), "datavis/csv_test.txt")
+
+
+def node_mapping_file():
+    return os.path.join(runner.config.resource_path(), "datavis/dummy_nodemap.json")
+
 
 def test_createdatabase():
     d = StatsDatabase(testing=True)
@@ -103,10 +113,25 @@ def test_readcastaliaoutput_with_nodemapping():
                  ('ResourceManager', 'plan2', 'Consumed Energy', '', -1, 6.28569),
                  ('Communication.Radio', 'plan2', 'TXed pkts', 'TX pkts', -1, 499.0)]
     d = StatsDatabase(testing=True)
-    d.load_data_castalia(castalia_output_file(), node_mapping_file=os.path.join(runner.config.resource_path(), "datavis/dummy_nodemap.json"))
+    d.load_data_castalia(castalia_output_file(), node_mapping_file=node_mapping_file())
     dt = d.get_datatable()
     for i in data_list:
         assert(i in dt)
+    d.conn.close()
+
+
+def test_readCSV():
+    data_list = [('foo', 'plan1', '12345'),
+                 ('bar', 'plan2', '54321')]
+    table = nsdTable("csvTable", [Column("name"), Column("node"), Column("data")], csv_data_file(), "csv", ["node"])
+    d = StatsDatabase(testing=True)
+    create_table(d, table)
+    d.load_data_csv(table, node_mapping_file())
+    dt = d.execute("SELECT * FROM csvTable")
+
+    for i in data_list:
+        assert(i in dt)
+
     d.conn.close()
 
 

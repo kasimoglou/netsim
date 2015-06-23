@@ -2,20 +2,15 @@
 
 Created on Jan 30, 2015
 
-@author: George Mantakos
+@author: GeoMSK
 '''
 
-
-import pytest
-import os
-import hashlib
 from models.nsdplot import Column
 from datavis.tests.test_database import castalia_output_file
 from datavis.database import StatsDatabase
 from datavis.create_plot import *
 
 
-#uncomment to generate a test plot
 def test_plot(tmp_dir):
     curdir = os.getcwd()
     # change dir so that the generated plots will go into that dir

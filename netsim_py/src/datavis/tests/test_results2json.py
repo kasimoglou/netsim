@@ -1,13 +1,12 @@
-__author__ = 'George Mantakos'
+__author__ = 'GeoMSK'
 
 from datavis.results2json import *
 from models.nsdplot import Operator, EQ, ColumnRef, ConstantExpr, DATA_TABLE, DerivedTable,\
-    Column, ColumnExpr, SUM, MINUS, LAND
+    Column, ColumnExpr, SUM
 import os.path
-import hashlib
 from datavis.database import StatsDatabase
 from datavis.tests.test_database import castalia_output_file
-from datavis.model2plots import create_view_for_derived, create_plot_for_model
+from datavis.model2plots import create_view_for_derived
 from runner.config import cfg
 
 def test_JsonOutput():

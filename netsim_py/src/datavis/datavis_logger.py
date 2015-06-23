@@ -6,13 +6,11 @@ class DatavisFormatter(logging.Formatter):
 
     def format(self, record):
         if hasattr(record, 'view'):
+            assert isinstance(record.view, str)
             if hasattr(record, 'plot'):
-                return "view: \"%s\" plot:\"%s\" -- %s" % (record.view["name"], record.plot["title"], record.getMessage())
-            return "view: \"%s\" -- %s" % (record.view["name"], record.getMessage())
-        elif hasattr(record, 'derived_table'):
-            return "view: \"%s\" -- %s" % (record.derived_table.name, record.getMessage())
-        elif hasattr(record, 'plot_model'):
-            return "view: \"%s\" plot: \"%s\" -- %s" % (record.plot_model.rel.name, record.plot_model.title, record.getMessage())
+                assert isinstance(record.plot, str)
+                return "view: \"%s\" plot:\"%s\" -- %s" % (record.view, record.plot, record.getMessage())
+            return "view: \"%s\" -- %s" % (record.view, record.getMessage())
         else:
             return super().format(record)
 

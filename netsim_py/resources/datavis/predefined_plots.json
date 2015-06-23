@@ -85,18 +85,6 @@
                    "model_type": "parameter"
                },
                {
-                   "y": "data",
-                   "stat_type": "network",
-                   "rel": "energy",
-                   "xlabel": "nodes",
-                   "select": "",
-                   "title": "Energy/Node",
-                   "ylabel": "energy",
-                   "x": "node",
-                   "style": "",
-                   "model_type": "plot"
-               },
-               {
                    "style": "histogram",
                    "x": "node",
                    "stat_type": "network",
@@ -106,7 +94,7 @@
                    "title": "Energy/None",
                    "ylabel": "energy",
                    "y": "data",
-                   "rel": "energy",
+                   "rel": "ResourceManager",
                    "model_type": "plot"
                }
            ],

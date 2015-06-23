@@ -1,7 +1,7 @@
 '''
 Created on Jan 19, 2015
 
-@author: George Mantakos
+@author: GeoMSK
 '''
 import logging
 from subprocess import PIPE, Popen

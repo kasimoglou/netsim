@@ -2,7 +2,7 @@
 
 Created on Jan 19, 2015
 
-@author: George Mantakos
+@author: GeoMSK
 '''
 
 import sqlite3 as sql
@@ -12,7 +12,7 @@ import csv
 import logging
 import json
 from models.nsdplot import Table as nsdTable
-from models.validation import fail, inform
+from models.validation import fail
 
 DEFAULT_NODEMAP_FILE = "nodemap.json"
 
@@ -25,7 +25,6 @@ class Dataset(object):
     """
     def __init__(self):
         self.conn = sql.connect(':memory:')
-        #self.conn = sql.connect('datavis.sqlite3')
         self.relations = {}
 
     def add(self, relation):
@@ -178,7 +177,6 @@ class StatsDatabase(Dataset):
             nodes = fjson["nodes"]
             nodemap = {}
             for n in nodes:
-                # print("%d = %s" % (n["simid"], n["nodeid"]))
                 nodemap[str(n["simid"])] = n["nodeid"]
         self.nodemap = nodemap
 
@@ -239,7 +237,7 @@ class StatsDatabase(Dataset):
             file_cols = len(row)
             if file_cols != table_cols:
                 fail("data file (\"%s\") format (%d columns) does not match table (\"%s\") format (%d columns)"
-                    % (filename, file_cols, table.name, table_cols))
+                    % (filename, file_cols, table.name, table_cols), ooc=TypeError)
 
         def store_data():
             """
@@ -250,12 +248,18 @@ class StatsDatabase(Dataset):
                 maps castalia node ids to plan node ids, only for columns marked in table.node_mapping
                 """
                 for i in range(0, len(data)):
-                    if table.columns[i].name in table.node_mapping:
+                    if dfile_colnames[i] in table.node_mapping:
                         data[i] = self.__castaliaID_2_planID(data[i])
 
-            sql = "INSERT INTO %s VALUES(%s)" % (table.name, ",".join(["?"]*table_cols))
+            sql = "INSERT INTO %s(%s) VALUES(%s)" % (table.name,
+                                                     ",".join(dfile_colnames),
+                                                     ",".join(["?"]*table_cols))
+            for c in table.columns:
+                print(c.name)
+            print(sql)
             c = self.conn.cursor()
             data = [d.strip() for d in row]
+            print(data)
             if self.nodemap:
                 map_nodes()
             c.execute(sql, tuple(data))
@@ -270,24 +274,28 @@ class StatsDatabase(Dataset):
         table_cols = len(table.columns)
 
         if not os.path.exists(filename) or not os.path.isfile(filename):
-            fail("Could not load \"%s\" csv data file" % filename)
+            fail("Could not load \"%s\" csv data file, file not found" % filename)
 
         # generate the castalia to plan node map
         self.__generate_nodemap(node_mapping_file)
 
         with open(filename, "r") as f:
             reader = csv.reader(f)
+            first_row = True
             for row in reader:
                 assert_format()
-                store_data()
+                if first_row:
+                    dfile_colnames = row
+                    first_row = False
+                else:
+                    store_data()
 
     def load_data_castalia(self, castalia_output_file, table_name="dataTable", node_mapping_file=DEFAULT_NODEMAP_FILE):
         """
         read data from Castalia output file and store them to an sqlite db in memory
         """
         if not os.path.exists(castalia_output_file) or not os.path.isfile(castalia_output_file):
-            logging.warning("Could not load \"%s\" castalia output file" % castalia_output_file)
-            return
+            fail("Could not load \"%s\" castalia output file, file not found" % castalia_output_file)
 
         # generate the castalia to plan node map
         self.__generate_nodemap(node_mapping_file)

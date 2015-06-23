@@ -2,14 +2,14 @@
 
 Created on Feb 03, 2015
 
-@author: George Mantakos
+@author: GeoMSK
 '''
 
 from datavis.model2plots import collect_tables_for_pml, expression2sql, derived2sql, create_view_for_derived, \
     create_plot_for_model, model2plots
 from datavis.database import less_than, StatsDatabase, Attribute, not_equal
 from models.nsdplot import Table, DerivedTable, Column, ColumnExpr, ConstantExpr, ColumnRef, Operator, PlotModel, \
-    PLUS, MINUS, DIV, MULT, EQ, NOTEQ, LESS, LESS_EQ, GREATER, GREATER_EQ, AVG, COUNT, FIRST, LAST, MAX, MIN, \
+    PLUS, MINUS, DIV, MULT, EQ, NOTEQ, LESS, LESS_EQ, GREATER, GREATER_EQ, AVG, COUNT, MAX, MIN, \
     SUM, LAND, LOR, DATA_TABLE
 from datavis.results2json import JsonOutput
 from datavis.tests.test_database import castalia_output_file
@@ -80,8 +80,6 @@ def test_expression2sql():
 
     op_test((AVG, operands), vs % "AVG")
     op_test((COUNT, operands), vs % "COUNT")
-    op_test((FIRST, operands), vs % "FIRST")
-    op_test((LAST, operands), vs % "LAST")
     op_test((MAX, operands), vs % "MAX")
     op_test((MIN, operands), vs % "MIN")
     op_test((SUM, operands), vs % "SUM")
@@ -185,7 +183,6 @@ def test_create_plot_for_model(tmp_dir):
     #
     # network plot
     #
-    #name = "Consumed Energy"
     ds = StatsDatabase(testing=True)
     ds.load_data_castalia(castalia_output_file())
     table_filter = Operator(EQ, [ColumnRef(DATA_TABLE.col["name"]), ConstantExpr("\"Consumed Energy\"")])
