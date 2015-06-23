@@ -183,7 +183,6 @@ def test_create_plot_for_model(tmp_dir):
     #
     # network plot
     #
-    #name = "Consumed Energy"
     ds = StatsDatabase(testing=True)
     ds.load_data_castalia(castalia_output_file())
     table_filter = Operator(EQ, [ColumnRef(DATA_TABLE.col["name"]), ConstantExpr("\"Consumed Energy\"")])

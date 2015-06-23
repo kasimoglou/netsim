@@ -25,7 +25,6 @@ class Dataset(object):
     """
     def __init__(self):
         self.conn = sql.connect(':memory:')
-        #self.conn = sql.connect('datavis.sqlite3')
         self.relations = {}
 
     def add(self, relation):

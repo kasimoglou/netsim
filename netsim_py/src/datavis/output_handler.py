@@ -95,7 +95,6 @@ class SimOutputHandler:
     #
     def update_simoutput(self, doc):
         jsonfile = open(self.simoutput_file, 'w')
-        #data = json.load(doc)
         json.dump(doc, jsonfile)
         jsonfile.close()
 

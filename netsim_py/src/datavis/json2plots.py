@@ -338,8 +338,7 @@ class ExprGenNodeVisitor(ast.NodeVisitor):
             elif self.types[name] == "table":
                 return name
         else:
-            return name
-            # raise Exception("Unknown Name: \"%s\"" % name)
+            raise Exception("Unknown Name: \"%s\"" % name)
 
     def visit_Num(self, node):
         num = str(node.n)

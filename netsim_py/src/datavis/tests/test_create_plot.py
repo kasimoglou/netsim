@@ -11,7 +11,6 @@ from datavis.database import StatsDatabase
 from datavis.create_plot import *
 
 
-#uncomment to generate a test plot
 def test_plot(tmp_dir):
     curdir = os.getcwd()
     # change dir so that the generated plots will go into that dir
