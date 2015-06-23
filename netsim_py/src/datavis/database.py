@@ -178,7 +178,6 @@ class StatsDatabase(Dataset):
             nodes = fjson["nodes"]
             nodemap = {}
             for n in nodes:
-                # print("%d = %s" % (n["simid"], n["nodeid"]))
                 nodemap[str(n["simid"])] = n["nodeid"]
         self.nodemap = nodemap
 
@@ -270,7 +269,7 @@ class StatsDatabase(Dataset):
         table_cols = len(table.columns)
 
         if not os.path.exists(filename) or not os.path.isfile(filename):
-            fail("Could not load \"%s\" csv data file" % filename)
+            fail("Could not load \"%s\" csv data file, file not found" % filename)
 
         # generate the castalia to plan node map
         self.__generate_nodemap(node_mapping_file)
@@ -286,8 +285,7 @@ class StatsDatabase(Dataset):
         read data from Castalia output file and store them to an sqlite db in memory
         """
         if not os.path.exists(castalia_output_file) or not os.path.isfile(castalia_output_file):
-            logging.warning("Could not load \"%s\" castalia output file" % castalia_output_file)
-            return
+            fail("Could not load \"%s\" castalia output file, file not found" % castalia_output_file)
 
         # generate the castalia to plan node map
         self.__generate_nodemap(node_mapping_file)
