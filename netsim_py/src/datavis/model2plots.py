@@ -121,11 +121,7 @@ def create_view_for_derived(ds, dt):
     Create an SQL view in ds for given DerivedTable dt.
     """
     sql = derived2sql(dt)
-    # print(dt.name, sql)
     ds.create_view(dt.name, sql)
-    # print(ds.execute("SELECT * FROM dataTable"))
-    # print(ds.execute("SELECT * FROM %s" % dt.name))
-    # print(ds.conn.execute("SELECT * FROM dataTable").description)
 
 
 def create_table(ds, dt):
@@ -184,7 +180,6 @@ def populate_table(ds, table, castalia_data=None):
     load data appropriate for this table in database ds
     if castalia_data is set, override the table's filename
     """
-    print(table.format + "<=========================================================================")
     if table.format == "dataTable":
         ds.load_data_castalia(table.filename if castalia_data is None else castalia_data, table.name)
     elif table.format == "csv":
@@ -203,16 +198,13 @@ def model2plots(pml, jo, castalia_data=None):
     # Collect a list of tables, ordered according to dependence
     table_list = collect_tables_for_pml(pml)
 
-    for table in table_list:
-        print(table.name)
     # Create database
     ds = StatsDatabase()
 
     # create tables
     for table in table_list:
         if isinstance(table, Table) and not isinstance(table, DerivedTable):
-            # table_list.remove(table)
-            with Context(table=table):
+            with Context(view=table.name):
                 create_table(ds, table)
                 populate_table(ds, table, castalia_data)
 
@@ -220,12 +212,12 @@ def model2plots(pml, jo, castalia_data=None):
     # create views
     for table in table_list:
         if isinstance(table, DerivedTable):
-            with Context(derived_table=table):
+            with Context(view=table.name):
                 create_view_for_derived(ds, table)
 
     # create plots
     for pm in pml:
-        with Context(plot_model=pm):
+        with Context(view=pm.rel.name, plot=pm.title):
             create_plot_for_model(pm, ds, jo)
 
 

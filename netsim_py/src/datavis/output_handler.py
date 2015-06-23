@@ -140,9 +140,6 @@ def generate_output():
         jo = JsonOutput("simulation_results", simulation_id)
         results_json = jo.get_json()
 
-    for i in output_list:
-        print(i["message"])
-
     simoutput_handler = SimOutputHandler()
     simoutput_handler.finish_job(results_json)
 

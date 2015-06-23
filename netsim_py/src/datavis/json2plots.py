@@ -52,7 +52,6 @@ class ViewsPlotsDecoder:
             else:
                 return d[attr]
         elif attr in pm_defaults:
-            # inform("\"%s\" not given a value, defaulting to \"%s\"" % (attr, pm_defaults[attr]))
             return pm_defaults[attr]
         else:
             fail("Bad argument \"%s\"" % attr)
@@ -112,7 +111,7 @@ class ViewsPlotsDecoder:
         rel is the relation these plots are connected with
         """
         for p in d_plot_list:
-            with Context(plot=p):
+            with Context(plot=p["title"]):
                 pm = self.gen_plotmodel(rel, p)
                 self.plot_models.append(pm)
 
@@ -172,7 +171,7 @@ class ViewsPlotsDecoder:
         returns a tuple of lists (list_DerivedTable, list_plotModel)
         """
         for v in views:
-            with Context(view=v):
+            with Context(view=v["name"]):
                 allowed_chars = re.compile(r"^[a-zA-Z0-9_]+$")
                 if not allowed_chars.match(v["name"]):
                     fail("View name can contain only upper/lower case letters, numbers and underscores")
