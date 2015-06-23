@@ -1,12 +1,11 @@
 import json
 import base64
 import logging
-import os
 import sys
 from datavis.json2plots import ViewsPlotsDecoder
 from datavis.model2plots import create_simulation_results
 from datavis.datavis_logger import DatavisProcess
-from models.validation import fatal, inform
+from models.validation import inform
 from datavis.results2json import JsonOutput
 
 from simgen.datastore import context

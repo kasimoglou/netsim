@@ -3,7 +3,7 @@ Test module for nsd
 
 Created on Nov 03, 2014
 
-@author: George Mantakos
+@author: GeoMSK
 '''
 
 import pytest

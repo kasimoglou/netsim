@@ -1,6 +1,5 @@
-import logging
 import ast
-from models.nsdplot import PlotModel, DATA_TABLE, DerivedTable, Table,  Column, ColumnExpr, ColumnRef, Expression, \
+from models.nsdplot import PlotModel, DerivedTable, Table,  Column, ColumnExpr, ColumnRef, \
     ConstantExpr, Operator, \
     AVG, COUNT, MAX, MIN, SUM, \
     EQ, NOTEQ, LESS, LESS_EQ, GREATER, GREATER_EQ, \
@@ -8,7 +7,7 @@ from models.nsdplot import PlotModel, DATA_TABLE, DerivedTable, Table,  Column, 
     PLUS, MINUS, DIV, MULT
 from datavis.database import less_equal, less_than, greater_than, greater_equal, not_equal, like, not_like, between
 from datavis.create_plot import pm_defaults
-from models.validation import Context, inform, fail, fatal
+from models.validation import Context, fail
 import re
 
 

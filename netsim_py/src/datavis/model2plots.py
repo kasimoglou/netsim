@@ -7,7 +7,7 @@ from models.nsdplot import PlotModel, Table, DerivedTable, ColumnExpr, \
 from datavis.database import StatsDatabase
 from datavis.create_plot import make_plot, PNG, default_title
 from datavis.results2json import plot2json, JsonOutput, parameter2json
-from models.validation import Context, warn, inform, fail, fatal
+from models.validation import Context, warn, inform, fail
 from datavis.database import Attribute
 import logging
 import traceback
@@ -151,7 +151,7 @@ def create_plot_for_model(pm, ds, jo):
             pm.title = default_title(pm.x, pm.y, pm.axes if pm.axes else [],
                                      {axis: set([]) for axis in pm.axes} if pm.axes else None).lstrip().rstrip()
         elif pm.model_type == "parameter":
-            # default title for parameters ??
+            # no default title for parameters
             pass
 
     if pm.model_type == "plot":

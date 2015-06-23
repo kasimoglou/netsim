@@ -1,5 +1,4 @@
 from datavis.json2plots import *
-from datavis.database import Relation
 from datavis.json2plots import ViewsPlotsDecoder
 import os
 from runner.config import cfg

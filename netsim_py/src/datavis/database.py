@@ -2,7 +2,7 @@
 
 Created on Jan 19, 2015
 
-@author: George Mantakos
+@author: GeoMSK
 '''
 
 import sqlite3 as sql
@@ -12,7 +12,7 @@ import csv
 import logging
 import json
 from models.nsdplot import Table as nsdTable
-from models.validation import fail, inform
+from models.validation import fail
 
 DEFAULT_NODEMAP_FILE = "nodemap.json"
 

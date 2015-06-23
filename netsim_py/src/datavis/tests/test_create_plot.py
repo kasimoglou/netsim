@@ -2,13 +2,9 @@
 
 Created on Jan 30, 2015
 
-@author: George Mantakos
+@author: GeoMSK
 '''
 
-
-import pytest
-import os
-import hashlib
 from models.nsdplot import Column
 from datavis.tests.test_database import castalia_output_file
 from datavis.database import StatsDatabase

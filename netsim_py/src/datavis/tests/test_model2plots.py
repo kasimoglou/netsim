@@ -2,7 +2,7 @@
 
 Created on Feb 03, 2015
 
-@author: George Mantakos
+@author: GeoMSK
 '''
 
 from datavis.model2plots import collect_tables_for_pml, expression2sql, derived2sql, create_view_for_derived, \
