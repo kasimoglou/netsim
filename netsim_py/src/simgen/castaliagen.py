@@ -575,8 +575,10 @@ SIMEXEC=simexec
 
 all: compile run
 
-compile:
+makefrag:
 \tln -s $(CASTALIA_PATH)/makefrag.inc makefrag
+
+compile: makefrag
 \topp_makemake -f -r --deep -o $(SIMEXEC) -u Cmdenv -P $(SIMHOME) -M release -X./Simulations -X./src -L$(CASTALIA_PATH) -lcastalia
 \t$(MAKE)
 

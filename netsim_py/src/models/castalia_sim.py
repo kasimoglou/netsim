@@ -262,7 +262,7 @@ class ResourceManager(CastaliaModule):
     '''
     initialEnergy = parameter(float, default=18720.0)
     baselineNodePower = parameter(float, default=6.0)
-    periodicEnergyCalculationInterval = parameter(float, default=6.0)
+    periodicEnergyCalculationInterval = parameter(float, default=1000.0)
 
     def __init__(self, parent, mote_type):
         super().__init__(parent, "ResourceManager")
