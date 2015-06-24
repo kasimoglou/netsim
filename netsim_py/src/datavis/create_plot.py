@@ -280,7 +280,7 @@ def default_title(x, y, axes, axisvalues):
 pm_defaults = {
     "select": {},
     "title": DEFAULT,
-    "style": "linespoints",
+    "style": "histogram",
     "legend": DEFAULT,
     "xlabel": None,
     "ylabel": None,
