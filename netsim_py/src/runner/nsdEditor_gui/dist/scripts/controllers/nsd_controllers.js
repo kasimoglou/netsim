@@ -715,9 +715,6 @@ define(['underscore',
                     // Once user clicks `create` in plot dialog
                     // depending on his selection on `graph type` field
                     $scope.adjustPlot = function (graph_type) {
-                        console.log("Updating plot");
-                        console.log($scope.plot);
-                        console.log(plot);
                         for (var attr in plot) {
                             delete plot[attr];
                         }
@@ -731,7 +728,6 @@ define(['underscore',
                         if (graph_type === 'plot') {
                             plot.model_type = 'plot';
                             plot.stat_type = 'network';
-                            console.log($scope.temp_plot);
                             _.extend(plot, $scope.temp_plot);
                         } else if (graph_type === 'node parameter') {
                             plot.model_type = 'parameter';
@@ -747,8 +743,7 @@ define(['underscore',
                             plot.x2 = $scope.plot.x2;
                             _.extend(plot, $scope.parameter);
                         }
-                        console.log($scope.plot )
-                        console.log(plot);
+                        
                     };
                     
                     $scope.updatePlot = function() {
