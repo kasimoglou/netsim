@@ -112,8 +112,9 @@ class CastaliaModule:
         the parameter will be returned.
         '''
         assert isinstance(name, str)
-        if name in self.__param_map:
-            return self.__param_map[name]
+        param_map = object.__getattr__(self,'_CastaliaModule__param_map')
+        if name in param_map:
+            return param_map[name]
         else:
             # look for submodule by this name
             for s in self.submodules:
@@ -152,13 +153,12 @@ class CastaliaModule:
                 yield param.name, getattr(self, param.name, None)
 
 
-
     def __init__(self, parent, name, index=None):
+        self.__param_map = {}
+
         self.parent = parent
         self.subname = name
         self.index = index
-        self.__param_map = {}
-
 
 
 
@@ -585,11 +585,11 @@ class Mac802114(Mac):
     phyDelayRx2Tx = parameter(float, default=0.02)
     phyFrameOverhead = parameter(int, default=6)
 
-    guardTime = parameter(float, default=1)
+    guardTime = parameter(float, default=1.0)
 
     # these have no default
     phyDataRate = parameter(float, nullable=False)
-    phyBitsPerSymbol parameter(int, nullable=False)
+    phyBitsPerSymbol = parameter(int, nullable=False)
 
     def __init__(self, parent, mac=None):
         # just define defaults
@@ -728,15 +728,18 @@ class TunableMAC(Mac):
     int phyFrameOverhead = default (6);
     """
     dutyCycle = parameter(float, default=1.0)
-    listenInterval = parameter(float, default=10)
+    listenInterval = parameter(float, default=10.0)
     beaconIntervalFraction = parameter(float, default=1.0)
     probTx = parameter(float, default=1.0)
     numTx = parameter(int, default=1)
     randomTxOffset = parameter(float, default=0.0)
     reTxInterval = parameter(float, default=0.0)
-    backoffType = parameter(float, default=1)
+    
+    # Note: this is defined as double in the NED file, but it is clearly wrong!
+    backoffType = parameter(int, default=1)
+    
     backoffBaseValue = parameter(int, default=16)
-    CSMApersistance = parameter(float, default=0)
+    CSMApersistance = parameter(float, default=0.0)
     txAllPacketsInFreeChannel = parameter(bool, default=True)
     sleepDuringBackoff = parameter(bool, default=False)
 
