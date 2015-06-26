@@ -1,12 +1,11 @@
 import json
 import base64
 import logging
-import os
 import sys
 from datavis.json2plots import ViewsPlotsDecoder
 from datavis.model2plots import create_simulation_results
 from datavis.datavis_logger import DatavisProcess
-from models.validation import fatal, inform
+from models.validation import inform
 from datavis.results2json import JsonOutput
 
 from simgen.datastore import context
@@ -96,7 +95,6 @@ class SimOutputHandler:
     #
     def update_simoutput(self, doc):
         jsonfile = open(self.simoutput_file, 'w')
-        #data = json.load(doc)
         json.dump(doc, jsonfile)
         jsonfile.close()
 
@@ -109,10 +107,10 @@ def generate_output():
     generated plots and files to the Project Repository.
     """
 
-    # output_list will hold all info/error messages of GenerateResultsProcess
-    simulation_id = context.datastore.sim_id
-    castalia_data = "simout.txt"
 
+    simulation_id = context.datastore.sim_id
+
+    # output_list will hold all info/error messages of GenerateResultsProcess
     output_list = []
     pf = DatavisProcess.new_factory(output_list)
     results_json = None
@@ -124,7 +122,7 @@ def generate_output():
             #
             # Get the results of the simulation
             #
-            results_json = create_simulation_results(simulation_id, plot_models, castalia_data)
+            results_json = create_simulation_results(simulation_id, plot_models)
             results_json_string = json.dumps(results_json, default=lambda o: o.__dict__, indent=2)
 
             with open("results.json", "w") as f:
@@ -158,11 +156,6 @@ def transform_nsd_plots():
 
     filename = "nsd.json"
 
-    #
-    # GenerateResultsProcess
-    #   context.validate == True  --> validate only
-    #   context.validate == False --> results generation
-    #
     vpd = ViewsPlotsDecoder()
     with open(filename, "r") as f:
         json_str = f.read()

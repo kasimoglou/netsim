@@ -1,15 +1,17 @@
 
 import os.path, logging, json
-from runner.config import castalia_path, omnetpp_path
+import pyproj
+import numpy as np
 
-from simgen.validation import Context, fail, fatal, inform, warn, add_context
+from runner.config import castalia_path, omnetpp_path, cfg
+
 from models.nsd import *
 from models.castalia_sim import *
 from models.mf import Attribute
+
+from simgen.validation import Context, fail, fatal, inform, warn, add_context
 from simgen.utils import docstring_template
 from simgen.datastore import context
-import pyproj
-import numpy as np
 
 logger = logging.getLogger('codegen')
 
@@ -28,6 +30,11 @@ def generate_castalia(gen):
         m.write(makefile(cmb))
 
     logger.debug("Code generated from NSD")
+
+
+def copy_json_params(module, jsobj):
+    for key, value in jsobj["parameters"].items():
+        module.set(key, value)
 
 
 class CastaliaModelBuilder:
@@ -69,6 +76,9 @@ class CastaliaModelBuilder:
         with Context(stage='Parameterize wireless channel'):
             self.create_wireless_channel()
 
+        with Context(stage="Configure for Hardware-in-the-Loop"):
+            self.configure_hil()
+
         with Context(stage='Configure simulation'):
             self.add_omnetpp_sections()
 
@@ -95,14 +105,12 @@ class CastaliaModelBuilder:
             s = Section(self.cm, 'NodeType_%s '% nodeType.nodeDef.code)
             nodeType.section = s
             s.modules.append(nodeType.nodes)
-        # make the names of node types legal!
 
-
-        # Add section for HiL
-        hil_section = Section(self.cm, 'HiL')
+        # TODO: make the names of node types legal!
 
         # Final, main section
-        ext = [hil_section]+[nt.section for nt in self.cm.nodeTypes]+[nodeSection]
+        ext = ([self.hil_section] if cfg.getboolean('hil_enabled') else [])  \
+            +[nt.section for nt in self.cm.nodeTypes]+[nodeSection]
         self.main_section = Section(self.cm, 'Main', extends=ext)
 
 
@@ -149,7 +157,11 @@ class CastaliaModelBuilder:
 
         # Create the nodemap.json
         nodemap = []
+        self.idmap_nsd2cast = {}
+        self.idmap_cast2nsd = {}
         for node in self.nodes.submodules:
+            self.idmap_nsd2cast[node.name] = node.index
+            self.idmap_cast2nsd[node.index] = node.name
             mapped_node = {
                 "simid": node.index,
                 "nodeid": node.name
@@ -169,6 +181,16 @@ class CastaliaModelBuilder:
 
         return net
         
+
+    def node_index(self, node_id):
+        "Return the Castalia index for a node id"
+        if not isinstance(node_id, str): node_id = str(node_id)
+        return self.idmap_nsd2cast.get(node_id, None)
+
+    def node_id(self, index):
+        "Return the NSD node id for the given index"
+        return self.idmap_cast2nsd[index]
+
 
     def compute_positions(self, node_modules):
         '''
@@ -233,9 +255,51 @@ class CastaliaModelBuilder:
     def create_wireless_channel(self):
         '''
         Configure the wireless channel.
-        '''
-        pass
-        # use the connectivity matrix
+        '''        
+        net = self.cm.network
+        wireless = WirelessChannel(net)
+
+        cmatrix = self.nsd.plan.connectivityMatrix
+        if cmatrix is not None:
+            # check to see if we are missing nodes!
+
+            # use the connectivity matrix to create a path loss file
+            path_loss = {}
+            used_channels = 0
+            for chan in cmatrix.connectivity:
+                n1 = self.node_index(chan.nodeId1)
+                n2 = self.node_index(chan.nodeId2)
+                loss = -chan.strengthDb
+
+                if n1 is None or n2 is None: continue
+                used_channels += 1
+
+                if n1 in path_loss:
+                    path_loss[n1].append((n2, -loss))
+                else:
+                    path_loss[n1] = [(n2, -loss)]
+
+                if n2 in path_loss:
+                    path_loss[n2].append((n1, -loss))
+                else:
+                    path_loss[n2] = [(n1, -loss)]
+
+            all_channels = (net.numNodes*(net.numNodes-1))/2
+            assert used_channels <= all_channels
+            if all_channels > used_channels:
+                warn("Channels missing in the connectivity map") 
+
+            with open("path_loss.txt","w") as f:
+                for nindex in path_loss:
+                    line = "%d>" % nindex
+                    plosses = path_loss[nindex]
+
+                    line += ",".join( ("%d:%g" % node_loss) 
+                        for node_loss in plosses)
+
+                    print(line, file=f)
+
+            wireless.pathLossMapFile = "path_loss.txt"
 
 
     def create_node_type(self, nodeType):
@@ -253,9 +317,41 @@ class CastaliaModelBuilder:
         '''
         Configure the communication stack.
         '''
-        radio = Radio(nodeType.comm,'Radio')
-        radio.RadioParametersFile = "../Parameters/Radio/CC2420.txt"
-        radio.symbolsForRSSI = 8
+        nsdef =  nodeType.nodeDef.ns_nodedef 
+        if nsdef is None:
+            # We do not have a sim-specific nodedef, just configure
+            # with minimum parameters
+            radio = Radio(nodeType.comm)
+            radio.RadioParametersFile = "../Parameters/Radio/CC2420.txt"
+            radio.symbolsForRSSI = 8
+        else:
+            # configure comm according to nsdef
+
+            # (a) First, configure radio, as this is 
+            # not dependent on others
+            self.config_radio(nodeType, nsdef.radio)
+
+            self.config_mac(nodeType)
+            self.confif_routing(nodeType)
+
+
+    def config_routing(self, nodeType):
+        nsdef =  nodeType.nodeDef.ns_nodedef 
+        if nsdef is None: 
+            # the default is bypassRouting
+            return
+
+
+    def config_mac(self, nodeType):
+        nsdef =  nodeType.nodeDef.ns_nodedef 
+        if nsdef is None: 
+            # the default is bypassMac
+            return
+
+
+    def config_radio(self, nodeType, radio_dev):
+        "Configure the radio device"
+        radio = Radio(nodeType.comm, radio_dev)            
 
 
     def config_application(self, nodeType):
@@ -269,14 +365,39 @@ class CastaliaModelBuilder:
         '''
         Configure resources.
         '''
-        pass
+        nsdef =  nodeType.nodeDef.ns_nodedef 
+        if nsdef is not None:
+            rman = ResourceManager(nodeType.nodes, nsdef.mote)
 
 
     def config_sensors(self, nodeType):
         '''
         Configure sensors.
         '''
-        pass
+        nsdef = nodeType.nodeDef.ns_nodedef
+        if nsdef is not None:
+            sensman = SensorManager(nodeType.nodes, nsdef.sensors)
+
+
+    def configure_hil(self):
+        "Create HiL section."
+        self.hil_section = Section(self.cm, 'HiL')
+
+        hil = self.nsd.hil
+        if hil is not None:
+            n1 = self.node_index(hil.node1)
+            n2 = self.node_index(hil.node2)
+
+            net = self.cm.network.base()
+            nc1 = net.submodule('node',n1).submodule('Communication').submodule('Radio')
+            nc2 = net.submodule('node',n2).submodule('Communication').submodule('Radio')
+
+            nc1.set('enablePERHil', n2)
+            nc2.set('enablePERHil', n1)
+            nc2.set('selectForward', True)
+
+            self.hil_section.modules.append(net)
+
 
 
 ##################################################
@@ -314,11 +435,10 @@ def generate_omnetpp(gen, cm):
 
 def generate_omnetpp_for_module(omnetpp, m):
     # first, iterate over module parameters
-    mclass = m.__model_class__
-    pname = m.full_name
-    for param in mclass.all_attributes:
-        if Param.has(param):
-            omnetpp.write(omnetpp_module_param(m,pname,param))
+    mpath = m.full_name
+
+    for pname, pvalue in m.all_parameters():
+        omnetpp.write(omnetpp_module_param(m, mpath, pname,pvalue))
 
     # now, iterate over submodules
     for sm in m.submodules:
@@ -331,14 +451,15 @@ def generate_omnetpp_for_module(omnetpp, m):
 #
 
 @docstring_template
-def omnetpp_module_param(mod, modpath, param):
+def omnetpp_module_param(mod, modpath, pname, pvalue):
     """\
-% if value is not None:
-{{modpath}}.{{param.name}} = {{! value}}
+% if pvalue is not None:
+{{modpath}}.{{pname}} = {{! pvalue}}
 % end"""
-    value = getattr(mod, param.name, None)
-    if isinstance(value, str):
-        value = '"%s"' % value
+    if isinstance(pvalue, str):
+        pvalue = '"%s"' % pvalue
+    elif isinstance(pvalue, bool):
+        pvalue = str(pvalue).lower()
     return locals()
 
 
@@ -481,9 +602,11 @@ SIMEXEC=simexec
 
 all: compile run
 
-compile:
+makefrag:
 \tln -s $(CASTALIA_PATH)/makefrag.inc makefrag
-\topp_makemake -f -r --deep -o $(SIMEXEC) -u Cmdenv -P $(SIMHOME) -M release -X./Simulations -X./src -L$(CASTALIA_PATH) -lcastalia
+
+compile: makefrag
+\topp_makemake -f -r --deep -o $(SIMEXEC) -u Cmdenv -P $(SIMHOME) -M release -X./Simulations -X./src -L$(CASTALIA_PATH) -lnetsim
 \t$(MAKE)
 
 run:

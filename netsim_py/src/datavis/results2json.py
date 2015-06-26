@@ -3,7 +3,7 @@
         
 '''
 
-__author__ = 'George Mantakos'
+__author__ = 'GeoMSK'
 
 import json
 from models.nsdplot import PlotModel

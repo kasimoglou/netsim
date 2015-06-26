@@ -13,5 +13,7 @@ DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
 # configure python3 path
 export PYTHONPATH=$DIR
 
-# run the standalone program
+# run the command-line simulation
+cd $DIR
 exec python3 simulation_run.py "$@"
+

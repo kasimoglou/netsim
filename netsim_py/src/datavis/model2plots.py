@@ -8,6 +8,7 @@ from datavis.database import StatsDatabase
 from datavis.create_plot import make_plot, PNG, default_title
 from datavis.results2json import plot2json, JsonOutput, parameter2json
 from models.validation import Context, warn, inform, fail, fatal
+from datavis.database import Attribute
 import logging
 import traceback
 
@@ -71,11 +72,9 @@ def expression2sql(expr, prec_table=False):
     elif expr is None:
         return ""
     else:
-        try:
-            raise Exception("unknown expression type")
-        except Exception:
-                logging.critical(traceback.format_exc())
-        return None
+        # This should never happen, expression parsing should have generated a valid expression or handle possible errors
+        logging.critical(traceback.format_exc())
+        fail("unknown expression type \"%s\"" % type(expr).__name__, ooc=TypeError)
 
 
 def get_select_columns(col):
@@ -87,8 +86,8 @@ def get_select_columns(col):
             # expression2sql is malformed
             fail("error in views generation")
     else:
-        if col.parent:
-            ret = col.parent.name + "." + col.name
+        if col.origin_table:
+            ret = col.origin_table.name + "." + col.name
         else:
             ret = col.name
     return ret
@@ -120,7 +119,21 @@ def create_view_for_derived(ds, dt):
     Create an SQL view in ds for given DerivedTable dt.
     """
     sql = derived2sql(dt)
-    ds.create_view(dt.name, sql)
+    try:
+        ds.create_view(dt.name, sql)
+    except BaseException as ex:
+        # this should be here to catch unhandled sql syntax errors
+        fail(ex)
+
+
+def create_table(ds, dt):
+    """
+    Creates a Table in ds for given Table dt
+    """
+
+    assert isinstance(dt, Table)
+    alist = [Attribute(c.name, c.type) for c in dt.columns]
+    ds.create_table(dt.name, alist)
 
 
 def create_plot_for_model(pm, ds, jo):
@@ -140,7 +153,7 @@ def create_plot_for_model(pm, ds, jo):
             pm.title = default_title(pm.x, pm.y, pm.axes if pm.axes else [],
                                      {axis: set([]) for axis in pm.axes} if pm.axes else None).lstrip().rstrip()
         elif pm.model_type == "parameter":
-            # default title for parameters ??
+            # no default title for parameters
             pass
 
     if pm.model_type == "plot":
@@ -152,7 +165,7 @@ def create_plot_for_model(pm, ds, jo):
     elif pm.model_type == "parameter":
         # generate the parameter (statistic)
         res = plot.make_parameter()
-        if len(res) != 0:
+        if len(res) != 0 and res[0] != (None,):
             # add the parameter to JsonOutput jo
             parameter2json(jo, pm, res)
             inform("generated sucessfully")
@@ -164,7 +177,20 @@ def create_plot_for_model(pm, ds, jo):
         fail("invalid model type: \"%s\"" % pm.model_type)
 
 
-def model2plots(pml, jo, castalia_data):
+def populate_table(ds, table, castalia_data=None):
+    """
+    load data appropriate for this table in database ds
+    if castalia_data is set, override the table's filename
+    """
+    if table.format == "dataTable":
+        ds.load_data_castalia(table.filename if castalia_data is None else castalia_data, table.name)
+    elif table.format == "csv":
+        ds.load_data_csv(table)
+    else:
+        fail("unknown format %s" % table.format)
+
+
+def model2plots(pml, jo, castalia_data=None):
     """Accepts a list of PlotModel objects and creates the corresponding plots/parameters(statistics).
     """
 
@@ -175,22 +201,32 @@ def model2plots(pml, jo, castalia_data):
     table_list = collect_tables_for_pml(pml)
 
     # Create database
-    ds = StatsDatabase()  # load base table for Castalia stats
-    ds.load_castalia_output(castalia_data)
+    ds = StatsDatabase()
+
+    # create tables
+    for table in table_list:
+        if isinstance(table, Table) and not isinstance(table, DerivedTable):
+            with Context(view=table.name):
+                create_table(ds, table)
+                populate_table(ds, table, castalia_data)
+
 
     # create views
     for table in table_list:
         if isinstance(table, DerivedTable):
-            with Context(derived_table=table):
+            with Context(view=table.name):
                 create_view_for_derived(ds, table)
 
     # create plots
     for pm in pml:
-        with Context(plot_model=pm):
-            create_plot_for_model(pm, ds, jo)
+        if pm.rel.name in ds.relations:
+            with Context(view=pm.rel.name, plot=pm.title):
+                create_plot_for_model(pm, ds, jo)
+        else:
+            fail("View %s does not exist in database, some error occurred during its generation" % pm.rel.name)
 
 
-def create_simulation_results(simulation_id, plotModels, castalia_data="castalia_output.txt"):
+def create_simulation_results(simulation_id, plotModels, castalia_data=None):
     """
     generates plots, calculates statistics, ands returns all that info in json format
     :param simulation_id: the id of the current simulation

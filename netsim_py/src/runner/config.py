@@ -47,7 +47,15 @@ class ConfigDict:
         '''
         return self.cfg[self.section][optname]
 
+    def getboolean(self, optname):
+        '''
+        Process and return the option as a boolean e..g, (yes/no), (1/0), etc
+        recognized.
+        '''
+        return self.cfg.getboolean(self.section, optname)
+
     def defined(self, optname):
+        'Return true if the given option name exists.'
         try:
             self.get(optname)
             return True
@@ -109,10 +117,12 @@ def configure(sect, cfgfile=None):
 OPTIONS = [
     ('planning_tool_database', """The name of the PT database in the project repo."""),
     ('netsim_database', """The name of the network simulator database in the project repo."""),
+    ('netsim_lib_database', """The name of the network simulator library database in the project repo."""),
     ('omnetpp_path',"""The path where OmNet++ is installed."""),
     ('castalia_path', """The path where Castalia is installed."""),
+    ('hil_enabled', """Signals whether to attempt to execute HiL simulations, or ignore the indication."""),
     ('local_executor_path',"""The path where the local executor stores simulation homes."""),
-    ('postgresql_connection', """The designation of the Postgresql connection, as expected by psycopg2"""),
+    ('postgresql_connection', """The designation of the Postgresql connection, as expected by psycopg2."""),
     ('gui_bind_addr', """The host address to which the ReSTful services and the gui bind."""),
     ('gui_bind_port', """The port to which the ReSTful services and the gui bind"""),
     ('gui_file_path', """Path to the admin gui files."""),

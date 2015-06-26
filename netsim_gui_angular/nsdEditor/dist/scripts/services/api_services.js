@@ -201,6 +201,15 @@ define(['underscore', 'angular'], function(_) {
 
             return httpPromise(config);
         }
+        
+        function apiSessionInfo() {
+            var config = {
+                url: '/session_info',
+                method: 'GET'
+            };
+            
+            return httpPromise(config);
+        }
 
 
         // API Service Object
@@ -223,7 +232,8 @@ define(['underscore', 'angular'], function(_) {
             vectorlCompile: apiVectorlCompile,
             vectorlRun: apiVectorlRun,
             vectorlsRead: apiVectorlsRead,
-            projectVectorLFilesRead: apiProjectVectorLFilesRead
+            projectVectorLFilesRead: apiProjectVectorLFilesRead,
+            sessionInfo: apiSessionInfo
         };
 
         return API;

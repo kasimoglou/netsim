@@ -1,7 +1,7 @@
 '''
 Created on Jan 19, 2015
 
-@author: George Mantakos
+@author: GeoMSK
 '''
 import logging
 from subprocess import PIPE, Popen
@@ -116,8 +116,12 @@ class Plot():
             if script:
                 p.stdin.write(script.encode("utf-8"))
                 ret = True
-                out, err = p.communicate(timeout=0.2)
-                err_str = err.decode("utf-8") if err else ""
+
+                # vsam: changed timeout to 10 sec (it was 0.2 but I was getting timeouts)
+                out, err = p.communicate(timeout=10)
+
+                err_str = err.decode("utf-8").splitlines()[:10] if err else ""
+                err_str = "\n".join(err_str)
                 if err_str != "" and re.search("gnuplot>\ ", err_str):
                     if os.path.isfile(self.output + ".png"):
                         os.remove(self.output + ".png")
@@ -241,8 +245,6 @@ class Graph(object):
         if self.y is not None:
             for i in self.y: col_names.append(i.name)
 
-        logging.root.critical("col_names=%s", col_names)
-
         if self.x is not None:
             o = [i.name for i in self.x]
         elif self.y is not None:  # applicable when x is None
@@ -255,7 +257,6 @@ class Graph(object):
             conn = self.relation.dataset.conn
             results =  conn.execute(sql).fetchall()
         except:
-            logging.root.critical("IT THROWS")
             raise
         logging.root.debug("Results=%s", results)
         return results
@@ -279,7 +280,7 @@ def default_title(x, y, axes, axisvalues):
 pm_defaults = {
     "select": {},
     "title": DEFAULT,
-    "style": "linespoints",
+    "style": "histogram",
     "legend": DEFAULT,
     "xlabel": None,
     "ylabel": None,

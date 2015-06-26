@@ -3,25 +3,34 @@
         {
            "columns": [
                {
-                   "name": "node"
+                   "name": "module",
+                   "type": "varchar"
                },
                {
-                   "name": "name"
+                   "name": "node",
+                   "type": "varchar"
                },
                {
-                   "name": "module"
+                   "name": "name",
+                   "type": "varchar"
                },
                {
-                   "name": "label"
+                   "name": "label",
+                   "type": "varchar"
                },
                {
-                   "name": "n_index"
+                   "name": "n_index",
+                   "type": "varchar"
                },
                {
-                   "name": "data"
+                   "name": "data",
+                   "type": "real"
                }
            ],
            "name": "dataTable",
+           "filename": "simout.txt",
+           "format": "dataTable",
+           "node_mapping": ["node", "n_index"],
            "groupby": [
            ],
            "base_tables": [
@@ -82,28 +91,16 @@
                    "model_type": "parameter"
                },
                {
-                   "y": "data",
-                   "stat_type": "network",
-                   "rel": "energy",
-                   "xlabel": "nodes",
-                   "select": "",
-                   "title": "Energy/Node",
-                   "ylabel": "energy",
-                   "x": "node",
-                   "style": "",
-                   "model_type": "plot"
-               },
-               {
                    "style": "histogram",
                    "x": "node",
                    "stat_type": "network",
                    "xlabel": "nodes",
                    "axes": [
                    ],
-                   "title": "Energy/None",
+                   "title": "Energy/Node",
                    "ylabel": "energy",
                    "y": "data",
-                   "rel": "energy",
+                   "rel": "ResourceManager",
                    "model_type": "plot"
                }
            ],

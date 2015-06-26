@@ -370,16 +370,18 @@ class Variable(Named):
     type = attr(TypeInfo, nullable=False)
     initval = attr(ExprNode, nullable=False)
     model = ref(inv=Model.variables)
+    toplevel = attr(bool)
 
     @property 
     def shape(self):
         return self.initval.shape
 
-    def __init__(self, scope, name, type, initval):
+    def __init__(self, scope, name, type, initval, toplevel=True):
         super().__init__(scope, name)
         try:
             self.type = type
             self.initval = initval
+            self.toplevel=toplevel
         except:
             fail()
 
@@ -418,7 +420,7 @@ class Event(Named):
         self.model = model
         self.variables = []
         for param in self.params:
-            pvar = Variable(model, param.name, param.type, Literal(0, param.type))
+            pvar = Variable(model, param.name, param.type, Literal(0, param.type), toplevel=False)
             pvar.ast = param.ast
             self.variables.append(pvar)
 

@@ -70,6 +70,16 @@
 % end
 </ul>
 
+% if success:
+<hr>
+<h2>Declared variables:</h2>
+<ul>
+% for v in compiler['variables']:
+   <li>{{v}}</li>
+% end
+</ul>
+%end
+
 % end
 
 <hr>

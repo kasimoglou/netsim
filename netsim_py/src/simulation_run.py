@@ -7,7 +7,9 @@ Created on Mar 4, 2014
 import multiprocessing as mp
 import os.path, errno, argparse, logging, sys, shutil, json
 
-from runner.config import local_executor_path, configure
+from models.project_repo import NSD
+
+from runner.config import local_executor_path, configure, cfg
 from runner.dpcmrepo import initialize_repo, repo
 from runner.api import create_simoutput
 
@@ -48,9 +50,10 @@ class StandaloneLocalExecutor(LocalExecutor):
     '''This executor is used by test code. It allows to determine the
     name of the simulation home.
     '''
-    def __init__(self, name, homedir, fileloc):
+    def __init__(self, name, homedir, fileloc, stages):
         super().__init__(name, homedir, home_prefix = "run_")
         self.fileloc_base = fileloc
+        self.stages = stages
 
     def create_home_directory(self):
         '''
@@ -75,15 +78,19 @@ class StandaloneLocalExecutor(LocalExecutor):
             os.mkdir(fileloc)
 
         assert os.path.isdir(fileloc)
-        # We have a dir. Empty it...
-        for fobj in os.listdir(fileloc):
-            fobjpath = os.path.join(fileloc, fobj)
-            if os.path.isdir(fobjpath): 
-               shutil.rmtree(fobjpath)
-            else:
-                os.unlink(fobjpath)
 
-        # create dir
+        # We have a dir. Empty it...
+        # Addendum: no, do not empty it. Erase only according to stages. 
+        # NB. This is currently a patch!
+        if self.stages!="F":
+            for fobj in os.listdir(fileloc):
+                fobjpath = os.path.join(fileloc, fobj)
+                if os.path.isdir(fobjpath):
+                    shutil.rmtree(fobjpath)
+                else:
+                    os.unlink(fobjpath)
+
+        # created dir
         return fileloc
 
 
@@ -121,7 +128,7 @@ def create_simulation(xtor, args):
     
     if args.src.startswith('nsd:'):
         # Create simoutput
-        nsdid = args.src[len('nsd:'):]
+        nsdid = args.src
         initialize_repo(args.repo)
         prepo = repo()
 
@@ -135,6 +142,51 @@ def create_simulation(xtor, args):
         else:
             src = 'file:'+os.path.abspath(args.src)
         return xtor.create_simulation(src)
+
+
+
+
+def view_model(server, model):
+    # read the model
+    entity = model.entity
+    fields = [f.name for f in entity.fields]
+    fields.sort()
+
+    allView = [v for v in model.views if v.name=='all'][0]
+
+    # read in the data
+    db = server.database(cfg[entity.database.name])
+    query = db.query(allView.resource)
+
+    data = []                           # data array
+    fsize = [len(f) for f in fields]    # field width
+    for obj in query:
+        row = [str(obj['value'].get(f,None)) for f in fields]
+        data.append(row)
+        # update field sizes
+        rsize = [len(s) for s in row]
+        fsize = [max(x) for x in zip(fsize,rsize)]
+
+
+    fpat = ['%%%ds' % w for w in fsize]
+    def print_row(X):
+        P = [pat % x for pat, x in zip(fpat, X)]
+        print(*P,sep="|")
+
+    # display header
+    lsize = sum(fsize)+len(fsize)
+    print('='*lsize)
+    print("Entity: ", entity.name)
+    print('-'*lsize)
+    # print header
+    print_row(fields)
+    print('-'*lsize)
+    for row in data:
+        print_row(row)      
+    print('='*lsize)
+    print()
+    print()
+
 
 
     
@@ -171,7 +223,7 @@ def main():
         it is first converted to absolute and then 'file' is prepended to it.
 
     ''')
-    parser.add_argument("src",  help="The uri of simulation.")
+    parser.add_argument("src",  help="The uri of simulation.", nargs="?")
     
     parser.add_argument("--redir", '-r',
                         help=""""Redirect stdout and stdstream to files. If this option
@@ -183,7 +235,7 @@ def main():
     parser.add_argument("--loglevel", '-l',
                         help="Set the log level",
                         choices=['CRITICAL','ERROR','WARNING','INFO','DEBUG'],
-                        default='DEBUG'
+                        default='INFO'
                         )
 
     parser.add_argument("--repo", '-p',
@@ -202,6 +254,12 @@ def main():
                         For example -s PG means to only Prepare and Generate.""",
                         default="PGCSF")
 
+
+    parser.add_argument("--list", '-t',
+                        help="""List the NSDs in the current repository.""",
+                        action="store_true")
+
+
     parser.add_argument("--config", help="Path to configuration file", default=None)
     args = parser.parse_args()
 
@@ -212,16 +270,26 @@ def main():
 
     logging.info("Logging level: %s", logging.getLevelName(logging.root.getEffectiveLevel()))
     logging.info("Redirect: %s",args.redir)
-    
+
     configure('simulation_run', args.config)
+    
+    if args.list:
+        initialize_repo(args.repo)        
+        view_model(repo(), NSD.design)
+        return
+    else:
+        if args.src is None:
+            parser.print_usage()
+            parser.exit(1)
+        
 
     if not all(x in "PGCSF" for x in args.stages):
         logging.getLogger().error("Invalid stage sequence")
         sys.exit(1)
 
     # Create the simulation
-    executor = StandaloneLocalExecutor('test', local_executor_path(), args.name)
-    fileloc = create_simulation(executor, args)    
+    executor = StandaloneLocalExecutor('test', local_executor_path(), args.name, args.stages)
+    fileloc = create_simulation(executor, args)
     print("Simulation home: ", fileloc)
 
     # Run the simulation

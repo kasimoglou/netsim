@@ -3,12 +3,12 @@ Test module for nsd
 
 Created on Nov 03, 2014
 
-@author: George Mantakos
+@author: GeoMSK
 '''
 
 import pytest
 
-from models.nsdplot import Column, Table, AggregateFunction, Function,\
+from models.nsdplot import Column, Table, Function,\
     Expression, Operator, ColumnExpr, ConstantExpr, ColumnRef, DerivedTable, DATA_TABLE, EQ
 
 
@@ -36,18 +36,6 @@ def test_table():
 
     with pytest.raises(Exception):
         Table(["col1", "col2"])
-
-
-def test_aggregatefunction():
-
-    assert AggregateFunction.AVG.value == 0
-    assert AggregateFunction.COUNT.value == 1
-    assert AggregateFunction.FIRST.value == 2
-    assert AggregateFunction.LAST.value == 3
-    assert AggregateFunction.MAX.value == 4
-    assert AggregateFunction.MIN.value == 5
-    assert AggregateFunction.SUM.value == 6
-
 
 def test_function():
     assert Function("plus", False).name == "plus"

@@ -59,6 +59,25 @@ def clear_current_user():
 	session().save()
 
 
+# Session field mgmt
+
+
+def session_set(field, value):
+	assert field and isinstance(field, str)
+	session()[field] = value
+	session().save()
+	logger.info("Set session attribute %s=%s",field,value)
+
+def session_get(field, default=None):
+	assert field and isinstance(field, str)
+	return session().get(field, default)
+
+def session_del(field):
+	assert field and isinstance(field, str)
+	s = session()
+	if field in s:
+		del s[field]
+
 # dpcm login
 
 def current_dpcm_user():
@@ -72,6 +91,10 @@ def set_dpcm_user(user):
 def clear_dpcm_user():
 	if current_dpcm_user() is not None:
 		del session()['dpcm_user']
+
+
+
+
 
 #
 # Authorization

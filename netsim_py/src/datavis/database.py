@@ -2,7 +2,7 @@
 
 Created on Jan 19, 2015
 
-@author: George Mantakos
+@author: GeoMSK
 '''
 
 import sqlite3 as sql
@@ -11,6 +11,10 @@ import re
 import csv
 import logging
 import json
+from models.nsdplot import Table as nsdTable
+from models.validation import fail
+
+DEFAULT_NODEMAP_FILE = "nodemap.json"
 
 class Dataset(object):
     """
@@ -28,8 +32,9 @@ class Dataset(object):
         Add relation to the dataset.
         """
         assert isinstance(relation, Relation)
-        logging.debug("Dataset.add, Relation.sql_create: " + relation.sql_create())
-        self.conn.execute(relation.sql_create())
+        sql_create_query = relation.sql_create()
+        logging.debug("Dataset.add, Relation.sql_create: %s", sql_create_query)
+        self.conn.execute(sql_create_query)
         if relation.name in self.relations:
             logging.error("In datavis.database.Dataset.add(): duplicate relation name: %s",relation.name)
             raise ValueError("This relation's name is already in use" % relation.name)            
@@ -110,29 +115,30 @@ class Dataset(object):
 
 class StatsDatabase(Dataset):
 
-    def __init__(self):
+    def __init__(self, testing=False):
         Dataset.__init__(self)
-        alist = [
-            Attribute("module", "VARCHAR"),
-            Attribute("node", "INT"),
-            Attribute("name", "VARCHAR"),
-            Attribute("label", "VARCHAR"),
-            Attribute("n_index", "INT"),
-            Attribute("data", "FLOAT")
-        ]
-        self.create_table("dataTable", alist)
+        if testing:
+            alist = [
+                Attribute("module", "VARCHAR"),
+                Attribute("node", "INT"),
+                Attribute("name", "VARCHAR"),
+                Attribute("label", "VARCHAR"),
+                Attribute("n_index", "INT"),
+                Attribute("data", "FLOAT")
+            ]
+            self.create_table("dataTable", alist)
         self.nodemap = None
 
     def get_datatable(self):
         """
-        :return: all rows of the datatable in a list of tuples
+        :return: all rows of the dataTable in a list of tuples
         eg.[('module1', 1, 'outName', '', -1, 5.0), ('simlabel2', 'module1', 1, 'outName', '', -1, 5.0)]
         """
         return self.conn.execute('SELECT * from dataTable').fetchall()
 
     def get_nodes(self):
         """
-        returns a list of all node ids in the database
+        returns a list of all node ids in the dataTable
         """
         return list(map(lambda x: x[0], self.conn.execute('SELECT DISTINCT node from dataTable').fetchall()))
 
@@ -160,14 +166,19 @@ class StatsDatabase(Dataset):
         :param map_file: the file containing information to generate the nodemap
         :return: the nodemap
         """
+        if self.nodemap is not None:
+            return
+        if not os.path.exists(map_file) or not os.path.isfile(map_file):
+            logging.warning("Could not load \"%s\" node mapping file" % map_file)
+            return
+
         with open(map_file, 'r') as f:
             fjson = json.loads(f.read())
             nodes = fjson["nodes"]
             nodemap = {}
             for n in nodes:
-                # print("%d = %s" % (n["simid"], n["nodeid"]))
                 nodemap[str(n["simid"])] = n["nodeid"]
-            return nodemap
+        self.nodemap = nodemap
 
     def __castaliaID_2_planID(self, castalia_id):
         """
@@ -186,7 +197,7 @@ class StatsDatabase(Dataset):
             logging.warning("castalia node id \"%s\" is not mapped to a plan id" % castalia_id)
             return castalia_id
 
-    def __save_output(self, m, n, i, o, bl, l, v):
+    def __save_output(self, m, n, i, o, bl, l, v, table_name):
         """
         Stores data representing a simple output or histogram to database
             m: module
@@ -204,7 +215,7 @@ class StatsDatabase(Dataset):
         # map castalia node ids to plan node ids
         n = self.__castaliaID_2_planID(n)
         i = self.__castaliaID_2_planID(i)
-        c.execute("INSERT INTO dataTable VALUES(?,?,?,?,?,?);", (m, n, o, l, i, v))
+        c.execute("INSERT INTO %s(module,node,name,label,n_index,data) VALUES(?,?,?,?,?,?);" % table_name, (m, n, o, l, i, v))
         self.conn.commit()
 
     @staticmethod
@@ -215,18 +226,79 @@ class StatsDatabase(Dataset):
         if type(num) != float: return False
         return int(num) == num
 
-    def load_castalia_output(self, castalia_output_file, node_mapping_file="nodemap.json"):
+    def load_data_csv(self, table, node_mapping_file=DEFAULT_NODEMAP_FILE):
+        """
+        Load data from a CSV file to table
+        """
+        def assert_format():
+            """
+            checks table column number to be equal with column number in data file
+            """
+            file_cols = len(row)
+            if file_cols != table_cols:
+                fail("data file (\"%s\") format (%d columns) does not match table (\"%s\") format (%d columns)"
+                    % (filename, file_cols, table.name, table_cols), ooc=TypeError)
+
+        def store_data():
+            """
+            stores data of a row to the appropriate table
+            """
+            def map_nodes():
+                """
+                maps castalia node ids to plan node ids, only for columns marked in table.node_mapping
+                """
+                for i in range(0, len(data)):
+                    if dfile_colnames[i] in table.node_mapping:
+                        data[i] = self.__castaliaID_2_planID(data[i])
+
+            sql = "INSERT INTO %s(%s) VALUES(%s)" % (table.name,
+                                                     ",".join(dfile_colnames),
+                                                     ",".join(["?"]*table_cols))
+            for c in table.columns:
+                print(c.name)
+            print(sql)
+            c = self.conn.cursor()
+            data = [d.strip() for d in row]
+            print(data)
+            if self.nodemap:
+                map_nodes()
+            c.execute(sql, tuple(data))
+            self.conn.commit()
+
+        #
+        # load_data_csv
+        #
+
+        assert isinstance(table, nsdTable)
+        filename = table.filename
+        table_cols = len(table.columns)
+
+        if not os.path.exists(filename) or not os.path.isfile(filename):
+            fail("Could not load \"%s\" csv data file, file not found" % filename)
+
+        # generate the castalia to plan node map
+        self.__generate_nodemap(node_mapping_file)
+
+        with open(filename, "r") as f:
+            reader = csv.reader(f)
+            first_row = True
+            for row in reader:
+                assert_format()
+                if first_row:
+                    dfile_colnames = row
+                    first_row = False
+                else:
+                    store_data()
+
+    def load_data_castalia(self, castalia_output_file, table_name="dataTable", node_mapping_file=DEFAULT_NODEMAP_FILE):
         """
         read data from Castalia output file and store them to an sqlite db in memory
         """
         if not os.path.exists(castalia_output_file) or not os.path.isfile(castalia_output_file):
-            logging.warning("Could not load \"%s\" castalia output file" % castalia_output_file)
-            return
-        if not os.path.exists(node_mapping_file) or not os.path.isfile(node_mapping_file):
-            logging.warning("Could not load \"%s\" node mapping file" % node_mapping_file)
-        else:
-            # generate the castalia to plan node map
-            self.nodemap = self.__generate_nodemap(node_mapping_file)
+            fail("Could not load \"%s\" castalia output file, file not found" % castalia_output_file)
+
+        # generate the castalia to plan node map
+        self.__generate_nodemap(node_mapping_file)
 
         with open(castalia_output_file, "r") as f:
             lines = f.readlines()
@@ -267,7 +339,7 @@ class StatsDatabase(Dataset):
                 # check for output data
                 m = r_output.match(line)
                 if m:
-                    self.__save_output(module, n, i, o, bl, m.group(2), m.group(1))
+                    self.__save_output(module, n, i, o, bl, m.group(2), m.group(1), table_name)
                     continue
                 else:
                     level = 2
@@ -294,7 +366,7 @@ class StatsDatabase(Dataset):
                         next = curr + step
                         if self.__is_int(next): next = int(next)
                         if next > histogram_max: next = "inf"
-                        self.__save_output(module, n, ival, o, bl, "[" + str(curr) + "," + str(next) + ")", val)
+                        self.__save_output(module, n, ival, o, bl, "[" + str(curr) + "," + str(next) + ")", val, table_name)
                         curr += step
                         ival += 1
                     level = 2

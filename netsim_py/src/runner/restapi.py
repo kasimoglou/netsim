@@ -11,6 +11,8 @@ import bottle
 from bottle import run, route, view, static_file, post, request, response, HTTPResponse
 from runner import api
 
+import runner.AAA as AAA
+
 ##############################################
 #
 # ReST API. This is a restful front-end to
@@ -291,3 +293,19 @@ for e in ENTITIES:
 		logging.info("Installed restful api for entity %s",e.name)
 
 
+#
+# Session info
+# 
+
+@app.get("/session_info")
+def session_info():
+	dpcm_user = AAA.current_dpcm_user()
+	current_project = AAA.session_get('project_id', None)
+	current_plan = AAA.session_get('plan_id', None)
+
+	ret = {}
+	if dpcm_user is not None: ret['dpcm_user'] = dpcm_user
+	if current_project is not None: ret['project_id'] = current_project
+	if current_plan is not None: ret['plan_id'] = current_plan
+
+	return ret

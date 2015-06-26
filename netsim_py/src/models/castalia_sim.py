@@ -102,6 +102,26 @@ class CastaliaModule:
         return CastaliaModule(self, name, index)
 
 
+    def __getattr__(self, name):
+        '''
+        This method will be called only if there is no proper attribute 
+        by the given name. It will look into the ad-hoc submodules and
+        parameters for a match, and will fail if none is found.
+
+        Note: parameter names are looked up first, so if there is a name collision
+        the parameter will be returned.
+        '''
+        assert isinstance(name, str)
+        if name in self.__param_map:
+            return self.__param_map[name]
+        else:
+            # look for submodule by this name
+            for s in self.submodules:
+                if s.subname == name:
+                    return s
+        raise AttributeError("Castalia moduel '%s' has no member '%s'" % (self.__class__.__name__, name))
+
+
     def base(self):
         '''
         Return a CastaliaModule M.
@@ -117,10 +137,30 @@ class CastaliaModule:
         '''
         return CastaliaModule(None, self.__base_name(), self.index)
 
+
+    def set(self, pname, pvalue):
+        '''
+        Set a generic parameter for this module.
+        '''
+        self.__param_map[pname] = pvalue
+
+    def all_parameters(self):
+        for pname, pvalue in self.__param_map.items():
+            yield pname, pvalue
+        for param in self.__model_class__.all_attributes:
+            if Param.has(param):
+                yield param.name, getattr(self, param.name, None)
+
+
+
     def __init__(self, parent, name, index=None):
         self.parent = parent
         self.subname = name
         self.index = index
+        self.__param_map = {}
+
+
+
 
 
 #
@@ -184,7 +224,12 @@ class WirelessChannel(CastaliaModule):
                             // is delivering signal messages to radio modules of 
                             // individual nodes
     """
-    pass
+
+    onlyStaticNodes = parameter(bool, default=True)
+    pathLossMapFile = parameter(str, default=None)
+
+    def __init__(self, parent, cmatrix=None):
+        super().__init__(parent, 'WirelessChannel')        
 
 
 @model
@@ -213,30 +258,42 @@ class Node(CastaliaModule):
     name = attr(str, nullable=False)
     mote = attr(Mote, nullable=False)
 
+
+
 @model
 class ResourceManager(CastaliaModule):
     '''
-        bool collectTraceInfo = default (false);
-        double ramSize = default (0.0);                 //in kB
-        double flashSize = default (0.0);               //in kB
-        double flashWriteCost = default (0.0);  //per kB
-        double flashReadCost = default (0.0);   //per kB
-        double imageSize = default (0.0);   //the space that the OS (e.g. Contiki or TinyOS) occupies in the flash
+    bool collectTraceInfo = default (false);
+    double ramSize = default (0.0);                 //in kB
+    double flashSize = default (0.0);               //in kB
+    double flashWriteCost = default (0.0);  //per kB
+    double flashReadCost = default (0.0);   //per kB
+    double imageSize = default (0.0);   //the space that the OS (e.g. Contiki or TinyOS) occupies in the flash
 
-        string cpuPowerSpeedLevelNames = default ("");
-        string cpuPowerPerLevel = default (""); //spent energy per time unit
-        string cpuSpeedPerLevel = default ("");
-        int cpuInitialPowerLevel = default (-1);        // index for the cpuPowerLevels array
-        double sigmaCPUClockDrift = default (0.00003);  // the standard deviation of the Drift of the CPU
+    string cpuPowerSpeedLevelNames = default ("");
+    string cpuPowerPerLevel = default (""); //spent energy per time unit
+    string cpuSpeedPerLevel = default ("");
+    int cpuInitialPowerLevel = default (-1);        // index for the cpuPowerLevels array
+    double sigmaCPUClockDrift = default (0.00003);  // the standard deviation of the Drift of the CPU
 
-        double initialEnergy = default (18720);
-        // energy of the node in Joules, default value corresponds to two AA batteries
-        // source http://www.allaboutbatteries.com/Energy-tables.html
+    double initialEnergy = default (18720);
+    // energy of the node in Joules, default value corresponds to two AA batteries
+    // source http://www.allaboutbatteries.com/Energy-tables.html
 
-        double baselineNodePower = default (6); // periodic energy consumption of node, in mWatts
-        double periodicEnergyCalculationInterval = default (1000); // interval for energy calculation, in msec     
+    double baselineNodePower = default (6); // periodic energy consumption of node, in mWatts
+    double periodicEnergyCalculationInterval = default (1000); // interval for energy calculation, in msec     
     '''
-    initialEnergy = parameter(float)
+    ramSize = parameter(float, default=0.0)
+
+    initialEnergy = parameter(float, default=18720.0)
+    baselineNodePower = parameter(float, default=6.0)
+    periodicEnergyCalculationInterval = parameter(float, default=1000.0)
+
+    def __init__(self, parent, mote_type):
+        super().__init__(parent, "ResourceManager")
+        self.initialEnergy = mote_type.initialEnergy
+        self.baselineNodePower = mote_type.baselineNodePower
+
 
 @model
 class SensorManager(CastaliaModule):
@@ -273,10 +330,12 @@ class SensorManager(CastaliaModule):
                                                                                                     
     string devicesSaturation = default ("1000");    //holds the saturation value for each sensing device
     '''
+
     numSensingDevices = parameter(int)
+    corrPhyProcess = parameter(str)
+
     pwrConsumptionPerDevice = parameter(str)
     sensorTypes = parameter(str)
-    corrPhyProcess = parameter(str)
     maxSampleRates = parameter(str)
     devicesBias = parameter(str)
     devicesDrift = parameter(str)
@@ -285,6 +344,36 @@ class SensorManager(CastaliaModule):
     devicesSensitivity = parameter(str)
     devicesResolution = parameter(str)
     devicesSaturation = parameter(str)
+
+    sensors = attr(list)
+
+    def collect_values(self, attr, default):
+        val_array = []
+        for s in self.sensors:
+            val_array.append(str(getattr(s, attr, default)))
+        return " ".join(val_array)
+
+    def __init__(self, parent, sensors):
+        super().__init__(parent, "SensorManager")
+        self.sensors = sensors
+
+        # non-global devices
+        self.numSensingDevices = len(sensors)
+
+        # TODO: fix this for vectorl
+        self.corrPhyProcess = self.collect_values('corrPhyProcess', 0)
+
+        self.pwrConsumptionPerDevice = self.collect_values('power_consumption', 0.02)
+
+        self.sensorTypes = self.collect_values('sensor_type', "Temparature")
+        self.maxSampleRates = self.collect_values('max_sample_rate', 1.0)
+        self.devicesBias = self.collect_values('bias', 0.1)
+        self.devicesDrift = self.collect_values('drift', 0.0)
+        self.devicesNoise = self.collect_values('noise', 0.1)
+        self.devicesHysterisis = self.collect_values('hysterisis', 0.0)
+        self.devicesSensitivity = self.collect_values('sensitivity', 0.0)
+        self.devicesResolution = self.collect_values('resolution', 0.001)
+        self.devicesSaturation = self.collect_values('saturation', 1000.0)
 
 
 
@@ -302,14 +391,7 @@ class Application(CastaliaModule):
     constantDataPayload = parameter(int)
 
 
-@model
-class Communication(CastaliaModule):
-    """
-    string MACProtocolName = default ("BypassMAC");
-    string RoutingProtocolName = default ("BypassRouting");
-    """
-    MACProtocolName = parameter(str)
-    RoutingProtocolName = parameter(str)
+
 
 @model
 class Radio(CastaliaModule):
@@ -362,6 +444,25 @@ class Radio(CastaliaModule):
     phyFrameOverhead = parameter(int)
 
 
+    def __init__(self, parent, radio=None):
+        super().__init__(parent, "Radio")
+
+        if radio is None: return
+
+        for param in self.__model_class__.all_attributes:
+            if Param.has(param):
+                if hasattr(radio, param.name):
+                    val = getattr(radio, param.name)
+                    setattr(self, param.name, val)
+
+
+#---------------------------------------------------------
+#
+#  MAC protocols
+#
+#---------------------------------------------------------
+
+
 @model
 class Mac(CastaliaModule):
     """
@@ -372,6 +473,346 @@ class Mac(CastaliaModule):
     macMaxPacketSize = parameter(int)
     macBufferSize = parameter(int)
     macPacketOverhead = parameter(int)
+
+    def __init__(self, parent, mac=None):
+        super().__init__(parent, "MAC")
+
+@model
+class BypassMAC(Mac):
+    def __init__(self, parent, mac=None):
+        # just define defaults
+        self.macMaxPacketSize = 0
+        self.macPacketOverhead = 8
+        self.macBufferSize = 0
+
+        # call parent constructor
+        super.__init__(parent, mac)
+
+
+@model 
+class CC2420Mac(Mac):
+    """
+    double txFifoWriteTimeout = default(0)
+    bool enableCCA = default(true) 
+    double datarate = default(115200) 
+    int phyFrameOverhead = default(6) 
+    int macAckOverhead = default(5) 
+    bool ackEnabled = default(true) 
+    """
+    txFifoWriteTimeout = parameter(float, default=0.0)
+    enableCCA = parameter(bool, default=True)
+    datarate = parameter(float, default=115200.0)
+    phyFrameOverhead = parameter(int, default=5)
+    macAckOverhead = parameter(int, default=5)
+    ackEnabled = parameter(bool, default=True)
+
+    def __init__(self, parent, mac=None):
+        # just define defaults
+        self.macMaxPacketSize = 0
+        self.macPacketOverhead = 12
+        self.macBufferSize = 1
+
+        # call parent constructor
+        super.__init__(parent, mac)
+
+
+@model
+class Mac802114(Mac):
+    """
+    bool printStateTransitions = default (false);
+
+    //mac layer parameters
+    int macMaxPacketSize = default (0);
+    int macPacketOverhead = default (14);
+    int macBufferSize = default (32);
+
+    bool enableSlottedCSMA = default (true);
+    bool enableCAP = default (true);
+    bool isFFD = default (false);
+    bool isPANCoordinator = default (false);
+    bool batteryLifeExtention = default (false);
+
+    int frameOrder = default (4);
+    int beaconOrder = default (6);
+    int unitBackoffPeriod = default (20);
+    int baseSlotDuration = default (60);
+
+    int numSuperframeSlots = default (16);
+    int macMinBE = default (5);
+    int macMaxBE = default (7);
+    int macMaxCSMABackoffs = default (4);
+    int macMaxFrameRetries = default (2);
+    int maxLostBeacons = default (4);
+    int minCAPLength = default (440);
+    int requestGTS = default (0);
+
+    // parameters dependent on physical layer
+    // some are essential and are not defined as default
+    double phyDelayForValidCS = default (0.128);
+    double phyDataRate;
+    double phyDelaySleep2Tx = default (0.2); //in ms
+    double phyDelayRx2Tx = default (0.02);  //in ms
+    int phyFrameOverhead = default (6);
+    int phyBitsPerSymbol; 
+
+    //reception guard time, in ms
+    double guardTime = default (1);
+    """
+
+    enableSlottedCSMA = parameter(bool, default=True)
+    enableCAP = parameter(bool, default=True)
+    isFFD = parameter(bool, default=False)
+    isPANCoordinator = parameter(bool, default=False)
+    batteryLifeExtention = parameter(bool, default=False)
+
+    frameOrder = parameter(int, default=4)
+    beaconOrder = parameter(int, default=6)
+    unitBackoffPeriod = parameter(int, default=20);
+    baseSlotDuration = parameter(int, default=60)
+
+    numSuperframeSlots = parameter(int, default=16)
+    macMinBE = parameter(int, default=5)
+    macMaxBE = parameter(int, default=7)
+    macMaxCSMABackoffs = parameter(int, default=4)
+    macMaxFrameRetries = parameter(int, default=2)
+    maxLostBeacons = parameter(int, default=4)
+    minCAPLength = parameter(int, default=440)
+    requestGTS = parameter(int, default=0)
+
+    phyDelayForValidCS = parameter(float, default=0.128)    
+
+    phyDelaySleep2Tx = parameter(float, default=0.2)
+    phyDelayRx2Tx = parameter(float, default=0.02)
+    phyFrameOverhead = parameter(int, default=6)
+
+    guardTime = parameter(float, default=1)
+
+    # these have no default
+    phyDataRate = parameter(float, nullable=False)
+    phyBitsPerSymbol parameter(int, nullable=False)
+
+    def __init__(self, parent, mac=None):
+        # just define defaults
+        self.macMaxPacketSize = 0
+        self.macPacketOverhead = 14
+        self.macBufferSize = 32
+
+        # call parent constructor
+        super.__init__(parent, mac)
+
+
+@model
+class TMAC(Mac):
+    """
+    //mac layer packet sizes, these parameters are described in TMacFrame.msg file
+    int ackPacketSize = default (11);
+    int syncPacketSize = default (11);
+    int rtsPacketSize = default (13);
+    int ctsPacketSize = default (13);
+
+    //mac layer parameters
+    int macMaxPacketSize = default (0);             //no limit on frame size
+    int macPacketOverhead = default (11);   //DATA frame overhead is described in TMacFrame.msg
+    int macBufferSize = default (32);               //buffer of 32 packets by default
+
+    //TMAC protocol parameters
+    int maxTxRetries = default (2);
+    bool allowSinkSync = default (true);    //This parameter allows sink node to start synchronisation immediately
+    bool useFrts = default (false);                 //enable/disable FRTS (Future Request To Send), true value not supported
+    bool useRtsCts = default (true);                //This allows to enable/disable RTS/CTS handshake
+    bool disableTAextension = default (false);      //disabling TA extension effectively creates an SMAC protocol
+    bool conservativeTA = default (true);   //conservative activation timeout - will always stay awake for 
+                                                                                    //atleast 15 ms after any activity on the radio
+
+    double resyncTime = default (6);                // timer for re-sending SYNC msg, in seconds
+    double contentionPeriod = default (10); // 10 ms
+    double listenTimeout = default (15);    // 15 ms, is the timeout TA (Activation event)
+    double waitTimeout = default (5);               // timeout for expecting a reply to DATA or RTS packet
+    double frameTime = default (610);               // frame time (standard = 610ms)
+
+    int collisionResolution = default (0);  // collision resolution mechanism, choose from 
+                                                                                    //      0 - immediate retry (low collision avoidance)
+                                                                                    //      1 - based on overhearing (default)
+                                                                                    //      2 - retry next frame (aggressive collision avoidance)
+
+    //parameters dependent on physical layer
+    double phyDelayForValidCS = default (0.128);
+    double phyDataRate = default (250);
+    int phyFrameOverhead = default (6);
+    """
+
+    ackPacketSize = parameter(int, default=11)
+    syncPacketSize = parameter(int, default=11)
+    rtsPacketSize = parameter(int, default=13)
+    ctsPacketSize = parameter(int, default=13)
+    
+    maxTxRetries = parameter(int, default=2)
+    allowSinkSync = parameter(bool, default=True)
+    useFrts = parameter(bool, default=False)
+    useRtsCts = parameter(bool, default=True)
+    disableTAextension = parameter(bool, default=False)
+    conservativeTA = parameter(bool, default=True)
+
+    resyncTime = parameter(float, default=6.0)
+    contentionPeriod = parameter(float, default=10.0)
+    listenTimeout = parameter(float, default=15.0)
+    waitTimeout = parameter(float, default=5.0)
+    frameTime = parameter(float, default=610.0)
+
+    collisionResolution = parameter(int, default=0)
+
+    phyDelayForValidCS = parameter(float, default=0.128)
+    phyDataRate = parameter(float, default=250.0)
+    phyFrameOverhead = parameter(int, default=6)
+
+
+    def __init__(self, parent, mac=None):
+        # just define defaults
+        self.macMaxPacketSize = 0
+        self.macPacketOverhead = 11
+        self.macBufferSize = 32
+
+        # call parent constructor
+        super.__init__(parent, mac)
+
+@model
+class SMAC(TMAC):
+    """
+    Define SMAC by adjustng TMAC parameters
+    """
+    def __init__(self, parent, mac=None):
+        # just re-define defaults
+        self.listenTimeout = 61.0
+        self.disableTAextension = True
+        self.conservativeTA = False
+        self.collisionResolution = 0
+
+        # call parent constructor
+        super.__init__(parent, mac)
+
+
+@model
+class TunableMAC(Mac):
+    """
+    bool collectTraceInfo = default (false);
+    bool printStateTransitions = default (false);
+
+    //=============== These are main parameters which can be tuned ================
+
+    double dutyCycle = default (1.0);       // listening / (sleeping+listening)
+    double listenInterval = default (10);   // how long do we leave the radio in listen mode, in ms
+    double beaconIntervalFraction = default (1.0);  // fraction of the sleeping interval that we send beacons
+    double probTx = default (1.0);          // the probability of a single try of Transmission to happen
+    int numTx = default (1);                // when we have something to Tx, how many times we try
+    double randomTxOffset = default (0.0);  // Tx after time chosen randomly from interval [0..randomTxOffset]
+    double reTxInterval = default (0.0);    // Interval between retransmissions in ms, (numTx-1) retransmissions
+    double backoffType = default (1);       // 0-->(backoff = sleepinterval), 
+                                            // 1-->(backoff = constant value), 
+                                            // 2-->(backoff = multiplying value - e.g. 1*a, 2*a, 3*a, 4*a ...), 
+                                            // 3-->(backoff = exponential value - e.g. 2, 4, 8, 16, 32...)
+    int backoffBaseValue = default (16);    // the backoff base value in ms
+    double CSMApersistance = default (0);   // value in [0..1], is CSMA non-persistent, p-persistent, or 1-persistent?
+    bool txAllPacketsInFreeChannel = default (true); // if you find the channel free, tx all packets in buffer? 
+    bool sleepDuringBackoff = default (false);      // for no dutyCycle case: sleep when backing off?
+
+    //=============== End of tunable parameters ===================================
+
+    int macMaxPacketSize = default (0);
+    int macPacketOverhead = default (9);
+    int beaconFrameSize = default (125);  // have a big beacon, to avoid much processing overhead, but fit at least 2 in the listening interval
+    int macBufferSize = default (32);
+
+    //========== Make sure you update the data rate if you change radios ==========
+    double phyDataRate = default (250.0);
+    double phyDelayForValidCS = default (0.128);
+    int phyFrameOverhead = default (6);
+    """
+    dutyCycle = parameter(float, default=1.0)
+    listenInterval = parameter(float, default=10)
+    beaconIntervalFraction = parameter(float, default=1.0)
+    probTx = parameter(float, default=1.0)
+    numTx = parameter(int, default=1)
+    randomTxOffset = parameter(float, default=0.0)
+    reTxInterval = parameter(float, default=0.0)
+    backoffType = parameter(float, default=1)
+    backoffBaseValue = parameter(int, default=16)
+    CSMApersistance = parameter(float, default=0)
+    txAllPacketsInFreeChannel = parameter(bool, default=True)
+    sleepDuringBackoff = parameter(bool, default=False)
+
+    beaconFrameSize = parameter(int, default=125)
+
+    phyDataRate = parameter(float, default=250.0)
+    phyDelayForValidCS = parameter(float, default=0.128)
+    phyFrameOverhead = parameter(int, default=6)
+
+    def __init__(self, parent, mac=None):
+        # just define defaults
+        self.macMaxPacketSize = 0
+        self.macPacketOverhead = 9
+        self.macBufferSize = 32
+
+        # call parent constructor
+        super.__init__(parent, mac)
+
+@model
+class CSMA(TunableMAC):
+    def __init__(self, parent, mac=None):
+        # just define defaults
+        self.dutyCycle = 1.0
+        self.randomTxOffset = 0.0
+        self.backoffType = 2
+
+        # call parent constructor
+        super.__init__(parent, mac)
+
+
+#---------------------------------------------------------
+#
+# Routing protocols
+#
+#---------------------------------------------------------
+
+@model
+class Routing(CastaliaModule):
+    """
+    int maxNetFrameSize;            // in bytes
+    int netDataFrameOverhead;       // in bytes
+    int netBufferSize;                      // in number of messages
+    """
+    maxNetFrameSize = parameter(int)
+    netDataFrameOverhead = parameter(int)
+    netBufferSize = parameter(int)
+
+
+
+
+
+
+
+#
+#  The communication module
+#
+
+
+
+@model
+class Communication(CastaliaModule):
+    """
+    string MACProtocolName = default ("BypassMAC");
+    string RoutingProtocolName = default ("BypassRouting");
+    """
+    MACProtocolName = parameter(str)
+    RoutingProtocolName = parameter(str)
+
+    Radio = attr(Radio)
+    MAC = attr(Mac)
+    Routing = attr(Routing)
+
+    def __init__(self, parent):
+        super().__init__(parent, "Communication")
+
+
 
 
 #
@@ -448,8 +889,8 @@ class NodeType:
     # the node module (dummy)
     nodes = attr(CastaliaModule)
 
-    # the communication submodule (dummy)
-    comm = attr(CastaliaModule)
+    # the communication submodule
+    comm = attr(Communication)
 
     def __init__(self, cm, nodeDef, index):
         self.castalia_model = cm
@@ -457,7 +898,7 @@ class NodeType:
         self.index = index
 
         self.nodes = Node(cm.network.base(), 'node', index)
-        self.comm = self.nodes.submodule('Communication')
+        self.comm = Communication(self.nodes)
 
 
 #

@@ -243,14 +243,16 @@
                                                     </div>
                                                 </div>
                                                 <div class="row top10 left10" ng-repeat="index in [0, 1, 2, 3, 4]">
-                                                    <div class="col-md-2">
-                                                        <label class="control-label">Sensor [[index]]:</label>
+                                                    <div class="col-md-3">
+                                                        <input type="text" class="form-control" 
+                                                               ng-model="temp.environment.sensor_mapping[index].sensor"
+                                                               placeholder="sensor name">
                                                     </div>
                                                     <div class="col-md-3">
                                                         <select class="form-control"
                                                             ng-disabled="temp.env_model !== 'vectorl'"
                                                             ng-options="var for var in vectorl_vars track by var"
-                                                            ng-model="temp.environment['sensor' + index]">
+                                                            ng-model="temp.environment.sensor_mapping[index].variable">
                                                             <option value="">-- select vectorl variable --</option>
                                                         </select>
                                                     </div>

@@ -49,11 +49,36 @@ class VectorlEnvironment(Environment):
 #  Application: part of an NSD
 ##############################
 
-'''
+
+@repository(prm.NS_COMPONENT)
 @model
-class SensorType:
+class RadioDevice:
+    """
+    Models a radio device.
+    """
+    RadioParametersFile = attr(str, default=None)
+    mode = attr(str, default="")
+    state = attr(str, default="RX")
+    TxOutputPower = attr(str, default="")
+    sleepLevel = attr(str, default="")
+    carrierFreq = attr(float, default=2400.0)
+    collisionModel = attr(int, default=2)
+    CCAthreshold = attr(float, default=-95.0)
+    symbolsForRSSI = attr(int, default=8)
+    carrierSenseInterruptEnabled = attr(bool, default=False)
+    bufferSize = attr(int, default=16)
+    maxPhyFrameSize = attr(int, default=1024)
+    phyFrameOverhead = attr(int, default=6)
+
+
+@repository(prm.NS_COMPONENT)
+@model
+class Sensor:
+    """
+    Models a sensor device.
+    """
     pwr_consuption = attr(float)  # energy consumed per reading
-    measurement = attr(str)  # quantity e.g. "temperature"
+    sensor_type = attr(str)  # quantity e.g. "temperature"
     max_sample_rate = attr(float)  #  samples per sec
     bias = attr(float)  # added to value
     drift = attr(float)  #  not used currently  (not used)
@@ -64,27 +89,24 @@ class SensorType:
     sensitivity = attr(float)  # the minimum physical value measured
 
 
+@repository(prm.NS_COMPONENT)
 @model
 class MoteType:
-    # The application code run by this mote. For now this is a string. 
-    code = attr(str)
-
-    #
-    # Mote components
-    # 
-
-    sensors = attr(list)  # of SensorType objects
+    """
+    Models the mote device.
+    """
 
     # resources
-    ram_size = attr(float)  # in kbytes
-    flash_size = attr(float)  # in kbytes
-    flash_write_cost = attr(float, nullable=True)
-    flash_read_cost = attr(float, nullable=True)
-    image_size = attr(float, nullable=True)
+    ramSize = attr(float, nullable=True)  # in kbytes
+    flashSize = attr(float, nullable=True)  # in kbytes
+    flashWriteCost = attr(float, nullable=True)
+    flashReadCost = attr(float, nullable=True)
+    imageSize = attr(float, nullable=True)
 
-    initial_energy = attr(float)
-    baseline_node_power = attr(float)
-'''
+    initialEnergy = attr(float, default=18720.0)
+    baselineNodePower = attr(float, default=6.0)
+
+
 
 # This type is used for Node coordinates (corresponds to PLNxxxx coord. triplet)
 Position = namedtuple('Position', ('lat', 'lon', 'alt'))
@@ -106,6 +128,10 @@ class FunctionalBlock:
 @repository(prm.NODEDEF)
 @model
 class NodeDef:
+    """
+    The Planning Tool's node definition.
+    """
+
     # some code word
     code = attr(str)
 
@@ -124,9 +150,35 @@ class NodeDef:
     motes = refs()
     nsd = ref()
 
+    ns_nodedef = ref()
+
     # couch entities
     _id = attr(str)
     _rev = attr(str)
+
+
+
+
+@repository(prm.NS_NODEDEF)
+@model
+class NsNodeDef:
+    """
+    The NetSim library node definition.
+    """
+
+    nodedef = ref(inv=NodeDef.ns_nodedef)
+
+    mote = attr(object)
+    sensors = attr(list)
+    routing = attr(object)
+    mac = attr(object)
+    radio = attr(object)
+
+    # couch entities
+    _id = attr(str)
+    _rev = attr(str)
+
+
 
 @model
 class Mote:
@@ -143,6 +195,8 @@ class Mote:
     # the node type determines the hardware used
     nodeTypeId = attr(str)
     required(nodeTypeId)
+
+    # the nodedef object for this mote
     nodeType = ref(inv=NodeDef.motes)
 
     #Mote role (ROOT or MOTE)
@@ -186,6 +240,14 @@ class Network:
     # All nodes
     motes = refs(inv=Mote.network)
 
+    def find_mote(self, node_id):
+        """
+        Return a mote for the given node_id, or None if no such mote exists.
+        """
+        for mote in self.motes:
+            if mote.node_id == node_id:
+                return mote
+        return None
 
 
 #
@@ -193,6 +255,8 @@ class Network:
 #
 @model
 class Parameters:
+    "NSD parameters"
+
     nsd = ref()
 
     # The time reached when the simulation terminates (sec)
@@ -206,6 +270,14 @@ class Parameters:
     cpu_time_limit = attr(int, default=None)
 
 
+
+@model
+class HiL:
+    "The nsd configuration for HiL simulation"
+
+    nsd = ref()
+    node1 = attr(str, nullable=False)
+    node2 = attr(str, nullable=False)
 
 
 ######################################
@@ -262,7 +334,11 @@ class NSD:
     # Application
     #
 
+    # network object
     network = ref(inv=Network.nsd)
+
+    hil = ref(inv=HiL.nsd)
+    descend(hil)
 
     #
     #  Parameters
@@ -292,7 +368,8 @@ class NSD:
 @repository(prm.PLAN)
 @model
 class Plan:
-    nsd = ref()
+    " A PT plan object "
+    nsd = ref(inv=NSD.plan)
 
     name = attr(str, nullable=False)
 
@@ -317,6 +394,7 @@ class Plan:
 @repository(prm.PLAN)
 @model
 class ConnectivityMatrix:
+    "The Connectivity matrix from the topology simulator."
     plan = ref(inv=Plan.connectivityMatrix)
 
     rfSimId = attr(str)
@@ -326,6 +404,7 @@ class ConnectivityMatrix:
 
 @model
 class Channel:
+    "A channel is an entry to the connectivity matrix"
     cm = ref(inv=ConnectivityMatrix.connectivity)
 
     channelId = attr(int)
@@ -352,7 +431,9 @@ class Channel:
 @repository(prm.PROJECT)
 @model 
 class Project:
-    nsd = ref()
+    "The project object"
+
+    nsd = ref(inv=NSD.project)
 
     # the owner of the project
     userId = attr(str)

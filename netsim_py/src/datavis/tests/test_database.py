@@ -2,21 +2,31 @@
 
 Created on Jan 21, 2015
 
-@author: George Mantakos
+@author: GeoMSK
 '''
 
 
 import pytest
 import os.path, runner.config
-import hashlib
+from models.nsdplot import Table as nsdTable, Column
+from datavis.model2plots import create_table
 from datavis.database import StatsDatabase
 
 
 def castalia_output_file():
-    return os.path.join(runner.config.resource_path(),"datavis/castalia_output.txt")
+    return os.path.join(runner.config.resource_path(), "datavis/castalia_output.txt")
+
+
+def csv_data_file():
+    return os.path.join(runner.config.resource_path(), "datavis/csv_test.txt")
+
+
+def node_mapping_file():
+    return os.path.join(runner.config.resource_path(), "datavis/dummy_nodemap.json")
+
 
 def test_createdatabase():
-    d = StatsDatabase()
+    d = StatsDatabase(testing=True)
 
     assert(d.conn is not None)
     c = d.conn.cursor()
@@ -32,8 +42,8 @@ def test_isint():
 
 
 def test_saveoutput():
-    d = StatsDatabase()
-    d._StatsDatabase__save_output("module1", 1, -1, "outputname", "simlabel", "label", 123.123)
+    d = StatsDatabase(testing=True)
+    d._StatsDatabase__save_output("module1", 1, -1, "outputname", "simlabel", "label", 123.123, table_name="dataTable")
     c = d.conn.cursor()
     res = c.execute('SELECT * FROM dataTable').fetchall()
     assert(res[0] == ("module1", 1, "outputname", "label", -1, 123.123))
@@ -41,9 +51,9 @@ def test_saveoutput():
 
 
 def test_getdatatable():
-    d = StatsDatabase()
-    d._StatsDatabase__save_output("module1", 1, -1, "outputname", "simlabel", "label", 123.123)
-    d._StatsDatabase__save_output("module2", 2, -1, "outputname2", "simlabel2", "label2", 1234.1234)
+    d = StatsDatabase(testing=True)
+    d._StatsDatabase__save_output("module1", 1, -1, "outputname", "simlabel", "label", 123.123, table_name="dataTable")
+    d._StatsDatabase__save_output("module2", 2, -1, "outputname2", "simlabel2", "label2", 1234.1234, table_name="dataTable")
     res = d.get_datatable()
     assert(res[0] == ("module1", 1, "outputname", "label", -1, 123.123))
     assert(res[1] == ("module2", 2, "outputname2", "label2", -1, 1234.1234))
@@ -72,8 +82,8 @@ def test_readcastaliaoutput():
                  ('Communication.Radio', 1, 'TXed pkts', 'TX pkts', -1, 499.0),
                  ('ResourceManager', 2, 'Consumed Energy', '', -1, 6.28569),
                  ('Communication.Radio', 2, 'TXed pkts', 'TX pkts', -1, 499.0)]
-    d = StatsDatabase()
-    d.load_castalia_output(castalia_output_file())
+    d = StatsDatabase(testing=True)
+    d.load_data_castalia(castalia_output_file())
     dt = d.get_datatable()
     for i in data_list:
         assert(i in dt)
@@ -102,17 +112,32 @@ def test_readcastaliaoutput_with_nodemapping():
                  ('Communication.Radio', 'plan1', 'TXed pkts', 'TX pkts', -1, 499.0),
                  ('ResourceManager', 'plan2', 'Consumed Energy', '', -1, 6.28569),
                  ('Communication.Radio', 'plan2', 'TXed pkts', 'TX pkts', -1, 499.0)]
-    d = StatsDatabase()
-    d.load_castalia_output(castalia_output_file(), os.path.join(runner.config.resource_path(), "datavis/dummy_nodemap.json"))
+    d = StatsDatabase(testing=True)
+    d.load_data_castalia(castalia_output_file(), node_mapping_file=node_mapping_file())
     dt = d.get_datatable()
     for i in data_list:
         assert(i in dt)
     d.conn.close()
 
 
+def test_readCSV():
+    data_list = [('foo', 'plan1', '12345'),
+                 ('bar', 'plan2', '54321')]
+    table = nsdTable("csvTable", [Column("name"), Column("node"), Column("data")], csv_data_file(), "csv", ["node"])
+    d = StatsDatabase(testing=True)
+    create_table(d, table)
+    d.load_data_csv(table, node_mapping_file())
+    dt = d.execute("SELECT * FROM csvTable")
+
+    for i in data_list:
+        assert(i in dt)
+
+    d.conn.close()
+
+
 def test_createview():
-    d = StatsDatabase()
-    d.load_castalia_output(castalia_output_file())
+    d = StatsDatabase(testing=True)
+    d.load_data_castalia(castalia_output_file())
     d.create_view("test_view", "SELECT node FROM dataTable")
     c = d.conn.cursor()
     res = c.execute(d.relations["test_view"].sql_fetch_all()).fetchall()
@@ -125,14 +150,14 @@ def test_createview():
 
 
 def test_getnodes():
-    d = StatsDatabase()
-    d.load_castalia_output(castalia_output_file())
+    d = StatsDatabase(testing=True)
+    d.load_data_castalia(castalia_output_file())
     assert d.get_nodes() == [0, 1, 2]
 
 
 def test_execute_exect_one():
-    db = StatsDatabase()
-    db.load_castalia_output(castalia_output_file())
+    db = StatsDatabase(testing=True)
+    db.load_data_castalia(castalia_output_file())
 
     with pytest.raises(Exception):
         db.execute_expect_one("SELECT node,data FROM dataTable WHERE name = 'Consumed Energy'")
@@ -141,8 +166,8 @@ def test_execute_exect_one():
 
 
 def test_execute():
-    db = StatsDatabase()
-    db.load_castalia_output(castalia_output_file())
+    db = StatsDatabase(testing=True)
+    db.load_data_castalia(castalia_output_file())
 
     assert db.execute("SELECT node,data FROM dataTable WHERE name = 'Consumed Energy'") == [(0, 6.79813), (1, 6.28785), (2, 6.28569)]
 

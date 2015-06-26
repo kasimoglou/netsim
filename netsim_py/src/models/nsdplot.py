@@ -1,7 +1,4 @@
-from models.mf import model, attr, ref, refs, ref_list
-from collections import namedtuple
-from enum import Enum
-from numbers import Number
+from models.mf import model, attr, ref, ref_list
 
 
 
@@ -22,9 +19,10 @@ class Column:
 
     """
 
-    def __init__(self, name, parent=None):
+    def __init__(self, name, origin_table=None, type="varchar"):
         self.name = name
-        self.parent = parent
+        self.origin_table = origin_table
+        self.type = type
 
     # the column name
     name = attr(str)
@@ -32,7 +30,10 @@ class Column:
     # the table this column will be derived from when creating views
     # this is needed if the same column appears in two tables that are used to create a view
     # and the column will be present in the view
-    parent = attr(object)  # TODO: should be Table but generates errors
+    origin_table = attr(object)
+
+    # what type (sqlite) of data this column will hold
+    type = attr(str)
 
     # the table this column belongs to
     table = ref()
@@ -44,31 +45,21 @@ class Table:
     Describes a table with columns
     """
 
-    def __init__(self, name, columns=[]):
+    def __init__(self, name, columns=[], filename=None, format=None, node_mapping=None):
         self.name = name
         self.columns = columns
         # just for easy access to columns by name
         #self.col = {self.columns[i].name: self.columns[i] for i in list(range(len(self.columns)))}
         self.col = {col.name:col for col in self.columns}
+        self.filename = filename
+        self.format = format
+        self.node_mapping = node_mapping
 
     # the name for this table
     name = attr(str, nullable=False)
 
     # the columns contained in this table
     columns = ref_list(inv=Column.table)
-
-
-
-
-@model
-class AggregateFunction(Enum):
-    AVG = 0
-    COUNT = 1
-    FIRST = 2
-    LAST = 3
-    MAX = 4
-    MIN = 5
-    SUM = 6
 
 
 @model
@@ -100,8 +91,6 @@ GREATER_EQ = Function('>=', True)
 
 AVG = Function('AVG', False, True)
 COUNT = Function('COUNT', False, True)
-FIRST = Function('FIRST', False, True)
-LAST = Function('LAST', False, True)
 MAX = Function('MAX', False, True)
 MIN = Function('MIN', False, True)
 SUM = Function('SUM', False, True)
@@ -129,8 +118,8 @@ class ColumnExpr(Column):
     """
     A column in a derived table, defined by an expression.
     """
-    def __init__(self, name, expression, alias=None):
-        super().__init__(name)
+    def __init__(self, name, expression, alias=None, type="varchar", origin_table=None):
+        super().__init__(name, origin_table, type)
         self.expr = expression
         if alias:
             self.alias = alias
@@ -183,7 +172,9 @@ class DerivedTable(Table):
 @model
 class DataTable(Table):
     """
+    Deprecated
     The table that will hold all information generated from the simulation
+    ============ ONLY USED DURING TESTS ============
     """
     def __init__(self):
         super().__init__('dataTable', [Column("module"),
@@ -192,9 +183,10 @@ class DataTable(Table):
                                        Column("label"),
                                        Column("n_index"),
                                        Column("data"),
-                                       ])
+                                       ], "simout.txt", "dataTable", ["node", "n_index"])
 
 
+# Deprecated (used only during tests)
 DATA_TABLE = DataTable()
 
 
@@ -223,7 +215,7 @@ class PlotModel:
     #
     # applicable only to model_type "plot"
     #
-    axes = attr(list)  # TODO: applicable to both ?
+    axes = attr(list)
     style = attr(str, default='linespoints')   # e.g., 'linespoints',
     legend = attr(str, default='DEFAULT')  # DEFAULT,
     xlabel = attr(str)    # gnuplot syntax

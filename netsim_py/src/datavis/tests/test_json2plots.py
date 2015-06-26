@@ -1,6 +1,4 @@
 from datavis.json2plots import *
-from datavis.predefined_plots import PlotsEncoder
-from datavis.database import Relation
 from datavis.json2plots import ViewsPlotsDecoder
 import os
 from runner.config import cfg
@@ -15,16 +13,31 @@ def test_views_plots_decoder():
         # View 1
         #
         {
-            "name": "dataTable",  # not an actual view, this already exists in the database, used here to define plots
+            "name": "dataTable",
 
-            # ###### can be ignored/omitted for "dataTable"#######
-            "columns": [  # not required since columns in dataTable are hardcoded
-
+            "columns": [
+                {
+                    "name": "node"
+                },
+                {
+                    "name": "name"
+                },
+                {
+                    "name": "module"
+                },
+                {
+                    "name": "label"
+                },
+                {
+                    "name": "n_index"
+                },
+                {
+                    "name": "data"
+                }
             ],
-            "base_tables": [],  # None, this is the table that all views will derive from
-            "table_filter": "",  # not required, we are not generating this table it already exists
-            "groupby": [],  # not required
-            ####### ------------------------------------- #######
+            "filename": "simout.txt",
+            "format": "dataTable",
+            "node_mapping": ["node", "n_index"],
 
 
             "plots": [
@@ -101,16 +114,6 @@ def test_views_plots_decoder():
 
     decoder = ViewsPlotsDecoder()
     dts, pms = decoder.decode(Views)
-
-    for dt in dts:
-        dt_j = json.dumps(dt, cls=PlotsEncoder, indent=2)
-        print(dt_j)
-
-    for pm in pms:
-        pm_j = json.dumps(pm, cls=PlotsEncoder, indent=2)
-        print(pm_j)
-
-        # assert 0  # just to see the prints
 
 
 table = Table('foo', [Column('a'), Column('b'), Column('name'), Column('dummy')])

@@ -11,7 +11,7 @@ class GenError(Exception):
     '''
     pass
 
-class GenFormatter(logging.Formatter):
+class JsonFormatter(logging.Formatter):
     '''
     Formatter for the generator class.
     '''
@@ -19,19 +19,27 @@ class GenFormatter(logging.Formatter):
     mapper = {
         'stage': 'during %s',
         'importing': 'importing %s',
-        'reading' : 'field %s'
+        'reading' : 'field %s',
+        'view' : 'view %s',
+        'plot' : 'plot %s'
     }
 
     def format(self, record):
         allmsg = []
 
-        for attr in ('stage', 'importing', 'reading'):
+        for attr in ('stage', 'importing', 'reading', 'view', 'plot'):
             if hasattr(record,attr):
                 allmsg.append(self.mapper[attr] % getattr(record,attr))
 
         allmsg.append(record.getMessage())
         return ":".join(allmsg)
 
+class GenFormatter(JsonFormatter):
+
+    def format(self, record):
+        lvl = record.levelname
+        msg = super().format(record)
+        return "%s: %s" % (lvl, msg)
 
 
 
@@ -85,8 +93,9 @@ class GenProcess(Process):
         self.gen_handler.setLevel(level)
 
         self.gen_formatter = GenFormatter()
+        self.json_formatter = JsonFormatter()
         self.gen_handler.setFormatter(self.gen_formatter)
-        self.json_handler.setFormatter(self.gen_formatter)
+        self.json_handler.setFormatter(self.json_formatter)
 
         # other
         logging.getLogger('urllib3').setLevel(logging.WARN)
