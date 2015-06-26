@@ -6,7 +6,7 @@
 #include <boost/format.hpp>
 
 #include "CastaliaModule.h"
-#include "GenericOS.hh"
+#include "GenericOS.h"
 #include "ApplicationPacket_m.h"
 
 using namespace std;

@@ -1,5 +1,5 @@
 
-#include "GenericOS.hh"
+#include "GenericOS.h"
 
 Define_Module(GenericOS);
 
@@ -85,6 +85,7 @@ void GenericOS::startup()
 
 void GenericOS::fromNetworkLayer(ApplicationPacket * rcvPacket, const char *source, double rssi, double lqi)
 {
+	
 }
 
 void GenericOS::timerFiredCallback(int timerIndex)

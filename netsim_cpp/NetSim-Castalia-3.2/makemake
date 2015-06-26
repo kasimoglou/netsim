@@ -12,6 +12,8 @@
 
 #!/bin/bash
 
+echo "Please use the script netsim_makemake to build NetSim-Castalia" && exit 1
+
 ROOT=`pwd`
 
 # The following options are used by OMNeT's opp_makemake tool

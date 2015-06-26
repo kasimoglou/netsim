@@ -318,13 +318,40 @@ class CastaliaModelBuilder:
         Configure the communication stack.
         '''
         nsdef =  nodeType.nodeDef.ns_nodedef 
-        if nsdef is not None:
-            radio_dev = nsdef.radio
-            radio = Radio(nodeType.comm, radio_dev)            
-        else:
+        if nsdef is None:
+            # We do not have a sim-specific nodedef, just configure
+            # with minimum parameters
             radio = Radio(nodeType.comm)
             radio.RadioParametersFile = "../Parameters/Radio/CC2420.txt"
             radio.symbolsForRSSI = 8
+        else:
+            # configure comm according to nsdef
+
+            # (a) First, configure radio, as this is 
+            # not dependent on others
+            self.config_radio(nodeType, nsdef.radio)
+
+            self.config_mac(nodeType)
+            self.confif_routing(nodeType)
+
+
+    def config_routing(self, nodeType):
+        nsdef =  nodeType.nodeDef.ns_nodedef 
+        if nsdef is None: 
+            # the default is bypassRouting
+            return
+
+
+    def config_mac(self, nodeType):
+        nsdef =  nodeType.nodeDef.ns_nodedef 
+        if nsdef is None: 
+            # the default is bypassMac
+            return
+
+
+    def config_radio(self, nodeType, radio_dev):
+        "Configure the radio device"
+        radio = Radio(nodeType.comm, radio_dev)            
 
 
     def config_application(self, nodeType):
@@ -579,7 +606,7 @@ makefrag:
 \tln -s $(CASTALIA_PATH)/makefrag.inc makefrag
 
 compile: makefrag
-\topp_makemake -f -r --deep -o $(SIMEXEC) -u Cmdenv -P $(SIMHOME) -M release -X./Simulations -X./src -L$(CASTALIA_PATH) -lcastalia
+\topp_makemake -f -r --deep -o $(SIMEXEC) -u Cmdenv -P $(SIMHOME) -M release -X./Simulations -X./src -L$(CASTALIA_PATH) -lnetsim
 \t$(MAKE)
 
 run:

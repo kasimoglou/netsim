@@ -1,5 +1,5 @@
 
-#include "FunctionalBlock.hh"
+#include "FunctionalBlock.h"
 
 
 Define_Module(FunctionalBlock);

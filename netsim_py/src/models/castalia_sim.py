@@ -366,14 +366,6 @@ class Application(CastaliaModule):
     constantDataPayload = parameter(int)
 
 
-@model
-class Communication(CastaliaModule):
-    """
-    string MACProtocolName = default ("BypassMAC");
-    string RoutingProtocolName = default ("BypassRouting");
-    """
-    MACProtocolName = parameter(str)
-    RoutingProtocolName = parameter(str)
 
 
 @model
@@ -452,6 +444,26 @@ class Mac(CastaliaModule):
     macPacketOverhead = parameter(int)
 
 
+
+@model
+class Communication(CastaliaModule):
+    """
+    string MACProtocolName = default ("BypassMAC");
+    string RoutingProtocolName = default ("BypassRouting");
+    """
+    MACProtocolName = parameter(str)
+    RoutingProtocolName = parameter(str)
+
+    Radio = attr(Radio)
+    MAC = attr(Mac)
+    Routing = attr(Routing)
+
+    def __init__(self, parent):
+        super().__init__(parent, "Communication")
+
+
+
+
 #
 #  Omnetpp.ini model
 #
@@ -526,8 +538,8 @@ class NodeType:
     # the node module (dummy)
     nodes = attr(CastaliaModule)
 
-    # the communication submodule (dummy)
-    comm = attr(CastaliaModule)
+    # the communication submodule
+    comm = attr(Communication)
 
     def __init__(self, cm, nodeDef, index):
         self.castalia_model = cm
@@ -535,7 +547,7 @@ class NodeType:
         self.index = index
 
         self.nodes = Node(cm.network.base(), 'node', index)
-        self.comm = self.nodes.submodule('Communication')
+        self.comm = Communication(self.nodes)
 
 
 #
