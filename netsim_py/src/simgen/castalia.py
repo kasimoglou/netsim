@@ -203,7 +203,12 @@ class NSDReader(JSONReader):
             # read parameters
             json_obj = self.datastore.get(entity, oid)
         except Exception as e:
-            fail("Failed to read %s with id='%s' from the project repository." % (entity.name, oid))
+            if isinstance(oid, (tuple,list)):
+                # we have an attachment
+                fail("Failed to read attachment %s for id='%s' from the project repository." 
+                    % (oid[1],oid[0]['_id']))
+            else:
+                fail("Failed to read %s with id='%s' from the project repository." % (entity.name, oid))
 
         try:
             self.populate_modeled_instance(obj, json_obj)

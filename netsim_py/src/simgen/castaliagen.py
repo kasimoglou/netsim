@@ -332,7 +332,7 @@ class CastaliaModelBuilder:
             self.config_radio(nodeType, nsdef.radio)
 
             self.config_mac(nodeType)
-            self.confif_routing(nodeType)
+            self.config_routing(nodeType)
 
 
     def config_routing(self, nodeType):
