@@ -247,7 +247,7 @@ class CastaliaModelBuilder:
         '''
         # TBD: make this adhere to model
         net = self.cm.network
-        net.numPhysicalProcesses = 1
+        net.numPhysicalProcesses = 5
         net.physicalProcessName = 'CustomizablePhysicalProcess'
 
 
