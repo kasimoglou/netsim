@@ -98,33 +98,41 @@ class DescendError(TypeError):
         self.rel=rel
 
 
+def transform_value(attr, value):
+    """
+    Transform a value so that it is assignment-compatible the given mf.Attribute.
+    """
+    assert isinstance(attr, Attribute)
+    
+    try:
+        if json_filter.has(attr):
+            return json_filter.get(attr).function(value)
+
+        if isinstance(value, attr.type):
+            return value 
+
+        if attr.nullable and value is None:
+            return value
+    
+        # try a default python conversion
+        tval = attr.type(value)
+        return tval
+    except Exception as e:
+        fail('Incompatible value. Expected %s and got %s', attr.type, type(value).__name__)
+
+
+
 class JSONReader:
     '''
     Instances of this class can be used to provide for translation
     of a json object into a hierarchy of model objects.
     '''
 
-    def transform_value(self, attr, value):
-        """Transform a value so that it is assignment-compatible the given mf.Attribute.
-        """
-        assert isinstance(attr, Attribute)
-        
-        try:
-            if json_filter.has(attr):
-                return json_filter.get(attr).function(value)
-
-            if isinstance(value, attr.type):
-                return value 
-
-            if attr.nullable and value is None:
-                return value
-        
-            # try a default python conversion
-            tval = attr.type(value)
-            return tval
-        except Exception as e:
-            fail('Incompatible value. Expected %s and got %s', attr.type, type(value).__name__)
-
+    def transform_value(self, attr, name):
+        '''
+        Simply call transform_value
+        '''
+        return transform_value(attr, name)
 
     def populate_modeled_instance(self, model, json, **defaults):
         """

@@ -8,6 +8,7 @@ from runner.config import castalia_path, omnetpp_path, cfg
 from models.nsd import *
 from models.castalia_sim import *
 from models.mf import Attribute
+from models.json_reader import transform_value
 
 from simgen.validation import Context, fail, fatal, inform, warn, add_context
 from simgen.utils import docstring_template
@@ -33,9 +34,65 @@ def generate_castalia(gen):
 
 
 def copy_json_params(module, jsobj):
+    '''
+    Copy parameters into generic CastaliaModule
+    '''
     for key, value in jsobj["parameters"].items():
         module.set(key, value)
 
+
+def populate_module_params(module, params):
+    '''
+    Copy parameters into structured CastaliaModule
+    '''
+    mclass = module.__model_class__
+    for param in mclass.all_attributes:
+        if Param.has(param):
+            if param.name in params:
+                val = transform_value(param, params[param.name])
+                setattr(module, param.name, val)
+
+
+def get_module_by_type(parent, moduleType):
+    '''
+    Get a module instance for the given module type.
+    '''
+    if moduleType not in MODEL_MAP:
+        fail("Could not resolve module type %s", moduleType)
+    mclass = MODEL_MAP[moduleType]
+    return mclass(parent)
+
+
+def create_module(parent, obj):
+    '''
+    Create a castalia module from the given object.
+    '''
+
+    if 'moduleType' in obj:
+        module = get_module_by_type(parent, obj['moduleType'])
+        if 'parameters' in obj:
+            populate_module_params(module, obj['parameters'])
+    elif 'name' in obj:
+        module = CastaliaModule(parent, obj['name'])
+        if 'parameters' in obj:
+            copy_json_params(module, obj)
+    else:
+        fail("Library object has neither 'name' nor 'moduleType' field")
+
+    if 'submodules' in obj:
+        for subobj in obj['submodules']:
+            submodule = create_module(module, subobj)
+            # see if we should assign this to the current object.
+            if any(submodule.subname == attr.name 
+                for attr in  module.__model_class__.all_attributes):
+                setattr(module, submodule.subname, submodule)
+
+    return module
+
+
+
+#
+#
 
 class CastaliaModelBuilder:
     '''
@@ -324,34 +381,34 @@ class CastaliaModelBuilder:
             radio = Radio(nodeType.comm)
             radio.RadioParametersFile = "../Parameters/Radio/CC2420.txt"
             radio.symbolsForRSSI = 8
+
+            mac = BypassMAC(nodeType.comm)
+            routing = BypassRouting(nodeType.comm)
+
+
         else:
             # configure comm according to nsdef
+            radio = self.config_radio(nodeType, nsdef.radio)
+            mac = self.config_mac(nodeType, nsdef.mac)
+            routing = self.config_routing(nodeType, nsdef.routing)
 
-            # (a) First, configure radio, as this is 
-            # not dependent on others
-            self.config_radio(nodeType, nsdef.radio)
+        nodeType.comm.Radio = radio
+        nodeType.comm.MAC = mac
+        nodeType.comm.Routing = routing
 
-            self.config_mac(nodeType)
-            self.config_routing(nodeType)
-
-
-    def config_routing(self, nodeType):
-        nsdef =  nodeType.nodeDef.ns_nodedef 
-        if nsdef is None: 
-            # the default is bypassRouting
-            return
+        nodeType.comm.validate_instance(nodeType)
 
 
-    def config_mac(self, nodeType):
-        nsdef =  nodeType.nodeDef.ns_nodedef 
-        if nsdef is None: 
-            # the default is bypassMac
-            return
+    def config_routing(self, nodeType, routing_def):
+        return create_module(nodeType.comm, routing_def)
 
+    def config_mac(self, nodeType, mac_def):
+        return create_module(nodeType.comm, mac_def)
 
     def config_radio(self, nodeType, radio_dev):
         "Configure the radio device"
-        radio = Radio(nodeType.comm, radio_dev)            
+        return Radio(nodeType.comm, radio_dev)
+
 
 
     def config_application(self, nodeType):

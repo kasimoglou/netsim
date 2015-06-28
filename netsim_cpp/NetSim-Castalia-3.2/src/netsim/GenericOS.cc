@@ -76,6 +76,20 @@ void GenericOS::initialize()
 }
 
 
+int GenericOS::addPeriodicTask(PeriodicTask* task)
+{
+	int timer_id = periodicTasks.size();
+	periodicTasks.push_back(task);
+	return timer_id;
+}
+
+
+void GenericOS::addSensorBuffer(SensorBuffer* sensorBuffer)
+{
+	sensorBuffers[sensorBuffer->sensorIndex] = sensorBuffer;
+}
+
+
 
 void GenericOS::startup()
 {
@@ -85,25 +99,80 @@ void GenericOS::startup()
 
 void GenericOS::fromNetworkLayer(ApplicationPacket * rcvPacket, const char *source, double rssi, double lqi)
 {
-	
+	typedef map<int, MessageHandler>::iterator Iter;
+
+	int messageClass = getMessageClass(rcvPacket);
+	Iter found = handlers.find(messageClass);
+	if(found != handlers.end()) {
+		(*found).second(rcvPacket, source, rssi, lqi);
+	}
 }
 
 void GenericOS::timerFiredCallback(int timerIndex)
 {
-	// switch (timerIndex) {
-	// 	case SEND_PACKET:{
-	// 		break;
-	// 	}
-	// }
+	if(timerIndex<0 || timerIndex >= periodicTasks.size())
+		opp_error("timerFiredCallback() "
+			"called for task out of range.");
+	periodicTasks[timerIndex]->fired();
 }
 
 void GenericOS::finishSpecific()
 {
 	VirtualApplication::finishSpecific();
-	// declareOutput("Packets received");
-	// for (int i = 0; i < (int)neighborTable.size(); i++) {
-	// 	collectOutput("Packets received", neighborTable[i].id,
-	// 		      "Success", neighborTable[i].receivedPackets);
-	// }
 }
+
+
+void GenericOS::send_message(ApplicationPacket* packet, const char* dest)
+{
+	toNetworkLayer(packet, dest);
+}
+
+
+void GenericOS::fireTimerAfter(int timer_id, simtime_t duration)
+{
+	setTimer(timer_id, simTime()+duration);
+}
+
+
+//
+//  Periodic task
+//
+
+PeriodicTask::PeriodicTask(GenericOS* __OS)
+	: AppModule(__OS), period() 
+{
+	timer_id = OS->addPeriodicTask(this);
+}
+
+
+void DataBuffer::record(double m)
+{
+	measurement.push_back(m);
+	m_time.push_back(simTime());
+}
+
+
+//
+//  Sensor buffer
+//
+
+
+
+void SensorBuffer::request()
+{
+	OS->requestSensorReading(sensorIndex);
+}
+
+
+SensorReadTask::SensorReadTask(GenericOS* __OS)
+   : AppModule(__OS), PeriodicTask(__OS)
+{
+}
+
+void SensorReadTask::task()
+{
+	sensorBuffer->request();
+}
+
+
 

@@ -2,8 +2,6 @@
 #include "FunctionalBlock.h"
 
 
-Define_Module(FunctionalBlock);
-
 
 FunctionalBlock::FunctionalBlock() : cSimpleModule(65536), _OpSys(0) { }
 
@@ -17,15 +15,3 @@ void FunctionalBlock::initialize()
 	cerr << "Initialized module " << _OpSys->getName() << endl;
 }
 
-
-
-// Async API
-cPacket* FunctionalBlock::receive()
-{
-
-}
-
-double FunctionalBlock::read_sensor(int i)
-{
-	 
-}

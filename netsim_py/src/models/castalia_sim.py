@@ -6,10 +6,11 @@ Created on Oct 12, 2014
 @author: vsam
 '''
 
-from models.mf import model, ref, refs, ref_list, attr, annotation_class
 from collections import namedtuple
-from models.nsd import *
 
+from models.mf import model, ref, refs, ref_list, attr, annotation_class
+from models.nsd import *
+from models.validation import fail, warn, inform, snafu
 
 
 
@@ -455,6 +456,8 @@ class Radio(CastaliaModule):
                     val = getattr(radio, param.name)
                     setattr(self, param.name, val)
 
+    def validate_instance(self, nodeType):
+        pass
 
 #---------------------------------------------------------
 #
@@ -474,19 +477,26 @@ class Mac(CastaliaModule):
     macBufferSize = parameter(int)
     macPacketOverhead = parameter(int)
 
-    def __init__(self, parent, mac=None):
+    typename = parameter(str, nullable=False)
+
+    def __init__(self, parent, mac):
         super().__init__(parent, "MAC")
+        self.typename = mac
+
+    def validate_instance(self, nodeType):
+        pass
+
 
 @model
 class BypassMAC(Mac):
-    def __init__(self, parent, mac=None):
+    def __init__(self, parent):
+        # call parent constructor
+        super().__init__(parent, "BypassMAC")
         # just define defaults
         self.macMaxPacketSize = 0
         self.macPacketOverhead = 8
         self.macBufferSize = 0
 
-        # call parent constructor
-        super.__init__(parent, mac)
 
 
 @model 
@@ -506,14 +516,22 @@ class CC2420Mac(Mac):
     macAckOverhead = parameter(int, default=5)
     ackEnabled = parameter(bool, default=True)
 
-    def __init__(self, parent, mac=None):
+    def __init__(self, parent):
+        # call parent constructor
+        super().__init__(parent, "CC2420Mac")
         # just define defaults
         self.macMaxPacketSize = 0
         self.macPacketOverhead = 12
         self.macBufferSize = 1
 
-        # call parent constructor
-        super.__init__(parent, mac)
+    def validate_instance(self, nodeType):
+        "Check datarate and phyFrameOverhead"
+        self_p = self.phyFrameOverhead
+        radio_p = nodeType.comm.Radio.phyFrameOverhead
+        if self_p != radio_p:
+            fail("MAC(CC2420Mac) phyFrameOverhead(=%d)"
+                " is not the same as that of the radio(=%d)",self_p,radio_p)
+
 
 
 @model
@@ -591,14 +609,14 @@ class Mac802114(Mac):
     phyDataRate = parameter(float, nullable=False)
     phyBitsPerSymbol = parameter(int, nullable=False)
 
-    def __init__(self, parent, mac=None):
+    def __init__(self, parent):
+        # call parent constructor
+        super().__init__(parent, "Mac802114")
         # just define defaults
         self.macMaxPacketSize = 0
         self.macPacketOverhead = 14
         self.macBufferSize = 32
 
-        # call parent constructor
-        super.__init__(parent, mac)
 
 
 @model
@@ -666,29 +684,29 @@ class TMAC(Mac):
     phyFrameOverhead = parameter(int, default=6)
 
 
-    def __init__(self, parent, mac=None):
+    def __init__(self, parent):
+        # call parent constructor
+        super().__init__(parent, "TMAC")
         # just define defaults
         self.macMaxPacketSize = 0
         self.macPacketOverhead = 11
         self.macBufferSize = 32
 
-        # call parent constructor
-        super.__init__(parent, mac)
 
 @model
 class SMAC(TMAC):
     """
     Define SMAC by adjustng TMAC parameters
     """
-    def __init__(self, parent, mac=None):
+    def __init__(self, parent):
+        # call parent constructor
+        super().__init__(parent)
         # just re-define defaults
         self.listenTimeout = 61.0
         self.disableTAextension = True
         self.conservativeTA = False
         self.collisionResolution = 0
 
-        # call parent constructor
-        super.__init__(parent, mac)
 
 
 @model
@@ -749,25 +767,24 @@ class TunableMAC(Mac):
     phyDelayForValidCS = parameter(float, default=0.128)
     phyFrameOverhead = parameter(int, default=6)
 
-    def __init__(self, parent, mac=None):
+    def __init__(self, parent):
+        # call parent constructor
+        super().__init__(parent, "TunableMAC")
         # just define defaults
         self.macMaxPacketSize = 0
         self.macPacketOverhead = 9
         self.macBufferSize = 32
 
-        # call parent constructor
-        super.__init__(parent, mac)
 
 @model
 class CSMA(TunableMAC):
-    def __init__(self, parent, mac=None):
+    def __init__(self, parent):
+        # call parent constructor
+        super().__init__(parent)
         # just define defaults
         self.dutyCycle = 1.0
         self.randomTxOffset = 0.0
         self.backoffType = 2
-
-        # call parent constructor
-        super.__init__(parent, mac)
 
 
 #---------------------------------------------------------
@@ -787,16 +804,67 @@ class Routing(CastaliaModule):
     netDataFrameOverhead = parameter(int)
     netBufferSize = parameter(int)
 
+    def __init__(self, parent):
+        super().__init__(parent, "Routing")
+
+    def validate_instance(self, nodeType):
+        pass
+
+@model
+class BypassRouting(Routing):
+    """
+    int maxNetFrameSize = default (0);      // bytes
+    int netDataFrameOverhead = default (10);        // bytes
+    int netBufferSize = default (32);       // number of messages
+    """
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.maxNetFrameSize=0
+        self.netDataFrameOverhead=10
+        self.netBufferSize=32
+
+@model
+class MultipathRingsRouting(Routing):
+    """
+    int mpathRingsSetupFrameOverhead = default (13);        // bytes
+    int netSetupTimeout = default (50);                                     // msec
+    """
+    mpathRingsSetupFrameOverhead = parameter(int, default=13)
+    netSetupTimeout = parameter(int, default=50)
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.maxNetFrameSize=0
+        self.netDataFrameOverhead=14
+        self.netBufferSize=32
 
 
 
+@model
+class CtpNoe(Routing):
+    """
+    int maxNetFrameSize = default (0);      // bytes
+    int netDataFrameOverhead = default (10);        // bytes
+    int netBufferSize = default (32);       // number of messages 
+    """
 
+    Ctp = attr(CastaliaModule)
+    CtpForwardingEngine = attr(CastaliaModule)
+    CtpRoutingEngine = attr(CastaliaModule)
+    LinkEstimator = attr(CastaliaModule)
+    DualBuffer = attr(CastaliaModule)
+
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.maxNetFrameSize=0
+        self.netDataFrameOverhead=10
+        self.netBufferSize=32
+
+        
 
 
 #
 #  The communication module
 #
-
 
 
 @model
@@ -815,7 +883,14 @@ class Communication(CastaliaModule):
     def __init__(self, parent):
         super().__init__(parent, "Communication")
 
-
+    def validate_instance(self, nodeType):
+        """
+        Pass self to the validation routine of the instances, in
+        case they want to validate something
+        """
+        self.Radio.validate_instance(nodeType)
+        self.MAC.validate_instance(nodeType)
+        self.Routing.validate_instance(nodeType)
 
 
 #
@@ -924,6 +999,9 @@ class CastaliaModel:
     network = attr(Network)
 
 
+MAC_MODELS = [BypassMAC, CC2420Mac, Mac802114, TMAC, SMAC, TunableMAC, CSMA]
+
+ROUTING_MODELS = [CtpNoe, BypassRouting, MultipathRingsRouting]
 
 MODEL = [
     CastaliaModel, 
@@ -937,5 +1015,15 @@ MODEL = [
     CastaliaModule, 
     Network, WirelessChannel,    
     Node, ResourceManager, SensorManager,
-    Application, Communication, Radio, Mac    
-]
+    Application, Communication, Radio, 
+
+    Mac, Routing
+] + MAC_MODELS + ROUTING_MODELS
+
+
+MODEL_MAP = {
+    mclass.__model_class__.name : mclass
+    for mclass in MODEL
+    if issubclass(mclass, CastaliaModule)
+}
+
