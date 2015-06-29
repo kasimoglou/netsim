@@ -1,15 +1,18 @@
 // # Vectorl editor Controllers
 define(['angular',
     'ngDialog',
-    '../services/api_services'], function() {
+    '../services/api_services',
+    '../services/session_services'], function() {
 
-    var vectorlEditorControllers = angular.module('vectorlEditorControllers', ['apiServices', 'ngDialog']);
+    var vectorlEditorControllers = angular.module('vectorlEditorControllers', ['apiServices', 'ngDialog', 'sessionServices']);
 
     // ## New Vectorl controller
     vectorlEditorControllers.controller('newVectorlController',
-        ['$scope', '$location', '$validator', 'API', function($scope, $location, $validator, API) {
+        ['$scope', '$location', '$validator', 'API', 'Session', function($scope, $location, $validator, API, Session) {
 
-        $scope.vectorl = {};
+        $scope.vectorl = {
+            project_id: Session.getCurrentSessionInfo().current_project_id
+        };
         $scope.projects = [];
 
         $scope.fetchProjects = function() {
@@ -180,14 +183,16 @@ define(['angular',
 
     // Vectorls list form Controller
     vectorlEditorControllers.controller('vectorlListController',
-        ['$scope', '$location', 'API', 'ngDialog', function($scope, $location, API, ngDialog) {
+        ['$scope', '$location', 'API', 'ngDialog', 'Session', function($scope, $location, API, ngDialog, Session) {
 
         $scope.vectorls = [];
         $scope.projects = [];
 
         $scope.shown_vectorls = [];
 
-        $scope.filters = {};
+        $scope.filters = {
+            project_id: Session.getCurrentSessionInfo().current_project_id
+        };
 
         $scope.fetchProjects = function() {
             API.projectsRead()
@@ -220,6 +225,7 @@ define(['angular',
                         });
                         $scope.shown_vectorls = $scope.vectorls;
                         $scope.temp.load_finished = true;
+                        $scope.filterVectorLs();
             })
                     .error(function(error) {
                         console.log(error.details);
