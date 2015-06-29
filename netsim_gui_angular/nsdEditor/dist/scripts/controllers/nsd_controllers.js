@@ -815,9 +815,11 @@ define(['underscore',
                     vectrol_id: $scope.temp.environment.vectorl_id
                 };
                 $scope.nsd.environment.mapping = [];
-                for (var i=0; i< $scope.temp.environment.sensor_mapping.length; i++) {
-                    if ($scope.temp.environment.sensor_mapping[i]) {
-                       $scope.nsd.environment.mapping.push($scope.temp.environment.sensor_mapping[i]);
+                if ($scope.temp.environment.sensor_mapping) {
+                    for (var i=0; i< $scope.temp.environment.sensor_mapping.length; i++) {
+                        if ($scope.temp.environment.sensor_mapping[i]) {
+                           $scope.nsd.environment.mapping.push($scope.temp.environment.sensor_mapping[i]);
+                        }
                     }
                 }
             }
