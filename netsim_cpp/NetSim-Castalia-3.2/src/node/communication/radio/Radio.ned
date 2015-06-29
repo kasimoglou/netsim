@@ -49,6 +49,12 @@ simple Radio {
 	int maxPhyFrameSize = default (1024);	// in bytes
 	int phyFrameOverhead = default (6);	// in bytes (802.15.4. = 6 bytes)
 
+        // My add
+
+        int enablePERHil = default (-1);
+        bool selectForward = default (false);
+
+
  gates:
 	output toCommunicationModule;
 	output toMacModule;

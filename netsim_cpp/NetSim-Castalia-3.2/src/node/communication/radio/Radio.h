@@ -27,6 +27,17 @@
 #include "ResourceManager.h"
 #include "CastaliaModule.h"
 
+
+// .... My Includes for Sockets
+
+#include <stdio.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+// ............................
+
+
 #define ALL_ERRORS -1
 #define IDEAL_MODULATION_THRESHOLD 5.0
 
@@ -200,6 +211,17 @@ class Radio: public CastaliaModule {
 	bool disabled;
 
 	PktBreakdown stats;
+
+        // My add
+        int enablePERHil;
+        char buffer[256];
+        int mindex;
+        char * myfifo;
+        bool selectForward;
+
+        // Only used with Radio1.cc
+        // int measuredRssi; 
+        
 
  protected:
 	virtual void initialize();
