@@ -804,8 +804,11 @@ class Routing(CastaliaModule):
     netDataFrameOverhead = parameter(int)
     netBufferSize = parameter(int)
 
-    def __init__(self, parent):
+    typename = parameter(str, nullable=False)
+
+    def __init__(self, parent, routing):
         super().__init__(parent, "Routing")
+        self.typename = routing
 
     def validate_instance(self, nodeType):
         pass
@@ -818,7 +821,7 @@ class BypassRouting(Routing):
     int netBufferSize = default (32);       // number of messages
     """
     def __init__(self, parent):
-        super().__init__(parent)
+        super().__init__(parent, "BypassRouting")
         self.maxNetFrameSize=0
         self.netDataFrameOverhead=10
         self.netBufferSize=32
@@ -832,7 +835,7 @@ class MultipathRingsRouting(Routing):
     mpathRingsSetupFrameOverhead = parameter(int, default=13)
     netSetupTimeout = parameter(int, default=50)
     def __init__(self, parent):
-        super().__init__(parent)
+        super().__init__(parent, "MultipathRingsRouting")
         self.maxNetFrameSize=0
         self.netDataFrameOverhead=14
         self.netBufferSize=32
@@ -854,7 +857,7 @@ class CtpNoe(Routing):
     DualBuffer = attr(CastaliaModule)
 
     def __init__(self, parent):
-        super().__init__(parent)
+        super().__init__(parent, "CtpNoe")
         self.maxNetFrameSize=0
         self.netDataFrameOverhead=10
         self.netBufferSize=32

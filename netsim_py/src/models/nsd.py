@@ -50,6 +50,23 @@ class VectorlEnvironment(Environment):
 ##############################
 
 
+
+
+@repository(prm.NS_COMPONENT)
+@model
+class Application:
+    """
+    Models application code and parameters.
+    """
+    requires = attr(list,default=[])
+    
+    moduleType = attr(str)
+    required(moduleType)
+
+    parameters = attr(dict)
+    required(parameters)
+
+
 @repository(prm.NS_COMPONENT)
 @model
 class RadioDevice:
@@ -167,6 +184,8 @@ class NsNodeDef:
     """
 
     nodedef = ref(inv=NodeDef.ns_nodedef)
+
+    app = attr(object)
 
     mote = attr(object)
     sensors = attr(list)

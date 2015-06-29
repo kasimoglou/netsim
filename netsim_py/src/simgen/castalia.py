@@ -14,7 +14,7 @@ from models.mf import Attribute
 
 from models.nsd import NSD, Network, Mote, Position, Plan, Project,\
     CastaliaEnvironment, VectorlEnvironment, NodeDef, ConnectivityMatrix,\
-    NsNodeDef, Sensor, MoteType, RadioDevice
+    NsNodeDef, Sensor, MoteType, RadioDevice, Application
 
 from simgen.validation import *
 from simgen.utils import docstring_template
@@ -33,6 +33,7 @@ class NSDReader(JSONReader):
     def __init__(self, gen):
         self.gen = gen
         self.datastore = gen.datastore
+        self.requires = set()
 
     def read_nsd(self, nsd_id, simhome):
         '''
@@ -162,6 +163,40 @@ class NSDReader(JSONReader):
             ns.radio = radio
         else:
             warn("There is no radio specification.")
+
+        # read the application spec
+        if hasattr(ns, 'app'):
+            app = Application()
+
+            try:
+                self.populate_modeled_instance(app, ns.app)
+            except Exception as e:
+                fail("Failed to read application for node type '%s'.",nodedef.name)
+
+            ns.app = app
+
+            self.read_requires(app.requires)
+        else:
+            warn("There is no application logic.")
+
+
+    def read_requires(self, req_list):
+        """
+        Read required code files for a list a code archive components.
+        """
+        for req in req_list:
+            if req in self.requires:
+                continue
+            arch = self.datastore.get(NS_COMPONENT, req)
+            self.read_archive(arch)
+            self.requires.add(req)
+
+    def read_archive(self, arch):
+        if '_attachments' in arch:
+            for att in arch['_attachments']:
+                self.datastore.get_attached_file(NS_COMPONENT, arch, att)
+
+
 
 
     def read_component(self, oid, obj):

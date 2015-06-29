@@ -308,7 +308,6 @@ class CastaliaModelBuilder:
         net.physicalProcessName = 'CustomizablePhysicalProcess'
 
 
-
     def create_wireless_channel(self):
         '''
         Configure the wireless channel.
@@ -398,6 +397,10 @@ class CastaliaModelBuilder:
 
         nodeType.comm.validate_instance(nodeType)
 
+        nodeType.comm.MACProtocolName = nodeType.comm.MAC.typename
+        nodeType.comm.RoutingProtocolName = nodeType.comm.Routing.typename
+
+
 
     def config_routing(self, nodeType, routing_def):
         return create_module(nodeType.comm, routing_def)
@@ -409,13 +412,21 @@ class CastaliaModelBuilder:
         "Configure the radio device"
         return Radio(nodeType.comm, radio_dev)
 
-
-
     def config_application(self, nodeType):
         '''
         Configure application logic.
         '''
-        nodeType.nodes.ApplicationName = "ConnectivityMap"
+        nsdef =  nodeType.nodeDef.ns_nodedef
+        if nsdef is None:
+            nodeType.nodes.ApplicationName = "ConnectivityMap"
+        else:
+            app = nsdef.app
+            nodeType.nodes.ApplicationName = app.moduleType
+
+            app_module = CastaliaModule(nodeType.nodes, "Application")
+            for key, value in app.parameters.items():
+                app_module.set(key, value)
+
 
 
     def config_resources(self, nodeType):
@@ -559,7 +570,7 @@ cmdenv-event-banners = false
 cmdenv-performance-display = false
 cmdenv-interactive = false
 
-ned-path = {{param.castalia_path}}/src
+ned-path = {{param.castalia_path}}/src;.
 
 network = SN    # this line is for Cmdenv
 

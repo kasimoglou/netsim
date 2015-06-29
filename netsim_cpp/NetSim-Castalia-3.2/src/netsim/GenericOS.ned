@@ -19,7 +19,7 @@ simple GenericOS like node.application.iApplication {
 	int priority = default (1);
 	int constantDataPayload = default (8);
 
-	double latencyHistogramMax = default (400);
+	double latencyHistogramMax = default (50);
 	int latencyHistogramBuckets = default (100);
 
  gates:

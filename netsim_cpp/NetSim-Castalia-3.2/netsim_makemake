@@ -26,6 +26,7 @@ ROOT="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
 # The following options are used by OMNeT's opp_makemake tool
 # For explanation and a complete list of options run: opp_makemake -h
 OPTS=" -f -r --deep -s -o netsim -u Cmdenv -P $ROOT -M release"
+#OPTS=" -f -r --deep -s -o netsim_debug -u Cmdenv -P $ROOT -M debug"
 
 # -X excludes a directory from being considered
 EXCLUDEDIRS=" -X Simulations -X out -X bin"

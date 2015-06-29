@@ -134,6 +134,22 @@ class ProjectRepoStore(DataStore):
         self.simdb.save(sim)
 
 
+    def get_attached_file(self, entity, obj, attached):
+        """
+        Download and save locally an attached text file inside
+        an object.
+        """
+        db = self.repo.db_of(entity)
+        try:
+            code = db.get_attachment(obj, attached)
+            with open(attached, "w") as codefile:
+                codefile.write(code.decode('utf8'))
+        except dpcmrepo.NotFound:
+            fail("Attachment '%s' of type %s does not exist.", attached, entity.name)
+            
+
+
+
     def get(self, entity, oid):
         """
         Given an entity from models/project_repo.py and

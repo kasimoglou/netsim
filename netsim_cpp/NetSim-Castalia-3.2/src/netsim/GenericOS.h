@@ -104,6 +104,7 @@ class GenericOS : public VirtualApplication {
 	int constantDataPayload;
 	int packetSequenceNumber;
 
+
 	// the vector of periodic tasks
 	vector<PeriodicTask*> periodicTasks;
 
@@ -156,6 +157,8 @@ class GenericOS : public VirtualApplication {
 	inline void sendToNetwork(cPacket* p, const char* dest) {
 		toNetworkLayer(p, dest);
 	}
+
+	void handleSensorReading(SensorReadingMessage *);
 
 	void fireTimerAfter(int timer_id, simtime_t duration);
 

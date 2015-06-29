@@ -30,7 +30,8 @@
 using namespace std;
 
 class VirtualApplication: public CastaliaModule, public TimerService {
- protected:
+// protected:
+public:
 	/*--- The .ned file's parameters ---*/
 	string applicationID;
 	int priority;

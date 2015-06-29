@@ -143,8 +143,10 @@ void CC2420Mac::finishSpecific(){
 }
 
 CC2420Mac::~CC2420Mac(){
-	delete m_msg ;
-	m_msg = NULL ;
+	if(m_msg!=NULL) {
+		delete m_msg ;
+		m_msg = NULL ;
+	}
 }
 
 /*

@@ -113,6 +113,8 @@ void GenericOS::timerFiredCallback(int timerIndex)
 	if(timerIndex<0 || timerIndex >= periodicTasks.size())
 		opp_error("timerFiredCallback() "
 			"called for task out of range.");
+
+	cerr << "Firing timer " << timerIndex << " of node " << self << endl;
 	periodicTasks[timerIndex]->fired();
 }
 
@@ -131,6 +133,25 @@ void GenericOS::send_message(ApplicationPacket* packet, const char* dest)
 void GenericOS::fireTimerAfter(int timer_id, simtime_t duration)
 {
 	setTimer(timer_id, simTime()+duration);
+}
+
+
+void GenericOS::handleSensorReading(SensorReadingMessage *msg)
+{
+    double sensedValue = msg->getSensedValue();
+    string sensorType = msg->getSensorType();
+    int sensorIndex = msg->getSensorIndex();
+
+    if(sensorBuffers.find(sensorIndex) == sensorBuffers.end()) {
+    	cerr << "Unknown sensor reading: node " << self << " reveived sensedValue=" << sensedValue
+    		<< " sensorType=" << sensorType
+    		<< " sensorIndex=" << sensorIndex << endl;
+
+    }
+    else {
+	    sensorBuffers[sensorIndex]->record(sensedValue);
+    }
+
 }
 
 
