@@ -31,6 +31,24 @@ void Radio::initialize()
 	declareOutput("RX pkt breakdown");
 	declareOutput("TXed pkts");
 	declareOutput("Buffer overflow");
+
+
+	declareOutput("RSSI");
+        
+	declareOutput("Validation");
+	//	collectOutput("Once", " SELF ", self);
+
+	// HIL socket initialization HERE
+
+	if ( enablePERHil >= 0 )
+	{
+          // TODO : Check if file already created ?
+          myfifo ="/home/myPipe";
+          int temp = system("touch /home/myPipe");
+          // mkfifo(myfifo, S_IRUSR | S_IWUSR | S_IRGRP| S_IWGRP | S_IROTH | S_IWOTH );
+
+	}   // End of HIL socket initialization
+    mindex = 1000;
 }
 
 void Radio::handleMessage(cMessage * msg)
@@ -98,7 +116,10 @@ void Radio::handleMessage(cMessage * msg)
 
 				// calculate bit errors for the last segment of unchanged signal conditions
 				int numOfBits = (int)ceil(RXmode->datarate * SIMTIME_DBL(simTime() - timeOfLastSignalChange));
+
 				double BER = SNR2BER(it1->power_dBm - it1->currentInterference);
+
+				// End of BER definition
 				it1->bitErrors += bitErrors(BER, numOfBits, maxErrorsAllowed(it1->encoding) - it1->bitErrors);
 
 				// update currentInterference in the received signal structure (*it)
@@ -211,7 +232,11 @@ void Radio::handleMessage(cMessage * msg)
 
 				//calculate bit errors for the last segment of unchanged signal conditions
 				int numOfBits = (int)ceil(RXmode->datarate * SIMTIME_DBL(simTime() - timeOfLastSignalChange));
+
+				// BER should be HIL defined or NOT??
 				double BER = SNR2BER(it1->power_dBm - it1->currentInterference);
+
+				// End of BER definition
 				it1->bitErrors += bitErrors(BER, numOfBits, maxErrorsAllowed(it1->encoding) - it1->bitErrors);
 
 				//update currentInterference in the received signal structure (*it)
@@ -223,12 +248,59 @@ void Radio::handleMessage(cMessage * msg)
 			updateTotalPowerReceived(endingSignal);
 			timeOfLastSignalChange = simTime();
 
+			// My add ........................................................................................
+			/* Here, when HIL enabled, we determine what Castalia will do with the packet.
+			 * We achieve this by altering the bitErrors field. Moreover we replace the
+			 * compute RSSI with the Real. Moreover we would like to know what
+			 * Castalia would do with the packet.
+			 */
+			 int measuredRssi = readRSSI();
+                           
+                         // signalID the id of the node sending the Packet
+			 if( enablePERHil == signalID )
+			 {
+                             
+                           trace()<<" HIL "<<enablePERHil<<" and "<<signalID;
+                           // Collect simulated Rssi
+			   collectOutput("RSSI",mindex,"Simulation RSSI",measuredRssi);
+			   
+                           int temp = 0;
+			   if(selectForward)
+                           {    
+                               temp = system("java -classpath /home/netsim/runsim/Simulations:/opt/tinyos-release-tinyos-2_1_2/support/sdk/java TestSerial -comm serial@/dev/ttyUSB0:115200 0 20 0");              // Forward Channel A -> B
+                           }else{
+                               temp = system("java -classpath /home/netsim/runsim/Simulations:/opt/tinyos-release-tinyos-2_1_2/support/sdk/java TestSerial -comm serial@/dev/ttyUSB0:115200 0 21 0");              // Reverse Channel B -> A
+                           }
+			     //collectOutput("Once", " System java ", temp);
+                           bzero(buffer,256);
+                           int fd = open(myfifo,O_RDONLY);
+                           int n = read(fd,buffer,255);
+                           close(fd);
+                           if (n < 0) error("ERROR reading from socket");
+
+                           measuredRssi = atoi(buffer);
+
+			   // Collect measured Rssi
+			   collectOutput("RSSI",mindex,"Real RSSI",measuredRssi);
+                          
+                           if( measuredRssi == -105 )    // Then packet failed
+			   {
+			       endingSignal->bitErrors = maxErrorsAllowed(endingSignal->encoding) + 1;   // So that packets gets dropped
+                           }else{
+                               endingSignal->bitErrors = 0;   // Making sure that packed will go to MAC
+			   }
+                           mindex++;
+			 } // end of Test Case for HIL enabled
+                         
+
+			 // ...............................................................................................
+
 			// use bit errors and encoding type to determine if the packet is received
 			if (endingSignal->bitErrors != ALL_ERRORS) {
 				if (endingSignal->bitErrors <= maxErrorsAllowed(endingSignal->encoding)) {
 					// decapsulate the packet and add the RSSI and LQI fields
 					MacPacket *macPkt = check_and_cast<MacPacket*>(wcMsg->decapsulate());
-					macPkt->getMacRadioInfoExchange().RSSI = readRSSI();
+					macPkt->getMacRadioInfoExchange().RSSI = measuredRssi;    // readRSSI();
 					macPkt->getMacRadioInfoExchange().LQI = endingSignal->power_dBm - endingSignal->maxInterference;
 					sendDelayed(macPkt, PROCESSING_DELAY, "toMacModule");
 					// collect stats
@@ -626,6 +698,58 @@ void Radio::finishSpecific()
 		collectOutput("RX pkt breakdown", "Failed, wrong modulation", stats.RxFailedModulation);
 	if (stats.bufferOverflow > 0)
 		collectOutput("Buffer overflow", stats.bufferOverflow);
+
+	// My add
+
+        // TODO Check if somethink wrong when unlink multiple times
+	if( ( enablePERHil >= 0 ) && ( selectForward ) ){  
+
+            /*------------------------------
+            // function lstat() to check if named pipe exists
+            struct stat mbuffer;
+            // Channel Validation
+
+            //-- int temp = lstat("/home/gwho/myPipe",&buffer);
+            //-- if( temp >= 0 )
+            // Call HIL . Java program assumes a pipe named "myPipe" exists. If it does not, creates a file and exits
+            //int fd = open(myfifo,O_RDONLY);
+            //if(fd>=0){
+            int temp = system("java TestSerial -comm serial@/dev/ttyUSB0:115200 0 22 0 &");   
+            //   close(fd);         
+            //}      
+                                                   
+            bzero(buffer,256);
+            int fd = open(myfifo,O_RDONLY);
+            int n = read(fd,buffer,255);
+            close(fd);
+            int Aer = 0;
+            int Ber = 0;
+            char a = 0;
+            char b = 0;
+            // if(selectForward){
+              a = buffer[0];
+              b = buffer[1];
+              Ber = (a);
+              Aer = (b);
+              collectOutput("Validation", Aer );
+             ---------------------------*/
+            /*
+            }else{
+              a = buffer[2];
+              b = buffer[3];
+              Ber = (a);
+              Aer = (b);
+              collectOutput("Validation", Ber);
+            }
+            */
+            //----------- if (n < 0) error("ERROR reading from socket");
+
+            // Proceed to pipe removal           
+            // unlink(myfifo);
+            // remove("/home/myPipe");
+            //temp = system("rm ~/myPipe");
+            int evtemp = system("rm /home/myPipe");
+	}
 }
 
 /* Function takes packet from buffer, creates two wireless channel messages to signal
@@ -975,6 +1099,10 @@ void Radio::readIniFileParameters(void)
 	carrierSenseInterruptEnabled = par("carrierSenseInterruptEnabled");
 	symbolsForRSSI = par("symbolsForRSSI");
 	parseRadioParameterFile(par("RadioParametersFile"));
+
+	// my Add
+	enablePERHil = par("enablePERHil");
+        selectForward = par("selectForward");
 
 	string startingMode = par("mode");
 	RXmode = parseRxMode(startingMode);
