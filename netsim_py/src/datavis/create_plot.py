@@ -25,8 +25,9 @@ class StatBreakdownHelper:
               node2 is another node,       label1_val2 is another value of the same label as label1_val1 and so on
         """
         def __init__(self):
+            self.info_map = {}
             self.info = []
-            self.label_no = 1
+            self.label_no = 0
 
         def add_label_values(self, vals):
             """
@@ -35,6 +36,25 @@ class StatBreakdownHelper:
             assert isinstance(vals, list)
             assert all(isinstance(x, tuple) for x in vals)
 
+            default_row = [0.0]*self.label_no
+            current_nodes = set(self.info_map.keys())
+
+            # add values where they exist
+            for node, val in vals:
+                if node in current_nodes:
+                    self.info_map[node].append(val)
+                    current_nodes.remove(node)
+                else:
+                    self.info_map[node] = default_row+[val]
+
+            # extend any skipped keys
+            for node in current_nodes:
+                self.info_map[node].append(0.0)
+
+            # increase the label
+            self.label_no += 1
+
+            """
             for row in vals:
                 node = row[0]
                 val = row[1]
@@ -49,11 +69,13 @@ class StatBreakdownHelper:
                     self.info[index].append(0)                 # if not fill with zeroes to indicate there was no value for
                                                                # the specified node and label
                 self.info[index].append(val)                   # add the new value for label number "label_no"
+
+
             # check for any row with a node that did not have the specific label statistic, we have to fill that with zero
             for row in self.info:
                 while len(row) != self.label_no + 1:
                     row.append(0)
-            self.label_no += 1
+            """
 
         def __get_row_with_node(self, node):
             """
@@ -85,6 +107,12 @@ class StatBreakdownHelper:
             """
             returns the info structure sorted by node
             """
+
+            # rebuild info from info_map
+            self.info = [
+                [node]+values for node,values in self.info_map.items()
+            ]
+
             if len(self.info) == 0:
                 return None
             else:
