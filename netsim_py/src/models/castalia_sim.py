@@ -942,6 +942,9 @@ class General(Section):
     # CPU time limit, simulation stops when reached. The default is no limit.
     cpu_time_limit = attr(int, default=None)
 
+    # 11 random seeds
+    seeds = attr(list)
+
     # The path to Castalia
     castalia_path = attr(str)
 

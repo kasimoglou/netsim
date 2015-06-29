@@ -288,7 +288,9 @@ class Parameters:
     # CPU time limit, simulation stops when reached. The default is no limit.
     cpu_time_limit = attr(int, default=None)
 
-
+    # seed to initialize RNG, or 0 to initialize it randomly
+    random_seed = attr(int,nullable=False, default=0)
+    
 
 @model
 class HiL:

@@ -17,6 +17,7 @@ import runner.AAA as AAA
 
 import os, logging, functools
 import os.path, json
+import random
 
 _repoerror_map = {
     dpcmrepo.GenericError : Forbidden,
@@ -530,6 +531,7 @@ def _nsd_init(entity, obj):
     obj.setdefault('parameters', {})
     obj['parameters'].setdefault('sim_time_limit', 3600)
     obj['parameters'].setdefault('simtime_scale', -9)
+    obj['parameters'].setdefault('random_seed', 0)
 
     # (B) environment
     obj.setdefault('environment',{})

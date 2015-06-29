@@ -2,6 +2,7 @@
 import os.path, logging, json
 import pyproj
 import numpy as np
+import random
 
 from runner.config import castalia_path, omnetpp_path, cfg
 
@@ -147,6 +148,11 @@ class CastaliaModelBuilder:
         self.opp.sim_time_limit = self.nsd.parameters.sim_time_limit
         self.opp.simtime_scale = self.nsd.parameters.simtime_scale
         self.opp.cpu_time_limit = self.nsd.parameters.cpu_time_limit
+        if not self.nsd.parameters.random_seed:
+            random.seed()
+        else:
+            random.seed(self.nsd.parameters.random_seed)
+        self.opp.seeds = [random.randrange(1000000) for i in range(11)]
         self.opp.castalia_path = castalia_path()
 
     def add_omnetpp_sections(self):
@@ -579,6 +585,10 @@ output-scalar-file = Castalia-statistics.sca
 
 # 11 random number streams (or generators as OMNeT calls them)
 num-rngs = 11 
+
+% for i, s in enumerate(param.seeds):
+seed-{{i}}-mt = {{s}}
+% end
 
 # ===========================================================
 # Map the 11 RNGs streams with the various module RNGs. 
