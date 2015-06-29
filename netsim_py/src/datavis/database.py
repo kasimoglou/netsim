@@ -16,6 +16,10 @@ from models.validation import fail
 
 DEFAULT_NODEMAP_FILE = "nodemap.json"
 
+
+histogram_statistic_names = ["Application level latency, in ms"]
+
+
 class Dataset(object):
     """
     A Dataset encapsulates a new in-memory database.
@@ -23,6 +27,7 @@ class Dataset(object):
     Dataset objects can be used to add Table and View objects to the
     database, load data into tables and access tables and views by name.
     """
+
     def __init__(self):
         self.conn = sql.connect(':memory:')
         self.relations = {}
@@ -36,15 +41,15 @@ class Dataset(object):
         logging.debug("Dataset.add, Relation.sql_create: %s", sql_create_query)
         self.conn.execute(sql_create_query)
         if relation.name in self.relations:
-            logging.error("In datavis.database.Dataset.add(): duplicate relation name: %s",relation.name)
-            raise ValueError("This relation's name is already in use" % relation.name)            
+            logging.error("In datavis.database.Dataset.add(): duplicate relation name: %s", relation.name)
+            raise ValueError("This relation's name is already in use" % relation.name)
         if hasattr(self, relation.name):
-            logging.error("In datavis.database.Dataset.add(): illegal relation name: %s",relation.name)
+            logging.error("In datavis.database.Dataset.add(): illegal relation name: %s", relation.name)
             raise ValueError("This relation has an illegal name (already in use, or reserved)" % relation.name)
         self.relations[relation.name] = relation
         relation.dataset = self
         setattr(self, relation.name, relation)
-        logging.debug("datavis.database.Dataset.add(%s)",relation.name)
+        logging.debug("datavis.database.Dataset.add(%s)", relation.name)
         return relation
 
     def create_table(self, name, alist):
@@ -53,13 +58,13 @@ class Dataset(object):
         """
         return self.add(Table(name, alist))
 
-    #TODO: cannot get column type from cursor.description
+    # TODO: cannot get column type from cursor.description
     # always returns NULL in type field, a[1]==NULL
     # even with sq.connect(":memory:",detect_types=sq.PARSE_COLNAMES | sq.PARSE_DECLTYPES)
     def get_attributes_of_relation(self, name):
         c = self.conn.cursor()
         try:
-            c.execute("SELECT * FROM "+name)
+            c.execute("SELECT * FROM " + name)
             alist = [Attribute(a[0], a[1]) for a in c.description]
             return alist
         finally:
@@ -69,7 +74,7 @@ class Dataset(object):
         """
         Create view and add it to the query,
         """
-        view= self.add(View(name, qry))
+        view = self.add(View(name, qry))
         view.set_attributes(self.get_attributes_of_relation(name))
         return view
 
@@ -80,16 +85,16 @@ class Dataset(object):
         Arguments dialect and fmtargs are passed to tbe standard csv.reader
         """
         tabdata = {}
-        with open(filename,"r") as fin:
+        with open(filename, "r") as fin:
             reader = csv.reader(fin, dialect, **fmtargs)
             for row in reader:
                 if row[0] not in tabdata:
-                    tabdata[row[0]]=[]
+                    tabdata[row[0]] = []
                 tabdata[row[0]].append(row[1:])
 
         for tabname in tabdata:
             table = self.relations[tabname]
-            assert isinstance(table,Table)
+            assert isinstance(table, Table)
             self.conn.executemany(table.sql_insertmany(), tabdata[tabname])
 
     def print_relation(self, name):
@@ -114,7 +119,6 @@ class Dataset(object):
 
 
 class StatsDatabase(Dataset):
-
     def __init__(self, testing=False):
         Dataset.__init__(self)
         if testing:
@@ -214,8 +218,11 @@ class StatsDatabase(Dataset):
         c = self.conn.cursor()
         # map castalia node ids to plan node ids
         n = self.__castaliaID_2_planID(n)
-        i = self.__castaliaID_2_planID(i)
-        c.execute("INSERT INTO %s(module,node,name,label,n_index,data) VALUES(?,?,?,?,?,?);" % table_name, (m, n, o, l, i, v))
+        # map index only for histogram statistics
+        if o not in histogram_statistic_names:
+            i = self.__castaliaID_2_planID(i)
+        c.execute("INSERT INTO %s(module,node,name,label,n_index,data) VALUES(?,?,?,?,?,?);" % table_name,
+                  (m, n, o, l, i, v))
         self.conn.commit()
 
     @staticmethod
@@ -230,6 +237,7 @@ class StatsDatabase(Dataset):
         """
         Load data from a CSV file to table
         """
+
         def assert_format():
             """
             checks table column number to be equal with column number in data file
@@ -237,12 +245,13 @@ class StatsDatabase(Dataset):
             file_cols = len(row)
             if file_cols != table_cols:
                 fail("data file (\"%s\") format (%d columns) does not match table (\"%s\") format (%d columns)"
-                    % (filename, file_cols, table.name, table_cols), ooc=TypeError)
+                     % (filename, file_cols, table.name, table_cols), ooc=TypeError)
 
         def store_data():
             """
             stores data of a row to the appropriate table
             """
+
             def map_nodes():
                 """
                 maps castalia node ids to plan node ids, only for columns marked in table.node_mapping
@@ -253,7 +262,7 @@ class StatsDatabase(Dataset):
 
             sql = "INSERT INTO %s(%s) VALUES(%s)" % (table.name,
                                                      ",".join(dfile_colnames),
-                                                     ",".join(["?"]*table_cols))
+                                                     ",".join(["?"] * table_cols))
             for c in table.columns:
                 print(c.name)
             print(sql)
@@ -366,7 +375,8 @@ class StatsDatabase(Dataset):
                         next = curr + step
                         if self.__is_int(next): next = int(next)
                         if next > histogram_max: next = "inf"
-                        self.__save_output(module, n, ival, o, bl, "[" + str(curr) + "," + str(next) + ")", val, table_name)
+                        self.__save_output(module, n, ival, o, bl, "[" + str(curr) + "," + str(next) + ")", val,
+                                           table_name)
                         curr += step
                         ival += 1
                     level = 2
@@ -493,16 +503,30 @@ def sql_boolean_binary_operator(op, *terms):
     This selector  can be used with op in ('AND', 'OR')
     """
     assert terms and all(isinstance(t, Selector) for t in terms)
-    return Selector("(" + (" "+op+" ").join(t.pat for t in terms) + ")")
+    return Selector("(" + (" " + op + " ").join(t.pat for t in terms) + ")")
 
 
 def less_than(x):     return sql_binary_operator(x, "<")
+
+
 def less_equal(x):    return sql_binary_operator(x, "<=")
+
+
 def greater_than(x):  return sql_binary_operator(x, ">")
+
+
 def greater_equal(x): return sql_binary_operator(x, ">=")
+
+
 def not_equal(x):     return sql_binary_operator(x, "<>")
+
+
 def like(x):          return sql_binary_operator(x, "LIKE")
+
+
 def not_like(x):      return sql_binary_operator(x, "NOT LIKE")
+
+
 def between(a, b):    return Selector("%%(attribute)s BETWEEN %s AND %s" % (sql_scalar(a), sql_scalar(b)))
 
 
@@ -537,6 +561,7 @@ class Relation(object):
     Relation has a name and a set of attributes. It is used to compose
     SQL SELECT queries over db tables and views.
     """
+
     def __init__(self, name, alist):
         self.name = name
         self.set_attributes(alist)
@@ -558,19 +583,22 @@ class Relation(object):
 
     def sql_select_clause(self, alist, distinct):
         return "SELECT " + ("DISTINCT " if distinct else "") + ','.join(alist)
+
     def sql_from_clause(self):
-        return "FROM "+self.name
+        return "FROM " + self.name
+
     def sql_where_clause(self, where):
         if where:
             if isinstance(where, dict):
                 # make it into a list
-                where = [(a,where[a]) for a in where]
+                where = [(a, where[a]) for a in where]
             if isinstance(where, list):
-                return " WHERE " + ' AND '.join([self.__map_value(attr,value) for attr,value in where])
+                return " WHERE " + ' AND '.join([self.__map_value(attr, value) for attr, value in where])
         return ""
-    def sql_order_by_clause(self,order):
+
+    def sql_order_by_clause(self, order):
         if order:
-            return " ORDER BY "+','.join(order)
+            return " ORDER BY " + ','.join(order)
         return ""
 
     def sql_select(self, alist, where=None, order=[], distinct=False):
@@ -584,12 +612,12 @@ class Relation(object):
                         self.sql_from_clause(),
                         self.sql_where_clause(where),
                         self.sql_order_by_clause(order)
-                        ])
+        ])
         logging.debug("Relation.sql_select: " + sql)
         return sql
 
     def scheme(self):
-        return ''.join([self.name,'(',','.join("%s %s" % (a.name, a.type) for a in self.attributes),')'])
+        return ''.join([self.name, '(', ','.join("%s %s" % (a.name, a.type) for a in self.attributes), ')'])
 
     def axis_values(self, attr):
         return self.dataset.axis_values(self, axes)
@@ -600,17 +628,19 @@ class Table(Relation):
     Table objects map SQL tables to python. They inherit from relations.
     Table objects can be used to create and load SQL tables.
     """
+
     def __init__(self, name, alist):
         Relation.__init__(self, name, alist)
+
     def sql_create(self):
         """Return a CREATE TABLE query for this table."""
-        return ' '.join(['CREATE TABLE',self.name, '(',
+        return ' '.join(['CREATE TABLE', self.name, '(',
                          ', '.join(a.sql_create() for a in self.attributes),
                          ')'])
 
     def sql_insertmany(self):
         """Return an INSERT ... VALUES query for this table."""
-        return "INSERT INTO "+self.name+" VALUES(" + ','.join('?'*len(self.attributes))+")"
+        return "INSERT INTO " + self.name + " VALUES(" + ','.join('?' * len(self.attributes)) + ")"
 
 
 class View(Relation):
@@ -618,6 +648,7 @@ class View(Relation):
     View object map SQL views to python. They inherit from Relation.
     They can be used to create SQL views.
     """
+
     def __init__(self, name, defquery):
         """
         name is the name of the view.
@@ -627,7 +658,8 @@ class View(Relation):
         """
         Relation.__init__(self, name, [])
         self.defquery = defquery
+
     def sql_create(self):
         """Return a CREATE VIEW query for this view."""
-        return ' '.join(['CREATE VIEW',self.name,'AS',self.defquery])
+        return ' '.join(['CREATE VIEW', self.name, 'AS', self.defquery])
 
