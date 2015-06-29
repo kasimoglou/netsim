@@ -54,7 +54,7 @@
                     <ul class="nav navbar-nav navbar-right">
                         <li ng-class="{'active': getLocationPath() === '/'}"><a href="#!/">My Nsd Files</a></li>
                         <li ng-class="{'active': getLocationPath() === '/vectorl_files'}"><a href="#!/vectorl_files" >My VectorL Files</a></li>
-                        <li ng-show="session_info.dpcm_user" ng-cloak><a>Hello, [[session_info.dpcm_user]]</a></li>
+                        <li ng-show="session_info.current_user" ng-cloak><a>Hello, [[session_info.current_user]]</a></li>
                     </ul>
               </div>
             </div>

@@ -1,12 +1,12 @@
 // # Homepage Controllers
-define(['underscore',
-    'angular'], function(_) {
+define(['angular',
+'../services/session_services'], function() {
 
-    var homepageControllers = angular.module('homepageControllers', []);
+    var homepageControllers = angular.module('homepageControllers', ['sessionServices']);
 
     // ## Home page controller
     homepageControllers.controller('homepageController',
-        ['$scope', '$location', 'API', function($scope, $location, API) {
+        ['$scope', '$location', 'Session', function($scope, $location, Session) {
 
         $scope.session_info = {};
         
@@ -18,18 +18,16 @@ define(['underscore',
             return $location.path();
         };
         
-        $scope.getSessionInfo = function() {
-            API.sessionInfo()
-            .success(function(response) {
-                $scope.session_info = response;
-            })
-            .error(function(error) {
-                console.log(error.details);
-                alert(error.details);
-            });
+        $scope.setSessionInfo  = function() {
+            var current_user = $location.search().user || '';
+            var current_project_id = $location.search().project_id || '';
+            var currents_plan_id = $location.search().plan_id || '';
+            
+            Session.setCurrentSessionInfo(current_user, current_project_id, currents_plan_id);
+            $scope.session_info = Session.getCurrentSessionInfo();
         };
         
-        $scope.getSessionInfo();
+        $scope.setSessionInfo();
     }]);
 
 });

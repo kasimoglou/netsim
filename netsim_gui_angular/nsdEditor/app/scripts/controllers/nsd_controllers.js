@@ -4,18 +4,19 @@ define(['underscore',
     'ngDialog',
     'ngGrid',
     'json-formatter',
-    '../services/api_services'], function(_) {
+    '../services/api_services',
+    '../services/session_services'], function(_) {
 
-    var nsdControllers = angular.module('nsdControllers', ['apiServices', 'ngDialog', 'ngGrid', 'jsonFormatter']);
+    var nsdControllers = angular.module('nsdControllers', ['apiServices', 'ngDialog', 'ngGrid', 'jsonFormatter', 'sessionServices']);
 
     // New nsd form Controller
     nsdControllers.controller('newNsdFormController',
-        ['$scope', '$location', '$validator', '$window', 'API', 
-        function($scope, $location, $validator, $window, API) {
+        ['$scope', '$location', '$validator', '$window', 'API', 'Session',
+        function($scope, $location, $validator, $window, API, Session) {
                 
         $scope.nsd = {
             name: '',
-            project_id: $location.search().project_id || ''
+            project_id: Session.getCurrentSessionInfo().current_project_id
         };
         $scope.projects = [];
         
@@ -64,8 +65,8 @@ define(['underscore',
 
     // ## nsd controller
     nsdControllers.controller('nsdController',
-        ['$scope', '$routeParams', 'API', '$timeout', 'ngDialog', '$location',
-        function($scope, $routeParams, API, $timeout, ngDialog, $location) {
+        ['$scope', '$routeParams', 'API', '$timeout', 'ngDialog', '$location', 'Session',
+        function($scope, $routeParams, API, $timeout, ngDialog, $location, Session) {
 
         // ### Initializations
         
@@ -91,6 +92,8 @@ define(['underscore',
                         
                         if ($scope.nsd.plan_id) {
                             $scope.fetchSelectedPlan($scope.nsd.plan_id);
+                        } else {
+                            $scope.nsd.plan_id = Session.getCurrentSessionInfo().current_plan_id;
                         }
                         
                         $scope.initializeHil($scope.nsd);
@@ -891,15 +894,17 @@ define(['underscore',
 
     // Nsds list form Controller
     nsdControllers.controller('nsdListController',
-        ['$scope', '$location', 'API', 'ngDialog', function($scope, $location, API, ngDialog) {
+        ['$scope', '$location', 'API', 'ngDialog', 'Session', function($scope, $location, API, ngDialog, Session) {
 
         $scope.nsds = [];
         $scope.projects = [];
 
         $scope.shown_nsds = [];
 
-        $scope.filters = {};
-
+        $scope.filters = {
+            project_id: Session.getCurrentSessionInfo().current_project_id
+        };
+        console.log(Session.getCurrentSessionInfo());
         // Fetches user's projects so that user can filter nsd files
         // by the project they belong to.
         $scope.fetchProjects = function() {
@@ -936,6 +941,7 @@ define(['underscore',
                         });
                         $scope.shown_nsds = $scope.nsds;
                         $scope.temp.load_finished = true;
+                        $scope.filterNsds();
             })
                     .error(function(error) {
                         console.log(error.details);
