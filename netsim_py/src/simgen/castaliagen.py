@@ -191,7 +191,7 @@ class CastaliaModelBuilder:
         # filter the node types, excluding NIDs
         # separate the motes into types and assign ranges
         pos = 0
-        for nodeDef in self.nsd.nodedefs:
+        for nodeDef in sorted(self.nsd.nodedefs, key=lambda ndef: ndef.name):
             # skip NIDs
             if nodeDef.nature == 'NID':
                 continue
