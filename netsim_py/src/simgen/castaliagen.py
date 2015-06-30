@@ -209,7 +209,8 @@ class CastaliaModelBuilder:
         for nodeType in self.cm.nodeTypes:
             # assign numbers to the nodes
             num = nodeType.index.start
-            for mote in nodeType.nodeDef.motes:
+            for mote in sorted(nodeType.nodeDef.motes, 
+                    key=lambda mote: mote.node_id):
                 # create node module
                 node = Node(self.nodes, 'node', num)
                 num += 1
