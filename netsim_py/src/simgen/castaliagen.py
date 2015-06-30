@@ -223,7 +223,8 @@ class CastaliaModelBuilder:
         nodemap = []
         self.idmap_nsd2cast = {}
         self.idmap_cast2nsd = {}
-        for node in self.nodes.submodules:
+        for node in sorted(self.nodes.submodules, 
+                        key=lambda node: node.index):
             self.idmap_nsd2cast[node.name] = node.index
             self.idmap_cast2nsd[node.index] = node.name
             mapped_node = {
