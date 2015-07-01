@@ -145,6 +145,10 @@ class NSDReader(JSONReader):
                 sens = Sensor()
                 self.read_component(sens_oid, sens)
                 ns.sensors[i] = sens
+
+                if not hasattr(sens, 'sensor_type'):
+                    fail("Sensor %s does not have a sensor_type property", sens_oid)
+                self.nsd.environment.physical_measures.add(sens.sensor_type)
         else:
             warn("There is no sensor specification.")
 
@@ -280,8 +284,7 @@ class NSDReader(JSONReader):
         else:
             fail("The NSD contains an unknown environment type: %s" % env_json[type])
         self.populate_modeled_instance(env, env_json)
-        self.nsd.environment = env
-
+        return env
 
     def create_network(self):
         '''
@@ -343,6 +346,36 @@ class CastaliaGen:
                     fail("HiL simulation requested between node %s and itself!",n1)
                     
                 inform("Hil configuration validated.")
+
+        with Context(stage="Validating environment"):
+            envspec = self.nsd.environment
+            phym = envspec.physical_measures
+            if len(phym)>5:
+                fail("More than 5 physical measures sensed by sensors: %s",phym)
+
+            if envspec.type=="vectorl":
+                assert isinstance(envspec, VectorlEnvironment)
+                vlphym = {vlm.sensor for vlm in envspec.mapping}
+
+                # check that each physical measure defined by vectorl is
+                # defined only once!
+                for pm in vlphym:
+                    nmap = len([vlm for vlm in envspec.mapping if vlm.sensor==pm])
+                    if nmap!=1:
+                        fail("VectorL maps physical measure '%s' %d times.",pm,nmap)
+
+                # warn if something is not mapped by vectorl mapping
+                for pm in phym:
+                    if pm not in vlphym:
+                        warn("%s not defined by vectorl model",pm);
+
+                # add the VectorL-defined physical measures to
+                # the set of physical measures
+                phym.update(vlphym)
+
+            envspec.index_physical_measures()
+            for pmindex, pm in envspec.index_pm.items():
+                inform("Physical measure %d: %s", pmindex, pm)
 
         if success():
             inform("NSD validated.")

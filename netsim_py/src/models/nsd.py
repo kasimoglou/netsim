@@ -34,15 +34,61 @@ class Environment:
     type = attr(str, nullable=False)
     required(type)
 
+    physical_measures = attr(set)
+
+    # These two dicts map physical measure to index
+    # and back
+    pm_index = attr(dict)
+    index_pm = attr(dict)
+
+    def __init__(self):
+        self.physical_measures = set()
+        self.pm_index = {}
+        self.index_pm = {}
+
+    def index_physical_measures(self):
+        i=0
+        for pm in self.physical_measures:
+            self.pm_index[pm] = i
+            self.index_pm[i] = pm
+
+    def numPhysicalProcesses(self):
+        return len(self.physical_measures)
+ 
 @model
 class CastaliaEnvironment(Environment):
     pass
+
+
+@model
+class VLMapping:
+    "Combine a physical process' index with "
+    env = ref()
+    pm_index = attr(int, nullable=False)
+
+    sensor = attr(str)
+    required(sensor)
+
+    variable = attr(str)
+    required(variable)
 
 @model
 class VectorlEnvironment(Environment):
     vectorl_id = attr(str, nullable=False)
     json_name('vectrol_id')(vectorl_id)
     required(vectorl_id)
+
+    mapping = ref_list(inv=VLMapping.env)
+    descend(mapping)
+
+    def variable_for(self, pm):
+        "Return vectorl variable name for a physical measure, or None"
+        for vlm in self.mapping:
+            if pm==vlm.sensor:
+                return vlm.variable
+        return None
+
+
 
 
 ##############################

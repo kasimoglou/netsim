@@ -19,13 +19,16 @@ remote = None
 
 
 
-def replicate(server, src, dst):
+def replicate(server, src):
 
-	for dbname in ('pt_repository', 'simulator', 'integration_repo'):
+	for dbname in ('dpcm_pt_repository', 
+			'dpcm_simulator',
+			'castalia_node_library', 
+			'dpcm_integration_repo'):
 		source = src+dbname
-		destination = dst+dbname
+		destination = dbname
 
-		if destination in server:
+		if dbname in server:
 			print('Deleting old destination:', destination)
 			server.delete(destination)
 
@@ -37,10 +40,9 @@ def replicate(server, src, dst):
 
 
 def pull(server):
-	replicate(server, REMOTE+'dpcm_', 'remote_')
+	replicate(server, REMOTE)
 
-def clone(server):
-	replicate(server, 'remote_', 'dpcm_')
+
 
 def prepare(server):
 	print('Preparing project repository at',REMOTE)
@@ -163,9 +165,6 @@ def main():
 	if args.operation=='pull':
 		server = ProjectRepository(args.local)
 		pull(server)
-	elif args.operation=='clone':
-		server = ProjectRepository(args.local)
-		clone(server)
 	elif args.operation=='prepare':
 		server = ProjectRepository(args.remote)
 		prepare(server)

@@ -310,10 +310,15 @@ class CastaliaModelBuilder:
         '''
         Configure the environment simulation.
         '''
-        # TBD: make this adhere to model
         net = self.cm.network
-        net.numPhysicalProcesses = 5
-        net.physicalProcessName = 'CustomizablePhysicalProcess'
+        env = self.nsd.environment
+        net.numPhysicalProcesses = env.numPhysicalProcesses()
+        if env.type=="castalia":
+            net.physicalProcessName = 'CustomizablePhysicalProcess'
+        elif env.type=="vectorl":
+            net.physicalProcessName = 'CustomizablePhysicalProcess'
+        else:
+            fail("Environment type %s is unknown.", env.type)
 
 
     def create_wireless_channel(self):

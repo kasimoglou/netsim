@@ -148,7 +148,7 @@ class JSONReader:
         with Context(importing=metamodel.name):
         
             # Map the model attributes         
-            for attr in metamodel.attributes:
+            for attr in metamodel.all_attributes:
                 with Context(reading=attr.name):
 
                     # Respect 'ignore' annotation
