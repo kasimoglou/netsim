@@ -635,6 +635,15 @@ def transform_literal(ast, scope):
 @ast_node('id')
 def transform_id(ast, scope):
     qual_id = ast[1:]
+
+    # Named constants
+
+    if len(qual_id)==1:
+        if qual_id[0]=='nan': return Literal(float('nan'))
+        if qual_id[0]=='inf': return Literal(float('inf'))
+
+
+    # Look up in scope
     try:
         obj = scope[qual_id] 
     except KeyError:

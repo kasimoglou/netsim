@@ -4,10 +4,16 @@ import sys;
 var int a=[0,1];
 var int b=[10,12];
 
+const int x =  [[1,2,3],[3,2,5]];
+const int y =  [[1,2,3],[3,2,5]];
+
+var int z = x;
+
 def int k=[1,2];
 
 on sys.Init {
    
    b:= a+k;
+   z:=x+y;
 
 }

@@ -122,7 +122,7 @@ def t_ID(t):
 t_ICONST = r'\d+'
 
 # Floating literal
-t_FCONST = r'((\d+)(\.\d+)(e(\+|-)?(\d+))? | (\d+)e(\+|-)?(\d+))'
+t_FCONST = r'((\d+)(\.\d+)(e(\+|-)?(\d+))?|(\d+)e(\+|-)?(\d+))'
 
 # String literal
 t_STRCONST = r'"[^"\n]*"'

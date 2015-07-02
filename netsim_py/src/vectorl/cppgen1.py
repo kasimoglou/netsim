@@ -154,9 +154,17 @@ struct {{self.class_name}} {
         """
 #include "{{!self.class_name}}"
 
+/* Constants */
+%for cdecl in const_decl:
+{{!cdecl}}
+%end
+
+/* Event handlers */
+
 {{! actions}}
 """
-        actions = "".join(action_text)      
+        actions = "".join(action_text)
+        const_decl = self.const_decl
         return locals()
 
     @docstring_template
@@ -164,6 +172,8 @@ struct {{self.class_name}} {
         """\
 {{! header}}
 {{! body}}
+
+
 
 """
         adef = self.action_def[event]
@@ -507,12 +517,15 @@ struct _model_{{!model.name}} {
 
     def gen_array_literal(self, type, value):
         if value.ndim>1:
-            res = ",\n".join(self.gen_array_literal(a) for a in value)
-            return "{ "+res+ "}"
-        else:
+            res = ",\n".join(self.gen_array_literal(type, a) for a in value)
+            return "{"+res+ "}"
+        elif value.ndim==1:
             assert value.ndim==1
-            res = ", ".join(self.generate_literal_value(type, value))
+            res = ", ".join(self.generate_literal_value(type, v) for v in value)
             return "{ " +res+" }"
+        else:
+            assert value.ndim==0
+            return self.generate_literal_value(type, value)
 
 
     @gen_item(UFuncOperator)

@@ -1,0 +1,37 @@
+
+
+/*
+ 	Fibonacci's rabbits
+ */
+
+
+const int generations = 10;
+
+var int curgen = [0,1];
+
+const int F = [[0,1],[1,1]];
+
+event generation(int n);
+
+var int tmp = 0;
+
+on generation {
+
+	curgen := sum(F*curgen,1);
+
+	if (n<generations) {
+		emit generation(n+1) after 1;
+	}
+	print("Generation",n,"now has",curgen[1],"rabbits");
+}
+
+import sys;
+on sys.Init {
+	emit generation(2) after 0;
+	print("inf=",1/-inf);
+	print("nan=",nan);
+	print("range(10)=",range(10));
+	print("test=", fill(4, 3.14));
+	print("test=", fill([2,4], true));
+
+}

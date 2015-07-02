@@ -75,8 +75,10 @@ the simulation will end. The default is 'no limit'""" , default=None)
     elif args.gen:
         gen=CppGenerator(fmf, bname)
         gen.generate()
-        print(gen.output_hh)
-        print(gen.output_cc)
+        print(gen.hh.output_string())
+        print(gen.cc.output_string())
+        #print(gen.output_hh)
+        #print(gen.output_cc)
 
 
     return fmf
