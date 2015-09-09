@@ -12,6 +12,8 @@ from runner.config import cfg
 from runner.apierrors import *
 from simgen.gen import validate_simulation
 from models.project_repo import NSD, VECTORL, ApiEntity
+import time
+
 
 import runner.AAA as AAA
 
@@ -133,6 +135,19 @@ def create_simoutput(xtor, prepo, nsdid):
 
     return sim, url, simhome
 
+def create_logstatistics(simhome):
+    logfile = os.path.join(simhome, "statistics.txt")
+    try:
+        file = open(logfile, 'w')
+        file.write("Start_time = " )#+ datetime.datetime.now() + "\n")
+        file.write(time.strftime("%x") + " "  + time.strftime("%X"))
+        file.write("\n")
+        file.close()
+    except:
+        logger.error("Error creating statistics file: ",logfile)
+    return logfile
+
+
 
 @apierror
 def create_simulation(nsdid, xtorname=None):
@@ -148,6 +163,8 @@ def create_simulation(nsdid, xtorname=None):
 
     # create the simoutput object
     sim, url, simhome = create_simoutput(xtor, repo(), nsdid)
+
+    logfile = create_logstatistics(simhome)
     
     # create the job
     Manager.create_job(xtor, url, simhome)

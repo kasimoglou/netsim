@@ -18,7 +18,8 @@ class SimOutputHandler:
     def __init__(self):
         self.status = 'FINISHED'
 
-    def finish_job(self, results_json):
+    def finish_job(self, results_json, fileloc):
+        writeto_logstatistcs(fileloc)
         try:
             if (self.status == 'ABORTED'):
                 self.create_null_SIMOUTPUT()
@@ -106,8 +107,7 @@ def generate_output():
     This function postprocesses the results of a Castalia simulation and uploads the
     generated plots and files to the Project Repository.
     """
-
-
+    fileloc = context.datastore.fileloc
     simulation_id = context.datastore.sim_id
 
     # output_list will hold all info/error messages of GenerateResultsProcess
@@ -139,7 +139,10 @@ def generate_output():
         results_json = jo.get_json()
 
     simoutput_handler = SimOutputHandler()
-    simoutput_handler.finish_job(results_json)
+    simoutput_handler.finish_job(results_json, fileloc)
+    #Write end execution time to statistics fille (finih_job->update_root_object->update obj in couchdb)
+    writeto_logstatistcs(fileloc)
+
 
 
 
@@ -175,3 +178,15 @@ def transform_nsd_plots():
     derived_tables, plot_models = vpd.decode(nsd["views"])
 
     return plot_models 
+
+
+def writeto_logstatistcs(simhome):
+    logfile = os.path.join(simhome, "statistics.txt")
+    try:
+        file = open(logfile, 'a+')
+        file.write("End_execution_time = " )#+ datetime.datetime.now() + "\n")
+        file.write(time.strftime("%x") + " "  + time.strftime("%X"))
+        file.write("\n")
+        file.close()
+    except:
+        logger.error("Error writing to statistics file: ",logfile)
