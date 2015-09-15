@@ -1,0 +1,27 @@
+
+from sys import Init;
+
+const real PI=3.141592654;
+const time dt = 0.01;
+
+var time T = 0.0;
+
+
+event advance();
+
+
+on advance
+{
+	print("A=",sin(2*PI*T));
+	T := T+dt;
+	emit advance() after dt;
+}
+
+
+
+on Init
+{
+	
+	emit advance() after dt;
+
+}

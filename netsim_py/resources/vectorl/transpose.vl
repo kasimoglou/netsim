@@ -1,0 +1,12 @@
+
+from sys import Init;
+
+def int x = [range(3), range(3)+1];
+def int xt = transpose(x, [1,0]);
+on Init
+{
+	print("x =",x);
+	print("xt=",xt);
+
+	print("A=",  sum(x[...,_]*xt[_,...],1) );
+}

@@ -61,6 +61,59 @@ builtins['shapeof'] = shapeof
 
 
 @model
+class transpose(Builtin):
+	'''
+	Permute the axes of the operand.
+	'''
+	def __init__(self, arg, axes):
+		super().__init__('transpose', arg, axes)
+
+	def impl(self):
+		#return lambda x,t: np.transpose(x, axes=tuple(t))
+		def func(x,t):
+			xt = np.transpose(x, axes=t)
+			print("Transpose(%s,%s)=%s" %(x, t, xt))
+			return xt
+		return func
+
+	def result_type(self):
+		return self.args[0].type
+
+	def result_shape(self):
+		if not self.args_proper():
+			return None
+
+		arg, axes = self.args[0], self.args[1]
+		# check axes
+		if axes.type is not INT:
+			fail("transpose axes operand is not an integer")
+		if not axes.const:
+			fail("transpose axes not a constant")
+		if len(axes.shape)!=1:
+			fail("transpose axes not a sequence of integers")
+
+		# check that the axes are a permutation of [0..dims)
+		D = axes.shape[0]
+		Dset = set(axes.value)
+		if any(x<0 or x>=D for x in axes.value) or len(Dset)!=D:
+			fail("transpose axes not a permutation of 0..%d", D-1)
+
+		return tuple(arg.shape[i] for i in axes.value)
+
+
+	def result_const(self):
+		return self.args[0].const
+
+	def operator_arity(self):
+		return 2
+
+	def const_value(self):
+		return np.transpose(self.args[0].value, tuple(self.args[1].value))
+
+builtins['transpose'] = transpose
+
+
+@model
 class __aggregate(Builtin):
 	'''
 	Returns the aggregate of the operand.
@@ -140,14 +193,9 @@ class minimum(__aggregate):
 builtins['minimum'] = minimum
 
 
-
+#
 # Functions
-
-def def_unary_ufunc(name, ufunc):
-	class Func(UFuncOperator, Builtin):
-		def __init__(self, arg):
-			super().__init__(name, ufunc, arg)
-	return Func
+#
 
 
 @model 
@@ -190,87 +238,51 @@ class UnaryUFunc(Builtin):
         return UFuncOperator(self.op, self.ufunc, * self.bind_args(argmap))
 
 
-class Exp(UnaryUFunc):
-	def __init__(self, arg):
-		super().__init__('exp', np.exp, arg)
-builtins['exp'] = Exp
 
-class Log(UnaryUFunc):
-	def __init__(self, arg):
-		super().__init__('log', np.log, arg)
-builtins['log'] = Log
+def def_unary_ufunc(name):
+	ufunc = getattr(np,name)
+	global builtins
+	class _Func(UnaryUFunc):
+		def __init__(self, arg):
+			super().__init__(name, ufunc, arg)
+	builtins[name] = _Func
 
-class Log2(UnaryUFunc):
-	def __init__(self, arg):
-		super().__init__('log2', np.log2, arg)
-builtins['log2'] = Log2
+def_unary_ufunc('exp')
+def_unary_ufunc('exp2')
+def_unary_ufunc('log')
+def_unary_ufunc('log2')
+def_unary_ufunc('log10')
 
-class Log10(UnaryUFunc):
-	def __init__(self, arg):
-		super().__init__('log10', np.log10, arg)
-builtins['log10'] = Log10
-
-class Sqrt(UnaryUFunc):
-	def __init__(self, arg):
-		super().__init__('sqrt', np.sqrt, arg)
-builtins['sqrt'] = Sqrt
+def_unary_ufunc('sqrt')
 
 
-class Sin(UnaryUFunc):
-	def __init__(self, arg):
-		super().__init__('sin', np.sin, arg)
-builtins['sin'] = Sin
+def_unary_ufunc('sin')
+def_unary_ufunc('cos')
+def_unary_ufunc('tan')
+def_unary_ufunc('arcsin')
+def_unary_ufunc('arccos')
+def_unary_ufunc('arctan')
 
-class Cos(UnaryUFunc):
-	def __init__(self, arg):
-		super().__init__('cos', np.cos, arg)
-builtins['cos'] = Cos
+def_unary_ufunc('sinh')
+def_unary_ufunc('cosh')
+def_unary_ufunc('tanh')
+def_unary_ufunc('arcsinh')
+def_unary_ufunc('arccosh')
+def_unary_ufunc('arctanh')
 
-class Tan(UnaryUFunc):
-	def __init__(self, arg):
-		super().__init__('tan', np.tan, arg)
-builtins['tan'] = Tan
+def_unary_ufunc('deg2rad')
+def_unary_ufunc('rad2deg')
 
-class ArcSin(UnaryUFunc):
-	def __init__(self, arg):
-		super().__init__('arcsin', np.arcsin, arg)
-builtins['arcsin'] = ArcSin
 
-class ArcCos(UnaryUFunc):
-	def __init__(self, arg):
-		super().__init__('arccos', np.arccos, arg)
-builtins['arccos'] = ArcCos
+def_unary_ufunc('isnan')
+def_unary_ufunc('isinf')
 
-class ArcTan(UnaryUFunc):
-	def __init__(self, arg):
-		super().__init__('arctan', np.arctan, arg)
-builtins['arctan'] = ArcTan
+def_unary_ufunc('floor')
+def_unary_ufunc('ceil')
+def_unary_ufunc('trunc')
 
-class IsNan(UnaryUFunc):
-	def __init__(self, arg):
-		super().__init__('isnan', np.arctan, arg)
-builtins['isnan'] = IsNan
-
-class IsInf(UnaryUFunc):
-	def __init__(self, arg):
-		super().__init__('isinf', np.arctan, arg)
-builtins['isinf'] = IsInf
-
-class Floor(UnaryUFunc):
-	def __init__(self, arg):
-		super().__init__('floor', np.arctan, arg)
-builtins['floor'] = Floor
-
-class Ceil(UnaryUFunc):
-	def __init__(self, arg):
-		super().__init__('ceil', np.arctan, arg)
-builtins['ceil'] = Ceil
-
-class Trunc(UnaryUFunc):
-	def __init__(self, arg):
-		super().__init__('trunc', np.arctan, arg)
-builtins['trunc'] = Trunc
-
+def_unary_ufunc('absolute')
+def_unary_ufunc('sign')
 
 
 

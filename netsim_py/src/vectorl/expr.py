@@ -217,6 +217,7 @@ class Literal(ExprNode):
     def __init__(self, val, type=None):
         self.type = type if type is not None else TypeInfo.forLiteral(val)
         self.value = self.type.dtype.type(val)
+        #print("VALUE=",self.value,"of type",self.value.__class__," for type=",self.type,"where val type is",val.__class__)
         self.shape = self.value.shape
         self.const = True
         self.lvalue = False
@@ -799,8 +800,8 @@ def IDX(*args):
         if step==0: fail("error: index step cannot be 0")
 
         # preprocess start/stop
-        start = S.start if S.start is not None else Literal(0 if step>0 else -1)
-        stop = S.stop if S.stop is not None else Literal(N if step>0 else -N-1)
+        start = S.start if S.start is not None else Literal(int(0 if step>0 else -1))
+        stop = S.stop if S.stop is not None else Literal(int(N if step>0 else -N-1))
 
         # compute the size from these arguments
 

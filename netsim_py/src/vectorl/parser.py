@@ -339,14 +339,15 @@ def p_index_spec(p):
                    | index_seq COMMA ELLIPSIS COMMA index_seq """
     assert len(p) in (2,4, 6)
     if len(p)==2:
-        if p[1]=='ELLIPSIS':
+        if p[1]=='...':
             p[0] = (...,)
         else:
             p[0] = p[1]
     elif len(p)==4:
-        if p[1]=='ELLIPSIS':
+        if p[1]=='...':
             p[0] = (...,)+p[3]
         else:
+            assert isinstance(p[1], tuple), "p[1]=%s" % (p[1],)
             p[0] = p[1]+(...,)
     else:
         p[0] = p[1]+(...,)+p[5]
@@ -358,6 +359,7 @@ def p_index_seq(p):
         p[0] = (p[1],)
     else:
         p[0] = p[1]+(p[3],)
+    assert isinstance(p[0], tuple)
 
 def p_index_op_index(p):
     " index_op : expression "
