@@ -1,7 +1,7 @@
 '''
 	Proxy classes to the project repository.
 
-	@author: jvlahou
+	@author: juls
 '''
 
 import functools

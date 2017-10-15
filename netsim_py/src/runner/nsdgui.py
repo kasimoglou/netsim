@@ -1,3 +1,10 @@
+'''
+Created on Mar 21, 2014
+
+Contains just configuration information
+
+@author: juls
+'''
 import sys
 import logging, os
 import bottle

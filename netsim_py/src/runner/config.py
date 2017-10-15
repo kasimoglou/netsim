@@ -4,6 +4,7 @@ Created on Mar 3, 2014
 Contains just configuration information
 
 @author: vsam
+@author: juls
 '''
 
 import os.path

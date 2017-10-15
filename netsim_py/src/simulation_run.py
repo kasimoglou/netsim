@@ -2,6 +2,7 @@
 Created on Mar 4, 2014
 
 @author: vsam
+@author: juls
 '''
 
 import multiprocessing as mp

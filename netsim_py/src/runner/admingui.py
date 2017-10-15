@@ -1,11 +1,4 @@
 '''
-Created on Mar 13, 2015
-
-@author: vsam
-'''
-
-
-'''
 Created on Mar 3, 2014
 
 @author: vsam

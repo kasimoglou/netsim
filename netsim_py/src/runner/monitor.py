@@ -4,6 +4,7 @@ The Simulation Job Monitor functionality.
 Created on Mar 2, 2014
 
 @author: vsam
+@author: juls
 '''
 
 from threading import Thread, RLock, Condition

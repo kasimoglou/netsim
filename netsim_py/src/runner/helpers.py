@@ -1,3 +1,9 @@
+'''
+Helper Classes for processing/parsing json resources
+@author: juls
+'''
+
+
 import sys
 import re
 import os

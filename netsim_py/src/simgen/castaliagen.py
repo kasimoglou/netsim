@@ -1,4 +1,7 @@
-
+'''
+Module for generating CAstalia objects from NSD
+@author: juls
+'''
 import os.path, logging, json
 import pyproj
 import numpy as np

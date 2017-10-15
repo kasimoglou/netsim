@@ -1,3 +1,10 @@
+'''
+Created on Mar 10, 2014
+
+Contains just configuration information
+
+@author: juls
+'''
 import json
 from pprint import pprint
 import random

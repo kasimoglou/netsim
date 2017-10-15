@@ -3,6 +3,7 @@ Main classes for simulation code generation.
 Created on Sep 20, 2014
 
 @author: vsam
+@author: juls
 '''
 
 

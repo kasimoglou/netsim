@@ -2,6 +2,8 @@
     The runtime API.
 
     This is the place where the components combine to expose the public netsim service api
+
+    @author: juls
 '''
 
 from runner.DAO import SimJob

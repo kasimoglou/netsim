@@ -2,6 +2,7 @@
 Created on Oct 14, 2014
 
 @author: vsam
+@author: juls
 '''
 
 import os.path
